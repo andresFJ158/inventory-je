@@ -1,6 +1,6 @@
-<div class="container-fluid py-3 p-lg-4">
+<div class="container-fluid p-0">
         
-    <div class="row">
+    <div class="row m-0">
       
         <?php 
 

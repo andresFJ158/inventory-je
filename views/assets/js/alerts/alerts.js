@@ -82,7 +82,8 @@ function fncSweetAlert(type, text, url){
 				text: text,
 				customClass: {
 					popup: 'swal-premium',
-					confirmButton: 'swal-btn-confirm'
+					confirmButton: 'swal2-confirm',
+					cancelButton: 'swal2-cancel'
 				}
 
 			})
@@ -96,7 +97,8 @@ function fncSweetAlert(type, text, url){
 				text: text,
 				customClass: {
 					popup: 'swal-premium',
-					confirmButton: 'swal-btn-confirm'
+					confirmButton: 'swal2-confirm',
+					cancelButton: 'swal2-cancel'
 				}
 
 			}).then((result)=>{
@@ -153,12 +155,12 @@ function fncSweetAlert(type, text, url){
 					text: text,
 					icon: "warning",
 					showCancelButton: true,
-					confirmButtonColor: "#6366f1",
-					cancelButtonColor: "#ef4444",
 					confirmButtonText: "¡Si, continuar!",
 					cancelButtonText: 'No',
 					customClass: {
 						popup: 'swal-premium',
+						confirmButton: 'swal2-confirm',
+						cancelButton: 'swal2-cancel'
 					}
 				}).then((result) => {
 
@@ -190,11 +192,18 @@ Alerta Toastr
 
 function fncToastr(type, text){
 
+	var iconHtml = "";
+	if(type == "success") iconHtml = '<i class="bi bi-check-circle-fill me-2 text-success"></i>';
+	if(type == "error") iconHtml = '<i class="bi bi-x-circle-fill me-2 text-danger"></i>';
+	if(type == "warning") iconHtml = '<i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>';
+	if(type == "info") iconHtml = '<i class="bi bi-info-circle-fill me-2 text-info"></i>';
+
 	var Toast = Swal.mixin({
 		toast: true,
 		position: 'top-end',
 		showConfirmButton: false,
-		timer: 4000,
+		showCloseButton: true,
+		timer: 5000,
 		timerProgressBar: true,
 		didOpen: (toast) => {
 		    toast.addEventListener('mouseenter', Swal.stopTimer)
@@ -204,8 +213,10 @@ function fncToastr(type, text){
 	})
 
 	Toast.fire({
-        icon: type,
-        title: text
+        title: '<div class="d-flex align-items-center">' + iconHtml + '<span>' + text + '</span></div>',
+        customClass: {
+        	popup: 'swal-premium'
+        }
     })
 
 }

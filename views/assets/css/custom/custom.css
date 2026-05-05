@@ -19,95 +19,99 @@ LOGIN PAGE - Premium Glassmorphism
   z-index: 1;
 }
 
-/* Fallback dark background for login */
+/* Fallback background for login */
 .backgroundImage:not([style*="background-image"]) {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #312e81 100%) !important;
+  background: linear-gradient(135deg, #1c2b1e 0%, #2e7d32 100%) !important;
 }
 
 /* Login card */
 .backgroundImage .card {
   border: 0 !important;
-  border-radius: 20px !important;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2) !important;
+  border-radius: 32px !important;
+  box-shadow: 0 40px 80px rgba(28, 43, 30, 0.4) !important;
   backdrop-filter: blur(20px);
-  background: rgba(255,255,255,0.97) !important;
-  padding: 12px !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  padding: 24px !important;
 }
 
 .backgroundImage .card h3 {
-  font-weight: 800;
-  font-size: 1.4rem;
-  color: #0f172a;
-  letter-spacing: -0.02em;
+  font-weight: 900;
+  font-size: 1.75rem;
+  color: #1c2b1e;
+  letter-spacing: -0.04em;
 }
 
 .backgroundImage .card hr {
-  opacity: 0.15;
-  margin: 12px 0 20px;
+  opacity: 0.05;
+  margin: 12px 0 24px;
 }
 
 .backgroundImage .card .form-control {
-  border: 1.5px solid rgba(203,213,225,0.9) !important;
-  border-radius: 10px !important;
-  padding: 11px 14px !important;
-  font-size: 0.875rem !important;
-  background: #fafafa !important;
-  color: #1e293b;
+  border: 1.5px solid #ecf3ec !important;
+  border-radius: 14px !important;
+  padding: 14px 18px !important;
+  background: #fcfdfc !important;
+  color: #1c2b1e;
   transition: all 0.2s ease !important;
 }
 
 .backgroundImage .card .form-control:focus {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
+  border-color: #2e7d32 !important;
+  box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.1) !important;
   background: #fff !important;
 }
 
 .backgroundImage .card label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #475569;
-  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1c2b1e;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .backgroundImage .card .input-group-text {
-  border: 1.5px solid rgba(203,213,225,0.9) !important;
+  border: 1.5px solid #ecf3ec !important;
   border-left: 0 !important;
-  background: #fafafa !important;
-  border-radius: 0 10px 10px 0 !important;
-  color: #64748b;
+  background: #fcfdfc !important;
+  border-radius: 0 14px 14px 0 !important;
+  color: #2e7d32;
 }
 
 .backgroundImage .card .form-check-input {
-  border: 1.5px solid #cbd5e1 !important;
-  background: #fff;
+  border: 1.5px solid #ecf3ec !important;
 }
 
 .backgroundImage .card .form-check-label {
-  font-size: 0.82rem;
-  color: #64748b;
-  font-weight: 400;
-  text-transform: none;
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .backgroundImage .card .btn[type="submit"] {
-  padding: 12px 24px !important;
-  font-size: 0.9rem !important;
-  font-weight: 700 !important;
-  border-radius: 10px !important;
-  letter-spacing: 0.02em;
+  padding: 14px 28px !important;
+  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  border-radius: 14px !important;
+  background: linear-gradient(135deg, #2e7d32 0%, #00897b 100%) !important;
+  border: 0 !important;
+  box-shadow: 0 10px 20px rgba(46, 125, 50, 0.3) !important;
   transition: all 0.2s ease !important;
 }
 
 .backgroundImage .card .btn[type="submit"]:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2) !important;
+  box-shadow: 0 15px 30px rgba(46, 125, 50, 0.4) !important;
+}
+
+.backgroundImage .card .btn[type="submit"]:active {
+  transform: scale(0.95);
 }
 
 .backgroundImage .textColor {
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2e7d32 !important;
 }
 
 /* Overlay for login background */
@@ -128,27 +132,27 @@ BORDER RADIUS UTILITIES
 =============================================*/
 
 .rounded, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
-  border-radius: 10px !important;
+  border-radius: 14px !important;
 }
 
 .rounded-start, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
-  border-top-left-radius: 10px !important;
-  border-bottom-left-radius: 10px !important;
+  border-top-left-radius: 14px !important;
+  border-bottom-left-radius: 14px !important;
 }
 
 .rounded-end, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
-  border-top-right-radius: 10px !important;
-  border-bottom-right-radius: 10px !important;
+  border-top-right-radius: 14px !important;
+  border-bottom-right-radius: 14px !important;
 }
 
 .rounded-top, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
-  border-top-left-radius: 10px !important;
-  border-top-right-radius: 10px !important;
+  border-top-left-radius: 14px !important;
+  border-top-right-radius: 14px !important;
 }
 
 .rounded-bottom, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
-  border-bottom-left-radius: 10px !important;
-  border-bottom-right-radius: 10px !important;
+  border-bottom-left-radius: 14px !important;
+  border-bottom-right-radius: 14px !important;
 }
 
 /*=============================================
@@ -242,16 +246,16 @@ ACTION BUTTONS
 =============================================*/
 
 .backColor {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+  background: linear-gradient(135deg, #2e7d32 0%, #00897b 100%) !important;
   color: #fff !important;
   border: 0 !important;
-  box-shadow: 0 4px 12px rgba(99,102,241,0.3) !important;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3) !important;
 }
 
 .backColor:hover {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
-  box-shadow: 0 6px 16px rgba(99,102,241,0.4) !important;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #1b5e20 0%, #00695c 100%) !important;
+  box-shadow: 0 8px 24px rgba(46, 125, 50, 0.4) !important;
+  transform: translateY(-2px);
 }
 
 /*=============================================

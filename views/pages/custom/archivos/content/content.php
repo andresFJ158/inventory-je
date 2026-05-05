@@ -29,9 +29,9 @@ if($files->status == 200){
 CONTENT
 ======================================================-->
 
-<div class="container-fluid p-4 min-vh-100" id="content">
+<div class="container-fluid p-0 min-vh-100" id="content">
 	
-	<div class="container-fluid bg-white border rounded">
+	<div class="container-fluid bg-white border-top border-bottom">
 		
 		<!--=====================================
 		SEARCH & BUTTONS

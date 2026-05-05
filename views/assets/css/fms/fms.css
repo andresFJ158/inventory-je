@@ -1,42 +1,40 @@
 .bg-success-50, .bg-success-50:hover{
-  background:#1abc9c !important;
+  background: var(--primary) !important;
   color:#fff !important;
 }
 
 .bg-info-50, .bg-info-50:hover{
-  background:#5da2f5 !important;
+  background:#00897b !important;
   color:#fff !important;
 }
 
 .bg-warning-50, .bg-warning-50:hover{
-  background:#ffb54d !important;
-  color:#fff !important;
+  background:#aed581 !important;
+  color: var(--dark-green) !important;
 }
 
 .bg-danger-50, .bg-danger-50:hover{
-  background:#f46374 !important;
+  background:#e53935 !important;
   color:#fff !important;
 }
 
 #content{
-  background: #F0F3F5;
-}
-
-.form-check-input{
-  width: 1.5em !important;
-  height: 1.5em !important;
-  margin-top: 0.20em !important;
+  background: var(--body-bg);
 }
 
 .form-check-input:checked {
-    background-color: black !important;
-    border-color: black !important;
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
 }
 
 #dragFiles{
-  line-height:100px;
-  border:2px dashed #eee;
+  line-height: 100px;
+  border: 2px dashed var(--sidebar-border);
+  border-radius: 16px;
+  background: rgba(46, 125, 50, 0.02);
+  color: var(--sidebar-text-muted);
 }
+
 
 .btn:focus{
   outline:0 !important;

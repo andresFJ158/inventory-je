@@ -56,7 +56,7 @@ if($adminTable->status == 404){
 
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
 	<!--=============================================
 	Validamos si admin existe
@@ -94,6 +94,12 @@ if($adminTable->status == 404){
 
 				body{
 					font-family: <?php echo str_replace("+"," ",explode("=",explode(":",explode("?",$admin->font_admin)[1])[0])[1]) ?>, sans-serif !important;	
+				}
+
+			<?php else: ?>
+
+				body{
+					font-family: 'Sora', sans-serif !important;
 				}
 
 			<?php endif ?>
@@ -158,8 +164,18 @@ if($adminTable->status == 404){
 			theme: {
 				extend: {
 					colors: {
-						primary: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3', 900:'#312e81' },
-						secondary: { 50:'#f5f3ff', 100:'#ede9fe', 200:'#ddd6fe', 300:'#c4b5fd', 400:'#a78bfa', 500:'#8b5cf6', 600:'#7c3aed', 700:'#6d28d9', 800:'#5b21b6', 900:'#4c1d95' }
+						fintech: {
+							bg: '#f4f7f4',
+							primary: '#2e7d32',
+							dark: '#1c2b1e',
+							emerald: '#00897b',
+							lime: '#aed581'
+						},
+						primary: { 50:'#e8f5e9', 100:'#c8e6c9', 200:'#a5d6a7', 300:'#81c784', 400:'#66bb6a', 500:'#4caf50', 600:'#43a047', 700:'#388e3c', 800:'#2e7d32', 900:'#1b5e20' }
+					},
+					borderRadius: {
+						'3xl': '32px',
+						'2xl': '16px'
 					}
 				}
 			}
