@@ -16,6 +16,22 @@ class TemplateController{
 	}
 
 	/*=============================================
+	Ruta principal del sistema
+	=============================================*/
+
+	static public function path(){
+
+		$protocol = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] == "on") ? "https" : "http";
+		$host = $_SERVER["HTTP_HOST"];
+		$script = $_SERVER["SCRIPT_NAME"];
+		$dir = str_replace("/index.php", "", $script);
+		
+		return $protocol . "://" . $host . $dir . "/";
+
+	}
+
+
+	/*=============================================
 	Identificar el tipo de columna
 	=============================================*/
 
@@ -122,7 +138,7 @@ class TemplateController{
 		$link = $value->link_file;
 		if (strpos($link, "/views/assets/files/") !== false) {
 			$parts = explode("/views/assets/files/", $link);
-			$link = "/views/assets/files/" . end($parts);
+			$link = TemplateController::path() . "views/assets/files/" . end($parts);
 		}
 
 		/*=============================================
@@ -201,7 +217,7 @@ class TemplateController{
 		$link = $value->link_file;
 		if (strpos($link, "/views/assets/files/") !== false) {
 			$parts = explode("/views/assets/files/", $link);
-			$link = "/views/assets/files/" . end($parts);
+			$link = TemplateController::path() . "views/assets/files/" . end($parts);
 		}
 
 		/*=============================================

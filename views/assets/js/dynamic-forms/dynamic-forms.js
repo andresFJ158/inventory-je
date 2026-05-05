@@ -455,7 +455,7 @@ function loadProductsByOffice(officeSelect, productSelect) {
 
 
 	$.ajax({
-		url: "https://api.desarrolloweb24siete.com/" + url,
+		url: apiUrl + "/" + url,
 		method: "GET",
 		headers: {
 			'Authorization': 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'

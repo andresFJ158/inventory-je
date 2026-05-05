@@ -155,6 +155,9 @@ if($adminTable->status == 404){
 	<!-- Tailwind CSS CDN -->
 	<script src="https://cdn.tailwindcss.com"></script>
 	<script>
+		var baseUrl = "<?php echo TemplateController::path() ?>";
+		var apiUrl = "<?php echo getenv('API_BASE_URL') ?: 'https://api.desarrolloweb24siete.com' ?>";
+		
 		tailwind.config = {
 			prefix: 'tw-',
 			content: [],

@@ -9,7 +9,12 @@ class CurlController{
 	static public function request($url,$method,$fields){
 
 		$curl = curl_init();
-		$apiBaseUrl = getenv("API_BASE_URL") ?: "https://api.desarrolloweb24siete.com";
+		
+		$defaultApiUrl = (isset($_SERVER["SERVER_NAME"]) && ($_SERVER["SERVER_NAME"] == "localhost" || $_SERVER["SERVER_NAME"] == "127.0.0.1")) 
+						 ? "http://api.pos.local" // O el puerto que use su api local
+						 : "https://api.desarrolloweb24siete.com";
+
+		$apiBaseUrl = getenv("API_BASE_URL") ?: $defaultApiUrl;
 		$apiToken = getenv("API_AUTHORIZATION") ?: "gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy";
 
 		curl_setopt_array($curl, array(

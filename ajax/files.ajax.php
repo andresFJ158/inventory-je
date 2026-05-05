@@ -94,7 +94,7 @@ class FilesController{
 							"name_file" => str_replace(".".end($extension), "", $this->file["name"]),
 							"type_file" => $this->file["type"],
 							"size_file" => $this->file["size"],
-							"link_file" =>str_replace("..",$folder->url_folder, $path),
+							"link_file" =>str_replace("..",rtrim(TemplateController::path(),'/'), $path),
 							"date_created_file" => date("Y-m-d")
 						);
 
