@@ -501,8 +501,8 @@ class PosController{
 				$fields = array(
 					"id_order_sale" => $this->idOrder,
 					"id_product_sale" => $this->idProduct,
-					"tax_type_sale" => explode("_",$product->tax_product)[0],
-					"tax_sale" => explode("_",$product->tax_product)[1],
+					"tax_type_sale" => explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[0],
+					"tax_sale" => explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[1] ?? "0",
 					"discount_sale" => $product->discount_product,
 					"qty_sale" => 1,
 					"subtotal_sale" => $product->price_purchase,
@@ -574,7 +574,7 @@ class PosController{
 								</td>
 
 								<td class="text-center">
-									<button type="button" class="btn btn-sm rounded ms-1 mt-2 py-2 px-3 bg-red deleteSale deleteSale_'.$product->id_product.'" idSale="'.$createSale->results->lastId.'" taxSale="'.explode("_",$product->tax_product)[1].'" discountSale="'.$product->discount_product.'">
+									<button type="button" class="btn btn-sm rounded ms-1 mt-2 py-2 px-3 bg-red deleteSale deleteSale_'.$product->id_product.'" idSale="'.$createSale->results->lastId.'" taxSale="'.(explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[1] ?? "0").'" discountSale="'.$product->discount_product.'">
 										<i class="bi bi-trash"></i>
 									</button>
 								</td>
