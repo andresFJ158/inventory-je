@@ -1,57 +1,376 @@
-a:link, a:visited, a:hover, a:active{
+/*=============================================
+Custom Global Styles - Premium Design
+=============================================*/
+
+a:link, a:visited, a:hover, a:active {
   text-decoration: none !important;
 }
 
-.rounded, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge{
-	border-radius:8px !important;
+/*=============================================
+LOGIN PAGE - Premium Glassmorphism
+=============================================*/
+
+.backgroundImage {
+  width: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
+  z-index: 1;
 }
 
-.rounded-start,  .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge{
-	border-top-left-radius: 8px !important;
-    border-bottom-left-radius: 8px !important;
+/* Fallback dark background for login */
+.backgroundImage:not([style*="background-image"]) {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #312e81 100%) !important;
 }
 
-.rounded-end,  .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge{
-	border-top-right-radius: 8px !important;
-    border-bottom-right-radius: 8px !important;
+/* Login card */
+.backgroundImage .card {
+  border: 0 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2) !important;
+  backdrop-filter: blur(20px);
+  background: rgba(255,255,255,0.97) !important;
+  padding: 12px !important;
 }
 
-.rounded-top,  .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge{
-	border-top-left-radius: 8px !important;
-    border-top-right-radius: 8px !important;
+.backgroundImage .card h3 {
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
-.rounded-bottom,  .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge{
-	border-bottom-left-radius: 8px !important;
-    border-bottom-right-radius: 8px !important;
+.backgroundImage .card hr {
+  opacity: 0.15;
+  margin: 12px 0 20px;
 }
 
-.backgroundImage{
-	width: 100%;
-	background-position: center;
-	background-repeat: no-repeat;
-	background-size: cover;
-	position: relative;
-	z-index: 1;
+.backgroundImage .card .form-control {
+  border: 1.5px solid rgba(203,213,225,0.9) !important;
+  border-radius: 10px !important;
+  padding: 11px 14px !important;
+  font-size: 0.875rem !important;
+  background: #fafafa !important;
+  color: #1e293b;
+  transition: all 0.2s ease !important;
 }
 
-.form-check-input{
+.backgroundImage .card .form-control:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
+  background: #fff !important;
+}
+
+.backgroundImage .card label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.backgroundImage .card .input-group-text {
+  border: 1.5px solid rgba(203,213,225,0.9) !important;
+  border-left: 0 !important;
+  background: #fafafa !important;
+  border-radius: 0 10px 10px 0 !important;
+  color: #64748b;
+}
+
+.backgroundImage .card .form-check-input {
+  border: 1.5px solid #cbd5e1 !important;
+  background: #fff;
+}
+
+.backgroundImage .card .form-check-label {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.backgroundImage .card .btn[type="submit"] {
+  padding: 12px 24px !important;
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease !important;
+}
+
+.backgroundImage .card .btn[type="submit"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2) !important;
+}
+
+.backgroundImage .textColor {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* Overlay for login background */
+.backgroundImage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: -1;
+}
+
+.backgroundImage:not([style*="background-image"])::before {
+  display: none;
+}
+
+/*=============================================
+BORDER RADIUS UTILITIES
+=============================================*/
+
+.rounded, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
+  border-radius: 10px !important;
+}
+
+.rounded-start, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
+  border-top-left-radius: 10px !important;
+  border-bottom-left-radius: 10px !important;
+}
+
+.rounded-end, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
+  border-top-right-radius: 10px !important;
+  border-bottom-right-radius: 10px !important;
+}
+
+.rounded-top, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
+  border-top-left-radius: 10px !important;
+  border-top-right-radius: 10px !important;
+}
+
+.rounded-bottom, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
+  border-bottom-left-radius: 10px !important;
+  border-bottom-right-radius: 10px !important;
+}
+
+/*=============================================
+FORM ELEMENTS
+=============================================*/
+
+.form-check-input {
   width: 1.2em !important;
   height: 1.2em !important;
+  border-radius: 4px !important;
+  cursor: pointer;
 }
 
-.form-check-input:active,.form-check-input:focus,.btn{
-  outline:0 !important;
+.form-check-input:active, .form-check-input:focus, .btn {
+  outline: 0 !important;
   box-shadow: none !important;
 }
 
 .list-group-item {
-  border:0px !important;
+  border: 0px !important;
 }
 
-input.showQuantity::-webkit-inner-spin-button, 
-input.showQuantity::-webkit-outer-spin-button{ 
-	-webkit-appearance: none; 
-	margin: 0; 
+/* Tags input */
+.bootstrap-tagsinput {
+  border: 1.5px solid rgba(203,213,225,0.9) !important;
+  border-radius: 10px !important;
+  padding: 6px 10px !important;
+  background: #fafafa !important;
+  box-shadow: none !important;
+}
+
+.bootstrap-tagsinput .tag {
+  border-radius: 6px !important;
+  padding: 3px 8px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+}
+
+/*=============================================
+QUANTITY INPUT
+=============================================*/
+
+input.showQuantity::-webkit-inner-spin-button,
+input.showQuantity::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/*=============================================
+METRIC CARDS
+=============================================*/
+
+/* Metric cards get a modern glassmorphism look */
+.col-lg-3.col-12 .rounded.text-white,
+.col-lg-4.col-12 .rounded.text-white,
+.col-lg-6.col-12 .rounded.text-white,
+.col-lg-12.col-12 .rounded.text-white {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.08) !important;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.col-lg-3.col-12 .rounded.text-white:hover,
+.col-lg-4.col-12 .rounded.text-white:hover,
+.col-lg-6.col-12 .rounded.text-white:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.15), 0 4px 10px rgba(0,0,0,0.1) !important;
+}
+
+/*=============================================
+TABLE SEARCH INPUT
+=============================================*/
+
+#searchItem {
+  border: 1.5px solid rgba(203,213,225,0.9) !important;
+  border-radius: 10px !important;
+  padding: 8px 14px !important;
+  font-size: 0.85rem !important;
+  min-width: 220px;
+  transition: all 0.2s ease !important;
+}
+
+#searchItem:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important;
+}
+
+/*=============================================
+ACTION BUTTONS
+=============================================*/
+
+.backColor {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.3) !important;
+}
+
+.backColor:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+  box-shadow: 0 6px 16px rgba(99,102,241,0.4) !important;
+  transform: translateY(-1px);
+}
+
+/*=============================================
+BREADCRUMB IMPROVEMENTS
+=============================================*/
+
+.breadcrumb {
+  background: transparent !important;
+  font-size: 0.82rem;
+  padding: 0 !important;
+}
+
+.breadcrumb-item a {
+  color: #6366f1 !important;
+  font-weight: 500;
+}
+
+.breadcrumb-item.active {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+  color: #cbd5e1;
+}
+
+/*=============================================
+ALERT IMPROVEMENTS
+=============================================*/
+
+.alert {
+  border-radius: 12px !important;
+  border: 0 !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 14px 18px !important;
+}
+
+/*=============================================
+INPUT GROUP IMPROVEMENTS
+=============================================*/
+
+.input-group .form-control:not(:last-child) {
+  border-right: 0 !important;
+}
+
+.input-group-text {
+  background: #f8fafc !important;
+  border: 1.5px solid rgba(203,213,225,0.9) !important;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/*=============================================
+DROPDOWN IMPROVEMENTS
+=============================================*/
+
+.dropdown-menu {
+  border: 1px solid rgba(226,232,240,0.9) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important;
+  padding: 6px !important;
+}
+
+.dropdown-item {
+  border-radius: 8px !important;
+  font-size: 0.875rem;
+  padding: 8px 12px !important;
+  font-weight: 500;
+  color: #374151;
+  transition: all 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background: rgba(99,102,241,0.08) !important;
+  color: #4f46e5 !important;
+}
+
+/*=============================================
+SORT ICONS
+=============================================*/
+
+.orderFilter {
+  font-size: 1rem;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  transition: color 0.15s ease;
+}
+
+.orderFilter:hover {
+  color: #6366f1;
+}
+
+/*=============================================
+FILE MANAGER AREA
+=============================================*/
+
+#fmsDropArea {
+  border-radius: 14px !important;
+  border: 2px dashed rgba(99,102,241,0.3) !important;
+  background: rgba(99,102,241,0.03) !important;
+  transition: all 0.2s ease;
+}
+
+#fmsDropArea:hover, #fmsDropArea.drag-over {
+  border-color: rgba(99,102,241,0.6) !important;
+  background: rgba(99,102,241,0.06) !important;
+}
+
+/*=============================================
+EMPTY STATE
+=============================================*/
+
+.table tbody tr td[colspan] {
+  padding: 40px !important;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 

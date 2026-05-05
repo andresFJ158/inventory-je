@@ -14,7 +14,16 @@ function fncFormatInputs(){
 /*=============================================
 Alerta SweetAlert
 =============================================*/
+
+var _loadingTimeout = null; // Timeout de seguridad para "loading"
+
 function fncSweetAlert(type, text, url){
+
+	// Cancelar timeout anterior si existe
+	if(_loadingTimeout){
+		clearTimeout(_loadingTimeout);
+		_loadingTimeout = null;
+	}
 
 	switch(type){
 
@@ -27,7 +36,12 @@ function fncSweetAlert(type, text, url){
 				icon: "success",
 				title: "Correcto",
 				text: text,
-				showConfirmButton: false
+				showConfirmButton: false,
+				timer: 3000,
+				timerProgressBar: true,
+				customClass: {
+					popup: 'swal-premium',
+				}
 			})
 
 		}else{
@@ -37,11 +51,16 @@ function fncSweetAlert(type, text, url){
 				icon: "success",
 				title: "Correcto",
 				text: text,
-				showConfirmButton: false
+				showConfirmButton: false,
+				timer: 3000,
+				timerProgressBar: true,
+				customClass: {
+					popup: 'swal-premium',
+				}
 
 			}).then((result)=>{
 
-				if (result.value){ 
+				if (result.value || result.dismiss){ 
 
 					window.open(url, "_top");
 				}
@@ -60,7 +79,11 @@ function fncSweetAlert(type, text, url){
 
 				icon: "error",
 				title: "Error",
-				text: text
+				text: text,
+				customClass: {
+					popup: 'swal-premium',
+					confirmButton: 'swal-btn-confirm'
+				}
 
 			})
 
@@ -70,7 +93,11 @@ function fncSweetAlert(type, text, url){
 
 				icon: "error",
 				title: "Error",
-				text: text
+				text: text,
+				customClass: {
+					popup: 'swal-premium',
+					confirmButton: 'swal-btn-confirm'
+				}
 
 			}).then((result)=>{
 
@@ -89,10 +116,32 @@ function fncSweetAlert(type, text, url){
 
 			Swal.fire({
             	allowOutsideClick: false,
+            	allowEscapeKey: false,
             	icon: 'info',
-            	text:text
-          	})
-          	Swal.showLoading()
+            	text: text,
+            	showConfirmButton: false,
+            	customClass: {
+            		popup: 'swal-premium',
+            	}
+          	});
+          	Swal.showLoading();
+
+          	// Timeout de seguridad: si el modal sigue abierto después de 20s, lo cierra con error
+          	_loadingTimeout = setTimeout(function(){
+          		if(Swal.isVisible() && Swal.isLoading()){
+          			fncMatPreloader("off");
+          			Swal.fire({
+          				icon: 'error',
+          				title: 'Tiempo de espera agotado',
+          				text: 'La operación tardó demasiado. Verifica tu conexión e intenta de nuevo.',
+          				confirmButtonText: 'Aceptar',
+          				customClass: {
+          					popup: 'swal-premium',
+          					confirmButton: 'swal-btn-confirm'
+          				}
+          			});
+          		}
+          	}, 20000);
 
 		break;
 
@@ -104,10 +153,13 @@ function fncSweetAlert(type, text, url){
 					text: text,
 					icon: "warning",
 					showCancelButton: true,
-					confirmButtonColor: "#3085d6",
-					cancelButtonColor: "#d33",
+					confirmButtonColor: "#6366f1",
+					cancelButtonColor: "#ef4444",
 					confirmButtonText: "¡Si, continuar!",
-					cancelButtonText: 'No'
+					cancelButtonText: 'No',
+					customClass: {
+						popup: 'swal-premium',
+					}
 				}).then((result) => {
 
 					resolve(result.value);
@@ -120,6 +172,10 @@ function fncSweetAlert(type, text, url){
 
 		case "close":
 
+			if(_loadingTimeout){
+				clearTimeout(_loadingTimeout);
+				_loadingTimeout = null;
+			}
 			Swal.close();
 
 		break;

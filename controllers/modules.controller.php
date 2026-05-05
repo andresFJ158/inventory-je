@@ -223,6 +223,36 @@ class ModulesController{
 
 							';
 
+						}else if(count($indexColumns) == 0 && count($deleteColumns) == 0){
+
+							// No hay columnas que procesar, éxito inmediato
+							echo'
+
+							<script>
+
+								fncMatPreloader("off");
+								fncFormatInputs();
+							    fncSweetAlert("success","El módulo ha sido actualizado con éxito",setTimeout(()=>location.reload(),1250));	
+
+							</script>
+
+							';
+
+						}else{
+
+							// Proceso parcialmente completado
+							echo'
+
+							<script>
+
+								fncMatPreloader("off");
+								fncFormatInputs();
+							    fncSweetAlert("success","Módulo actualizado. Algunos cambios pueden requerir revisión.",setTimeout(()=>location.reload(),1500));	
+
+							</script>
+
+							';
+
 						}
 
 

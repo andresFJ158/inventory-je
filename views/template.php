@@ -56,6 +56,7 @@ if($adminTable->status == 404){
 
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
 	<!--=============================================
 	Validamos si admin existe
@@ -144,6 +145,26 @@ if($adminTable->status == 404){
 	<!--=============================================
 	PLUGINS CSS
 	===============================================-->
+
+	<!-- Tailwind CSS CDN -->
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>
+		tailwind.config = {
+			prefix: 'tw-',
+			content: [],
+			corePlugins: {
+				preflight: false,
+			},
+			theme: {
+				extend: {
+					colors: {
+						primary: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3', 900:'#312e81' },
+						secondary: { 50:'#f5f3ff', 100:'#ede9fe', 200:'#ddd6fe', 300:'#c4b5fd', 400:'#a78bfa', 500:'#8b5cf6', 600:'#7c3aed', 700:'#6d28d9', 800:'#5b21b6', 900:'#4c1d95' }
+					}
+				}
+			}
+		}
+	</script>
 
 	<!-- https://www.w3schools.com/bootstrap5/ -->
 	<link rel="stylesheet" href="/views/assets/plugins/bootstrap5/bootstrap.min.css" >
@@ -453,6 +474,25 @@ if($adminTable->status == 404){
 	<script src="/views/assets/js/fms/fms.js"></script>
 	<script src="/views/assets/js/purchase/purchase.js"></script>
 	<script src="/views/assets/js/stock/stock.js"></script>
+
+	<!--=============================================
+	ACTIVE SIDEBAR PAGE HIGHLIGHT
+	===============================================-->
+	<script>
+	(function(){
+		var path = window.location.pathname.split('/')[1] || '';
+		var items = document.querySelectorAll('#sidebar-wrapper .list-group-item');
+		items.forEach(function(item){
+			var link = item.querySelector('a');
+			if(link){
+				var href = link.getAttribute('href') || '';
+				if(href === '/' + path && path !== ''){
+					item.classList.add('active-page');
+				}
+			}
+		});
+	})();
+	</script>
 		
 	<?php endif ?>
 
