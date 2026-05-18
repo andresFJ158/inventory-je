@@ -7,7 +7,7 @@ services:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: u228744577_pos
     ports:
-      - "3306:3306"
+      - "3310:3306"
     volumes:
       - db_data:/var/lib/mysql
       - ./api.pos/u228744577_pos.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -24,7 +24,7 @@ services:
     container_name: pos-api
     restart: unless-stopped
     environment:
-      DB_HOST: db
+      DB_HOST: db                                                         
       DB_PORT: 3306
       DB_NAME: u228744577_pos
       DB_USER: root

@@ -333,7 +333,7 @@ Cargamos el módulo tabla
 
 					        	<?php foreach ($columns as $index => $item): ?>
 
-					        		<?php if ($item->visible_column == 1): $totalColumns++ ?>
+					        		<?php if ($item->visible_column == 1 && !($module->title_module == "cashs" && $item->title_column == "status_cash")): $totalColumns++ ?>
 					        			
 					        			<th class="text-capitalize position-relative">
 					        				<?php echo $item->alias_column ?>
@@ -399,7 +399,7 @@ Cargamos el módulo tabla
 
 	        					<?php foreach ($columns as $index => $item): ?>
 
-	        						<?php if ($item->visible_column == 1): ?>
+	        						<?php if ($item->visible_column == 1 && !($module->title_module == "cashs" && $item->title_column == "status_cash")): ?>
 	        								
 		        						<td>
 
@@ -442,7 +442,6 @@ Cargamos el módulo tabla
 
 										}else if($item->type_column == "boolean"){
 
-
 											if($value[$item->title_column] == 1){	
 
 												$checked = 'checked';
@@ -466,10 +465,7 @@ Cargamos el módulo tabla
 												echo '<label class="form-check-label ps-1 align-middle" for="mySwitch">'.$label.'</label>';
 											}
 
-										/*=============================================
-										Contenido tipo Array
-										=============================================*/
-									    }else if($item->type_column == "array"){
+										}else if($item->type_column == "array"){
 
 									    	$typeArray = explode(",",urldecode($value[$item->title_column]));
 
@@ -602,6 +598,10 @@ Cargamos el módulo tabla
 	        				<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
 
 	        					<td class="text-center">
+		        					<?php if ($module->title_module == "cashs" && (int)$value["status_cash"] === 1): ?>
+		        						<?php $expectedCash = isset($value["diff_cash"]) ? number_format((float)$value["diff_cash"], 2, '.', '') : "0.00"; ?>
+		        						<button type="button" class="btn btn-sm btn-dark rounded closeCash me-1" idItem="<?php echo base64_encode($value["id_".$module->suffix_module]) ?>" table="<?php echo $module->title_module ?>" suffix="<?php echo $module->suffix_module ?>" column="status_cash" diffCash="<?php echo htmlspecialchars($expectedCash, ENT_QUOTES, 'UTF-8') ?>">Cerrar</button>
+		        					<?php endif ?>
 		        					<a href="/<?php echo $module->url_page ?>/manage/<?php echo base64_encode($value["id_".$module->suffix_module]) ?>/copy" class="btn btn-sm text-dark rounded m-0 p-0 border-0">
 		        						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-copy" viewBox="0 0 16 16">
 										  <path fill-rule="evenodd" d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/>

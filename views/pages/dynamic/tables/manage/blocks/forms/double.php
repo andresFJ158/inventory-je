@@ -3,8 +3,14 @@
 <?php
 
 $readonly = "";
+$extraInputClass = "";
 
-if(!empty($data) && $routesArray[0] == "caja"){
+$isCajaCashForm = (isset($routesArray[0]) && $routesArray[0] == "caja" && $module->title_module == "cashs");
+
+if(!empty($data) && $isCajaCashForm){
+
+	list($cashSessionStart, $cashSessionEnd) = TemplateController::cashSessionTimeBounds($data);
+	$cashSessionOffice = isset($data["id_office_cash"]) ? (int) $data["id_office_cash"] : (int) $_SESSION["admin"]->id_office_admin;
 
 	/*=============================================
 	Dinero Inicial
@@ -16,21 +22,14 @@ if(!empty($data) && $routesArray[0] == "caja"){
 	}
 
 	/*=============================================
-	Gastos
+	Gastos (solo sesión de caja: desde apertura hasta cierre o ahora)
 	=============================================*/
 
 	if($module->columns[$i]->title_column == "bills_cash"){
 
-		// Inicializar el total de gastos en 0 para calcular desde cero
 		$totalBills = 0;
 
-		// Obtener la fecha de creación de la caja (no la fecha actual)
-		// Esto asegura que solo se muestren los gastos de la caja específica
-		$cashDate = isset($data["date_created_cash"]) ? $data["date_created_cash"] : date("Y-m-d");
-		$cashOffice = isset($data["id_office_cash"]) ? $data["id_office_cash"] : $_SESSION["admin"]->id_office_admin;
-
-		// Buscar gastos solo de la fecha de la caja y la sucursal de la caja
-		$url = "bills?linkTo=date_created_bill,id_office_bill&equalTo=".$cashDate.",".$cashOffice;
+		$url = TemplateController::billsSessionApiUrl($cashSessionOffice, $cashSessionStart, $cashSessionEnd);
 		$method = "GET";
 		$fields = array();
 
@@ -45,25 +44,20 @@ if(!empty($data) && $routesArray[0] == "caja"){
 
 		}
 
-		// Asignar el total de gastos como valor positivo (no negativo)
 		$data[$module->columns[$i]->title_column] = $totalBills;
 
-		$readonly = "readonly";
+		$readonly = "readonly tabindex=\"-1\"";
+		$extraInputClass = " bg-light";
 
 	}
 
 	/*=============================================
-	Ingresos en Efectivo
+	Ingresos por ventas (misma ventana temporal; órdenes completadas en la sesión)
 	=============================================*/
 
 	if($module->columns[$i]->title_column == "money_cash"){
 
-		// Obtener la fecha de creación de la caja (no la fecha actual)
-		// Esto asegura que solo se muestren las órdenes de la caja específica
-		$cashDate = isset($data["date_created_cash"]) ? $data["date_created_cash"] : date("Y-m-d");
-		$cashOffice = isset($data["id_office_cash"]) ? $data["id_office_cash"] : $_SESSION["admin"]->id_office_admin;
-
-		$url = "orders?linkTo=date_created_order,id_office_order,method_order,status_order&equalTo=".$cashDate.",".$cashOffice.",efectivo,Completada";
+		$url = TemplateController::ordersSessionApiUrl($cashSessionOffice, $cashSessionStart, $cashSessionEnd);
 		$method = "GET";
 		$fields = array();
 	
@@ -71,19 +65,20 @@ if(!empty($data) && $routesArray[0] == "caja"){
 
 		if($orders->status == 200){
 
-			// Inicializar en 0 si no existe valor previo
-			if(!isset($data[$module->columns[$i]->title_column]) || empty($data[$module->columns[$i]->title_column])){
-				$data[$module->columns[$i]->title_column] = 0;
-			}
+			$data[$module->columns[$i]->title_column] = 0;
 
 			foreach ($orders->results as $key => $value) {
-				
-				$data[$module->columns[$i]->title_column] += $value->total_order;
+
+				$s = isset($value->status_order) ? (string) $value->status_order : "";
+				if($s === "Completada"){
+					$data[$module->columns[$i]->title_column] += (float) $value->total_order;
+				}
 			}
 
 		}
 
-		$readonly = "readonly";
+		$readonly = "readonly tabindex=\"-1\"";
+		$extraInputClass = " bg-light";
 
 	}
 
@@ -93,18 +88,10 @@ if(!empty($data) && $routesArray[0] == "caja"){
 
 	if($module->columns[$i]->title_column == "diff_cash"){
 
-		// Obtener la fecha de creación de la caja (no la fecha actual)
-		// Esto asegura que solo se calculen los valores de la caja específica
-		$cashDate = isset($data["date_created_cash"]) ? $data["date_created_cash"] : date("Y-m-d");
-		$cashOffice = isset($data["id_office_cash"]) ? $data["id_office_cash"] : $_SESSION["admin"]->id_office_admin;
-
 		$totalBills = 0;
 
-		$url = "bills?linkTo=date_created_bill,id_office_bill&equalTo=".$cashDate.",".$cashOffice;
-		$method = "GET";
-		$fields = array();
-
-		$bills = CurlController::request($url,$method,$fields);
+		$urlB = TemplateController::billsSessionApiUrl($cashSessionOffice, $cashSessionStart, $cashSessionEnd);
+		$bills = CurlController::request($urlB,"GET",array());
 
 		if($bills->status == 200){
 
@@ -117,26 +104,26 @@ if(!empty($data) && $routesArray[0] == "caja"){
 
 		$totalOrders  = 0;
 
-		$url = "orders?linkTo=date_created_order,id_office_order,method_order,status_order&equalTo=".$cashDate.",".$cashOffice.",efectivo,Completada";
-		$method = "GET";
-		$fields = array();
-
-		$orders = CurlController::request($url,$method,$fields);
+		$urlO = TemplateController::ordersSessionApiUrl($cashSessionOffice, $cashSessionStart, $cashSessionEnd);
+		$orders = CurlController::request($urlO,"GET",array());
 
 		if($orders->status == 200){
 
 			foreach ($orders->results as $key => $value) {
-				
-				$totalOrders += $value->total_order;
+
+				$s = isset($value->status_order) ? (string) $value->status_order : "";
+				if($s === "Completada"){
+					$totalOrders += (float) $value->total_order;
+				}
 			}
 
 		}
 
-		// Calcular diferencia: dinero inicial + ingresos - gastos
 		$startCash = isset($data["start_cash"]) ? $data["start_cash"] : 0;
 		$data[$module->columns[$i]->title_column] = $startCash + $totalOrders - $totalBills;
 
-		$readonly = "readonly";
+		$readonly = "readonly tabindex=\"-1\"";
+		$extraInputClass = " bg-light";
 
 	}
 
@@ -146,8 +133,18 @@ if(!empty($data) && $routesArray[0] == "caja"){
 
 	if($module->columns[$i]->title_column == "gap_cash"){
 
-		$readonly = "readonly";
+			$readonly = "disabled";
 	}
+
+}
+
+/*=============================================
+Nueva caja: gastos / ingresos / diferencia no editables (el servidor calcula al guardar)
+=============================================*/
+if(empty($data) && $isCajaCashForm && in_array($module->columns[$i]->title_column, array("bills_cash", "money_cash", "diff_cash"), true)){
+
+	$readonly = "readonly tabindex=\"-1\"";
+	$extraInputClass = " bg-light";
 
 }
 
@@ -156,7 +153,7 @@ if(!empty($data) && $routesArray[0] == "caja"){
  	<input 
 	type="number" 
 	step="any"
-	class="form-control rounded"
+	class="form-control rounded<?php echo $extraInputClass ?>"
 	id="<?php echo $module->columns[$i]->title_column ?>"
 	name="<?php echo $module->columns[$i]->title_column ?>"
 	inputmode="decimal"

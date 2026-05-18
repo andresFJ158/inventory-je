@@ -16,13 +16,18 @@ class CurlController{
 
 		$apiBaseUrl = getenv("API_BASE_URL") ?: $defaultApiUrl;
 		$apiToken = getenv("API_AUTHORIZATION") ?: "gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy";
+		$apiTimeout = (int) (getenv("CURL_API_TIMEOUT") ?: 50);
+		if ($apiTimeout < 5) {
+			$apiTimeout = 5;
+		}
 
 		curl_setopt_array($curl, array(
 			CURLOPT_URL => rtrim($apiBaseUrl, '/').'/'.$url,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_ENCODING => '',
 			CURLOPT_MAXREDIRS => 10,
-			CURLOPT_TIMEOUT => 0,
+			CURLOPT_CONNECTTIMEOUT => 15,
+			CURLOPT_TIMEOUT => $apiTimeout,
 			CURLOPT_FOLLOWLOCATION => true,
 			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
 			CURLOPT_CUSTOMREQUEST => $method,

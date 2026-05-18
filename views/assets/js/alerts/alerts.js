@@ -128,7 +128,7 @@ function fncSweetAlert(type, text, url){
           	});
           	Swal.showLoading();
 
-          	// Timeout de seguridad: si el modal sigue abierto después de 20s, lo cierra con error
+          	// Timeout de seguridad: si el modal sigue abierto después de 60s, lo cierra con error
           	_loadingTimeout = setTimeout(function(){
           		if(Swal.isVisible() && Swal.isLoading()){
           			fncMatPreloader("off");
@@ -143,7 +143,7 @@ function fncSweetAlert(type, text, url){
           				}
           			});
           		}
-          	}, 20000);
+          	}, 60000);
 
 		break;
 

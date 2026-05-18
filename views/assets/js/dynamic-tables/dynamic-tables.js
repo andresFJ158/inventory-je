@@ -691,6 +691,96 @@ $(document).on("click", ".changeBoolean", function () {
 })
 
 /*=============================================
+Cerrar caja
+=============================================*/
+
+$(document).on("click", ".closeCash", function () {
+
+	var idItem = $(this).attr("idItem");
+	var table = $(this).attr("table");
+	var suffix = $(this).attr("suffix");
+	var column = $(this).attr("column");
+	var diffCash = $(this).attr("diffCash");
+
+	Swal.fire({
+		title: "Cerrar caja",
+		text: "Ingresa el dinero final contado para cerrar la caja",
+		input: "number",
+		inputValue: diffCash,
+		inputAttributes: {
+			step: "any",
+			min: 0
+		},
+		showCancelButton: true,
+		confirmButtonText: "Cerrar",
+		cancelButtonText: "Cancelar",
+		customClass: {
+			popup: 'swal-premium',
+			confirmButton: 'swal2-confirm',
+			cancelButton: 'swal2-cancel'
+		},
+		preConfirm: (value) => {
+			if (value === null || value === "" || isNaN(Number(value))) {
+				Swal.showValidationMessage("Ingresa un monto válido");
+				return false;
+			}
+			return value;
+		}
+	}).then((result) => {
+
+		if(!result.isConfirmed){
+			return;
+		}
+
+		var endCash = result.value;
+
+		fncMatPreloader("on");
+		fncSweetAlert("loading", "Cerrando caja...", "");
+
+		var data = new FormData();
+		data.append("endCashChange", endCash);
+		data.append("diffCashChange", diffCash);
+		data.append("idItemCashClose", idItem);
+		data.append("tableCashClose", table);
+		data.append("suffixCashClose", suffix);
+		data.append("columnCashClose", column);
+		data.append("token", localStorage.getItem("tokenAdmin"));
+
+		$.ajax({
+
+			url: "/ajax/dynamic-tables.ajax.php",
+			method: "POST",
+			data: data,
+			contentType: false,
+			cache: false,
+			processData: false,
+			success: function (response) {
+
+				fncMatPreloader("off");
+				fncSweetAlert("close", "", "");
+
+				if (response == 200) {
+					fncToastr("success", "La caja ha sido cerrada con éxito");
+					setTimeout(() => location.reload(), 1250);
+				} else {
+					fncSweetAlert("error", "No se pudo cerrar la caja", "");
+				}
+
+			},
+			error: function () {
+
+				fncMatPreloader("off");
+				fncSweetAlert("close", "", "");
+				fncSweetAlert("error", "Error al procesar el cierre de caja", "");
+			}
+
+		})
+
+	})
+
+})
+
+/*=============================================
 Cambiar estado boleano masivo
 =============================================*/
 

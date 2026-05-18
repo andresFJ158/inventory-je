@@ -240,4 +240,5 @@ if($order->status == 200){
     
 <?php endif ?>
 
-<script src="/views/assets/js/pos/pos.js"></script>
+<?php $posJsFile = __DIR__ . "/../../assets/js/pos/pos.js"; ?>
+<script src="/views/assets/js/pos/pos.js?v=<?php echo is_file($posJsFile) ? filemtime($posJsFile) : "1"; ?>"></script>

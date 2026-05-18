@@ -38,6 +38,16 @@ class DynamicController{
 
 					$fieldValue = $_POST[$value->title_column] ?? "";
 					$normalizedValue = trim((string)$fieldValue);
+					$skipEmptyDateField = $normalizedValue === "" && in_array($value->type_column, ["date", "datetime", "timestamp"]);
+
+					// Evitar que campos calculados de caja se reciban desde el formulario
+					$forbiddenCashFields = array("bills_cash","money_cash","diff_cash","status_cash","date_end_cash");
+					if($module->title_module == "cashs" && in_array($value->title_column, $forbiddenCashFields)){
+						$count++;
+						continue;
+					}
+
+
 
 					if($normalizedValue === ""){
 						if($value->title_column == "id_admin_".$module->suffix_module && isset($_SESSION["admin"]->id_admin)){
@@ -49,13 +59,18 @@ class DynamicController{
 						}
 					}
 
-					if($value->type_column == "password" && $normalizedValue !== ""){
+					if($skipEmptyDateField){
+					}else if($value->type_column == "password" && $normalizedValue !== ""){
 
 						$fields.= $value->title_column."=".crypt($normalizedValue,'$2a$07$azybxcags23425sdg23sdfhsd$')."&";
 
 					}else if($value->type_column == "email"){
 
 						$fields.= $value->title_column."=".$normalizedValue."&";
+
+					}else if(in_array($value->type_column, ["date", "datetime", "timestamp"], true)){
+
+						$fields.= $value->title_column."=".rawurlencode($normalizedValue)."&";
 
 					}else{
 					
@@ -91,6 +106,12 @@ class DynamicController{
 							
 						}else{
 
+							$errorData = json_encode([
+								'status' => isset($update->status) ? $update->status : 'unknown',
+								'comment' => isset($update->comment) ? $update->comment : '',
+								'results' => isset($update->results) ? $update->results : null
+							], JSON_UNESCAPED_UNICODE);
+
 							echo '
 
 								<script>
@@ -98,7 +119,8 @@ class DynamicController{
 									fncMatPreloader("off");
 									fncFormatInputs();
 									fncSweetAlert("error","Error al actualizar el registro", "");
-									console.error("Error en la petición API:", '.json_encode($update).');
+									var apiError = ' . $errorData . ';
+									console.error("Error en la petición API:", apiError);
 
 								</script>
 
@@ -149,27 +171,43 @@ class DynamicController{
 				if($isBill && $billOffice > 0){
 					
 					// Verificar que exista una caja abierta para hoy
-					$urlCash = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".date("Y-m-d").",1,".$billOffice."&select=status_cash";
-					$methodCash = "GET";
-					$fieldsCash = array();
+				$urlCash = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".date("Y-m-d").",1,".$billOffice."&select=*";
+				$methodCash = "GET";
+				$fieldsCash = array();
 
-					$cash = CurlController::request($urlCash,$methodCash,$fieldsCash);
+				$cash = CurlController::request($urlCash,$methodCash,$fieldsCash);
+				
+				if(!isset($cash) || !isset($cash->status)){
 					
-					if(isset($cash->status) && $cash->status == 404){
-						
-						echo '
+					echo '
 
-							<script>
+						<script>
 
-								fncMatPreloader("off");
-								fncFormatInputs();
-								fncSweetAlert("error","No hay caja abierta el día de hoy. Debe abrir una caja antes de registrar gastos", "");
+							fncMatPreloader("off");
+							fncFormatInputs();
+							fncSweetAlert("error","No se pudo conectar al servidor. Intenta de nuevo.", "");
 
-							</script>
+						</script>
 
-						';
-						
-						return;
+					';
+					
+					return;
+
+				}else if(isset($cash->status) && $cash->status == 404){
+					
+					echo '
+
+						<script>
+
+							fncMatPreloader("off");
+							fncFormatInputs();
+							fncSweetAlert("error","No hay caja abierta el día de hoy. Debe abrir una caja antes de registrar gastos", "");
+
+						</script>
+
+					';
+					
+					return;
 					
 					}else{
 
@@ -186,7 +224,6 @@ class DynamicController{
 						$cashYesterday = CurlController::request($urlCashYesterday,$methodCashYesterday,$fieldsCashYesterday);
 
 						if(isset($cashYesterday->status) && $cashYesterday->status == 200){
-
 							echo '
 
 								<script>
@@ -205,6 +242,47 @@ class DynamicController{
 
 					}
 
+				}
+
+				/*=============================================
+				No permitir nueva caja si ya hay una abierta en la misma sucursal
+				=============================================*/
+
+				if($module->title_module == "cashs"){
+
+					$newCashOffice = 0;
+					foreach ($module->columns as $key => $value) {
+						if($value->title_column == $officeField && isset($_POST[$officeField])){
+							$newCashOffice = (int) trim((string) $_POST[$officeField]);
+							break;
+						}
+					}
+					if($newCashOffice <= 0 && isset($_SESSION["admin"]->id_office_admin)){
+						$newCashOffice = (int) $_SESSION["admin"]->id_office_admin;
+					}
+
+					if($newCashOffice > 0){
+						$urlOpenCash = "cashs?linkTo=id_office_cash,status_cash&equalTo=".$newCashOffice.",1&select=id_cash";
+						$openCashRows = CurlController::request($urlOpenCash, "GET", array());
+
+						if(isset($openCashRows->status) && $openCashRows->status == 200 && !empty($openCashRows->results)){
+
+							echo '
+
+								<script>
+
+									fncMatPreloader("off");
+									fncFormatInputs();
+									fncSweetAlert("error","Ya existe una caja abierta en esta sucursal. Debe cerrarla antes de crear una nueva.", "");
+
+								</script>
+
+							';
+
+							return;
+
+						}
+					}
 				}
 
 				/*=============================================
@@ -247,6 +325,7 @@ class DynamicController{
 
 					$fieldValue = $_POST[$value->title_column] ?? "";
 					$normalizedValue = trim((string)$fieldValue);
+					$skipEmptyDateField = $normalizedValue === "" && in_array($value->type_column, ["date", "datetime", "timestamp"]);
 
 					if($normalizedValue === ""){
 						if($value->title_column == "id_admin_".$module->suffix_module && isset($_SESSION["admin"]->id_admin)){
@@ -258,11 +337,15 @@ class DynamicController{
 						}
 					}
 
-					if($value->type_column == "password"){
+					if($skipEmptyDateField){
+					}else if($value->type_column == "password"){
 
 						$fields[$value->title_column] = crypt($normalizedValue,'$2a$07$azybxcags23425sdg23sdfhsd$');
 					
 					}else if($value->type_column == "email"){
+
+						$fields[$value->title_column] = $normalizedValue;
+					}else if(in_array($value->type_column, ["date", "datetime", "timestamp"], true)){
 
 						$fields[$value->title_column] = $normalizedValue;
 					}else{
@@ -276,6 +359,17 @@ class DynamicController{
 					if($count == count($module->columns)){
 
 						$fields["date_created_".$module->suffix_module] = date("Y-m-d");
+						// Solo tablas con columna date_start_* (p. ej. cashs); bills y el resto no la tienen y la API rechaza campos inexistentes
+						if($module->title_module == "cashs"){
+							$fields["date_start_".$module->suffix_module] = date("Y-m-d H:i:s");
+						}
+						// Asegurar que los campos calculados de caja se inicialicen o se calculen en servidor
+						if($module->title_module == "cashs"){
+							$fields["bills_cash"] = 0;
+							$fields["money_cash"] = 0;
+							$fields["diff_cash"] = 0;
+							$fields["status_cash"] = 1;
+						}
 
 						/*=============================================
 						Crear producto en múltiples sucursales si está configurado
@@ -352,6 +446,13 @@ class DynamicController{
 
 							if(isset($save->status) && $save->status == 200){
 
+								if($isBill){
+									$officeSync = (int)$billOffice;
+									if($officeSync > 0 && isset($_SESSION["admin"]->token_admin)){
+										self::syncOpenCashTotalsForOffice($_SESSION["admin"]->token_admin, $officeSync);
+									}
+								}
+
 								$urlEscaped = json_encode("/".$module->url_page, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 								
 								echo '
@@ -370,6 +471,12 @@ class DynamicController{
 								
 							}else{
 
+								$errorData = json_encode([
+									'status' => isset($save->status) ? $save->status : 'unknown',
+									'comment' => isset($save->comment) ? $save->comment : '',
+									'results' => isset($save->results) ? $save->results : null
+								], JSON_UNESCAPED_UNICODE);
+
 								echo '
 
 									<script>
@@ -377,14 +484,13 @@ class DynamicController{
 										fncMatPreloader("off");
 										fncFormatInputs();
 										fncSweetAlert("error","Error al guardar el registro", "");
-										console.error("Error en la petición API:", '.json_encode($save).');
+										var apiError = ' . $errorData . ';
+										console.error("Error en la petición API:", apiError);
 
 									</script>
 
-								';
+									';
 
-							}
-							
 						}
 					}
 				
@@ -394,6 +500,90 @@ class DynamicController{
 
 		}
 
+	}
+
+	}
+
+	/*=============================================
+	Tras crear un gasto o completar una venta POS: actualizar totales en la caja abierta
+	(bills_cash, money_cash, diff_cash) con gastos y ventas completadas en la ventana de esa sesión (misma sucursal).
+	=============================================*/
+	public static function syncOpenCashTotalsForOffice($token, $officeId){
+
+		$today = date("Y-m-d");
+		$urlCashToday = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".$today.",1,".$officeId."&select=id_cash,start_cash,date_created_cash,id_office_cash,date_start_cash,date_end_cash,status_cash";
+		$cashResp = CurlController::request($urlCashToday, "GET", array());
+
+		$row = null;
+		if(isset($cashResp->status) && $cashResp->status == 200 && !empty($cashResp->results)){
+			$row = $cashResp->results[0];
+		}
+
+		if($row === null){
+			$urlCashOpen = "cashs?linkTo=id_office_cash,status_cash&equalTo=".$officeId.",1&select=id_cash,start_cash,date_created_cash,id_office_cash,date_start_cash,date_end_cash,status_cash";
+			$cashResp = CurlController::request($urlCashOpen, "GET", array());
+			if(!isset($cashResp->status) || $cashResp->status != 200 || empty($cashResp->results)){
+				return;
+			}
+			foreach($cashResp->results as $r){
+				$dc = isset($r->date_created_cash) ? substr(trim((string) $r->date_created_cash), 0, 10) : "";
+				if($dc === $today){
+					$row = $r;
+					break;
+				}
+			}
+			if($row === null){
+				foreach($cashResp->results as $r){
+					if($row === null || (int) $r->id_cash > (int) $row->id_cash){
+						$row = $r;
+					}
+				}
+			}
+		}
+
+		if($row === null){
+			return;
+		}
+		$idCash = isset($row->id_cash) ? (int)$row->id_cash : 0;
+		if($idCash <= 0){
+			return;
+		}
+
+		$startCash = isset($row->start_cash) ? (float)$row->start_cash : 0.0;
+		$cashOffice = isset($row->id_office_cash) ? (int)$row->id_office_cash : (int)$officeId;
+
+		$cashRow = json_decode(json_encode($row), true);
+		list($tStart, $tEnd) = TemplateController::cashSessionTimeBounds($cashRow);
+
+		$totalBills = 0.0;
+		$urlBills = TemplateController::billsSessionApiUrl($cashOffice, $tStart, $tEnd);
+		$bills = CurlController::request($urlBills, "GET", array());
+		if(isset($bills->status) && $bills->status == 200 && !empty($bills->results)){
+			foreach($bills->results as $b){
+				$totalBills += isset($b->cost_bill) ? (float)$b->cost_bill : 0.0;
+			}
+		}
+
+		$totalOrders = 0.0;
+		$urlOrders = TemplateController::ordersSessionApiUrl($cashOffice, $tStart, $tEnd);
+		$orders = CurlController::request($urlOrders, "GET", array());
+		if(isset($orders->status) && $orders->status == 200 && !empty($orders->results)){
+			foreach($orders->results as $o){
+				$s = isset($o->status_order) ? (string) $o->status_order : "";
+				if($s === "Completada"){
+					$totalOrders += isset($o->total_order) ? (float)$o->total_order : 0.0;
+				}
+			}
+		}
+
+		$diffCash = $startCash + $totalOrders - $totalBills;
+
+		$putUrl = "cashs?id=".$idCash."&nameId=id_cash&token=".$token."&table=admins&suffix=admin";
+		$putFields = "bills_cash=".rawurlencode(number_format($totalBills, 2, ".", ""))
+			."&money_cash=".rawurlencode(number_format($totalOrders, 2, ".", ""))
+			."&diff_cash=".rawurlencode(number_format($diffCash, 2, ".", ""));
+
+		CurlController::request($putUrl, "PUT", $putFields);
 	}
 
 }

@@ -2,8 +2,30 @@
 
 <?php
 $colName = $module->columns[$i]->title_column;
-$current = (!empty($data) && isset($data->{$colName})) ? (int)$data->{$colName} : null;
+$current = null;
+if (!empty($data)) {
+	$arr = is_array($data) ? $data : (array) $data;
+	if (isset($arr[$colName])) {
+		$current = (int) $arr[$colName];
+	}
+}
+$isCajaCashStatus = ($module->title_module == "cashs"
+	&& isset($routesArray[0])
+	&& $routesArray[0] == "caja"
+	&& $colName == "status_cash");
 ?>
+
+<?php if ($isCajaCashStatus): ?>
+
+	<p class="form-control-plaintext mb-0 py-2 border rounded px-3 bg-light small">
+		<?php if ($current === null || $current === 1): ?>
+			<span class="badge bg-secondary">Abierta</span>
+		<?php else: ?>
+			<span class="badge bg-success">Cerrada</span>
+		<?php endif ?>
+	</p>
+
+<?php else: ?>
 
 <select 
 	class="form-select rounded"
@@ -15,5 +37,7 @@ $current = (!empty($data) && isset($data->{$colName})) ? (int)$data->{$colName} 
 	<option value="0" <?php echo ($current === 0) ? 'selected' : ''; ?>>False</option>
 
 </select>
+
+<?php endif ?>
 
 <?php endif ?>

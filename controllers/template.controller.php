@@ -406,6 +406,48 @@ class TemplateController{
 		}
 
 	}
+
+	/*=============================================
+	Ventana temporal de una sesión de caja (gastos / ventas solo de esa sesión)
+	=============================================*/
+	static public function cashSessionTimeBounds($cash){
+
+		$c = is_array($cash) ? $cash : (array) $cash;
+
+		$dateCreated = isset($c["date_created_cash"]) ? trim((string) $c["date_created_cash"]) : date("Y-m-d");
+		if($dateCreated === "" || $dateCreated === "0000-00-00"){
+			$dateCreated = date("Y-m-d");
+		}
+
+		$start = isset($c["date_start_cash"]) ? trim((string) $c["date_start_cash"]) : "";
+		if($start === "" || $start === "0000-00-00 00:00:00" || $start === "0000-00-00"){
+			$start = $dateCreated." 00:00:00";
+		}
+
+		$end = isset($c["date_end_cash"]) ? trim((string) $c["date_end_cash"]) : "";
+		$status = isset($c["status_cash"]) ? (int) $c["status_cash"] : 1;
+
+		if($status === 1 || $end === "" || $end === "0000-00-00 00:00:00" || $end === "0000-00-00"){
+			$end = date("Y-m-d H:i:s");
+		}
+
+		if(strtotime($start) !== false && strtotime($end) !== false && strtotime($start) > strtotime($end)){
+			$end = date("Y-m-d H:i:s");
+		}
+
+		return array($start, $end);
+	}
+
+	static public function billsSessionApiUrl($officeId, $sessionStart, $sessionEnd){
+
+		return "bills?linkTo=date_bill&between1=".rawurlencode($sessionStart)."&between2=".rawurlencode($sessionEnd)."&filterTo=id_office_bill&inTo=".(int) $officeId."&select=cost_bill,date_bill,id_office_bill";
+	}
+
+	static public function ordersSessionApiUrl($officeId, $sessionStart, $sessionEnd){
+
+		return "orders?linkTo=date_order&between1=".rawurlencode($sessionStart)."&between2=".rawurlencode($sessionEnd)."&filterTo=id_office_order&inTo=".(int) $officeId."&select=total_order,date_order,method_order,status_order,id_office_order";
+	}
+
 }
 
 ?>

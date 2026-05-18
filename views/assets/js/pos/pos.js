@@ -1086,43 +1086,80 @@ $(document).on("submit", "#formPayMethod", function (e) {
     	contentType: false,
     	cache: false,
     	processData: false,
+    	timeout: 120000,
     	success: function (response) {
-    		// El controlador devuelve JavaScript directamente
-    		// Evaluamos la respuesta
-    		if (response.includes("fncSweetAlert")) {
-    			// Extraer y ejecutar el script
-    			var scriptMatch = response.match(/<script>([\s\S]*?)<\/script>/);
-    			if (scriptMatch && scriptMatch[1]) {
-    				// Limpiar la interfaz después de completar
-    				setTimeout(function () {
-    					if (typeof resetPosInterface === "function") {
-    						resetPosInterface();
-    					}
-    				}, 500);
-    				eval(scriptMatch[1]);
-    			} else {
+    		// POST /pos devuelve la página HTML completa; el primer <script> suele ser
+    		// configuración (p. ej. Tailwind), no el bloque de manageOrder(). Buscamos el
+    		// script que apaga el preloader tras procesar el pago.
+    		function findPosPayCompletionScript(html) {
+    			var re = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+    			var m;
+    			var lastMatch = null;
+    			function isPosPayScript(body) {
+    				if (body.indexOf("POS_ORDER_PAY_RESULT") === -1) {
+    					return false;
+    				}
+    				var hasPreloaderOff =
+    					body.indexOf('fncMatPreloader("off")') !== -1 ||
+    					body.indexOf("fncMatPreloader('off')") !== -1;
+    				var hasAlert =
+    					body.indexOf("fncSweetAlert") !== -1 || body.indexOf("Swal.fire") !== -1;
+    				return hasPreloaderOff && hasAlert;
+    			}
+    			while ((m = re.exec(html)) !== null) {
+    				if (isPosPayScript(m[1])) {
+    					lastMatch = m[1];
+    				}
+    			}
+    			return lastMatch;
+    		}
+
+    		var payScript = findPosPayCompletionScript(response);
+    		if (payScript) {
+    			setTimeout(function () {
+    				if (typeof resetPosInterface === "function") {
+    					resetPosInterface();
+    				}
+    			}, 500);
+    			try {
+    				eval(payScript);
+    			} catch (e) {
     				fncMatPreloader("off");
     				fncSweetAlert("close", "", "");
-    				// Si no hay script, asumimos éxito y limpiamos
-    				fncSweetAlert("success", "La orden ha sido completada con éxito", "")
-    					.then(function (result) {
-    						if (result) {
-    							if (typeof resetPosInterface === "function") {
-    								resetPosInterface();
-    							}
-    						}
-    					});
-    				// 🔁 Recarga la página en 2 segundos
-    				setTimeout(function () {
-    					location.reload();
-    				}, 2000);
+    				fncSweetAlert("error", "Error al aplicar la respuesta del servidor. Intenta de nuevo.", "");
     			}
+    			return;
     		}
-    	},
-    	error: function () {
+
     		fncMatPreloader("off");
-    		fncSweetAlert("error", "Ocurrió un error al procesar la orden", "");
-    	}
+    		fncSweetAlert("close", "", "");
+    		fncSweetAlert("error", "Respuesta inesperada del servidor. Intenta de nuevo.", "");
+    	},
+    	error: function (jqXHR, textStatus) {
+    		fncMatPreloader("off");
+    		fncSweetAlert("close", "", "");
+    		if (textStatus === "timeout") {
+    			fncSweetAlert("error", "Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.", "");
+    		} else {
+    			fncSweetAlert("error", "Ocurrió un error al procesar la orden", "");
+    		}
+    		},
+    		complete: function () {
+    			// La respuesta de POST /pos es HTML completo; si no se ejecutó el script correcto
+    			// (caché antigua, etc.), el preloader y Swal.loading pueden quedar colgados.
+    			if (typeof fncMatPreloader === "function") {
+    				fncMatPreloader("off");
+    			}
+    			setTimeout(function () {
+    				if (typeof Swal !== "undefined" && typeof Swal.isLoading === "function" && Swal.isLoading()) {
+    					if (typeof fncSweetAlert === "function") {
+    						fncSweetAlert("close", "", "");
+    					} else {
+    						Swal.close();
+    					}
+    				}
+    			}, 0);
+    		}
     });
 
 

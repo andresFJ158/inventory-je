@@ -53,7 +53,8 @@ class OrdersController{
 			$fields = array(
 				"method_order" => $_POST["methodPay"],
 				"transfer_order" => $_POST["transferPay"],
-				"status_order" => "Completada"
+				"status_order" => "Completada",
+				"date_order" => date("Y-m-d H:i:s")
 			);
 
 			// $fields = array(
@@ -64,21 +65,67 @@ class OrdersController{
 
 			$updateOrder = CurlController::request($url,$method,$fields);
 
+			if(!isset($updateOrder) || !isset($updateOrder->status)){
+				echo'<div class="alert alert-danger mt-3 p-3 rounded alertPos">Error: No hay respuesta de la API (timeout)</div>
+
+				<script>
+					/*POS_ORDER_PAY_RESULT*/
+
+					fncMatPreloader("off");
+					fncSweetAlert("error", "No hay respuesta del servidor. Intenta de nuevo.", "").then(function(result) {
+						if (result) {
+							window.location.href = "/pos";
+						}
+					});
+					
+					fncFormatInputs();
+				 
+				</script>
+
+				';
+				return;
+			}
+
 			if($updateOrder->status == 200){
 
 				/*=============================================
 				Obtener información de la orden
 				=============================================*/
 
-				$url = "orders?linkTo=id_order&equalTo=".$_POST["idOrderPay"]."&select=transaction_order";
+				$url = "orders?linkTo=id_order&equalTo=".$_POST["idOrderPay"]."&select=transaction_order,id_office_order,total_order";
 				$method = "GET";
 				$fields = array();
 
 				$getOrder = CurlController::request($url,$method,$fields);
+
+				if(!isset($getOrder) || !isset($getOrder->status)){
+					echo'<div class="alert alert-danger mt-3 p-3 rounded alertPos">Error: No hay respuesta de la API al obtener orden</div>
+
+					<script>
+						/*POS_ORDER_PAY_RESULT*/
+
+						fncMatPreloader("off");
+						fncSweetAlert("error", "Error al completar la orden. Intenta de nuevo.", "").then(function(result) {
+							if (result) {
+								window.location.href = "/pos";
+							}
+						});
+						
+						fncFormatInputs();
+					 
+					</script>
+
+					';
+					return;
+				}
 				
 				$transactionOrder = "";
+				$orderOfficeForCash = null;
 				if($getOrder->status == 200 && !empty($getOrder->results)){
 					$transactionOrder = $getOrder->results[0]->transaction_order;
+					if(isset($getOrder->results[0]->id_office_order)){
+						$orderOfficeForCash = (int) $getOrder->results[0]->id_office_order;
+					}
 				}
 
 				/*=============================================
@@ -91,10 +138,69 @@ class OrdersController{
 
 				$getSales = CurlController::request($url,$method,$fields);
 
-				if($getSales->status == 200){
+				if(!isset($getSales) || !isset($getSales->status) || $getSales->status != 200){
+					echo'<div class="alert alert-danger mt-3 p-3 rounded alertPos">Error: No hay ventas asociadas a la orden</div>
+
+					<script>
+						/*POS_ORDER_PAY_RESULT*/
+
+						fncMatPreloader("off");
+						fncSweetAlert("error", "Error al obtener ventas. Intenta de nuevo.", "").then(function(result) {
+							if (result) {
+								window.location.href = "/pos";
+							}
+						});
+						
+						fncFormatInputs();
+					 
+					</script>
+
+					';
+					return;
+				}
+
+				if(empty($getSales->results)){
+
+					/*=============================================
+					Caso: Orden completada sin ventas
+					=============================================*/
+
+					if(empty($transactionOrder)){
+						$transactionOrder = "#" . $_POST["idOrderPay"];
+					}
+
+					self::syncCashTotalsAfterPosPayment($orderOfficeForCash);
+
+					echo '
+
+					<script>
+						/*POS_ORDER_PAY_RESULT*/
+
+						fncMatPreloader("off");
+						fncSweetAlert("close", "", "");
+						
+						Swal.fire({
+							icon: "success",
+							title: "Correcto",
+							text: "La órden '.$transactionOrder.' ha sido completada con éxito",
+							confirmButtonText: "OK"
+						}).then(function(result) {
+							if (result.isConfirmed || result.value) {
+								// Recargar la página
+								window.location.href = "/pos";
+							}
+						});
+						
+						fncFormatInputs();
+					 
+					</script>
+
+					';
+
+				} else {
 
 					$countSales = 0;
-
+					$failedSales = 0;
 					$arrayProducts = array();
 
 					foreach ($getSales->results as $key => $value) {
@@ -105,15 +211,11 @@ class OrdersController{
 							"status_sale" => "Completada"
 						);
 
-						// $fields = array(
-						// 	"status_sale" => "Pendiente"
-						// );
-
 						$fields = http_build_query($fields);
 
 						$updateSale = CurlController::request($url,$method,$fields);
 
-						if($updateSale->status == 200){
+						if(isset($updateSale) && isset($updateSale->status) && $updateSale->status == 200){
 
 							$countSales ++;
 
@@ -127,29 +229,65 @@ class OrdersController{
 
 							$getProducts = CurlController::request($url,$method,$fields);	
 
-							if($getProducts->status == 200){
+							if(isset($getProducts) && isset($getProducts->status) && $getProducts->status == 200 && !empty($getProducts->results)){
 
 								$product = $getProducts->results[0];
+
+								/*=============================================
+								Arreglo de productos
+								=============================================*/
+
+								array_push($arrayProducts, array(
+
+									"title_product" => urldecode($product->title_product),
+									"sku_product"=>  $product->sku_product,
+									"unit_product"=> $product->unit_product,
+									"qty_product"=> $value->qty_sale,
+									"tax_type_product"=> $value->tax_type_sale,
+									"tax_product"=> $value->tax_sale,
+									"discount_product"=> $value->discount_sale,
+									"subtotal_product"=> $value->subtotal_sale
+								));
 							
 							}
 
-							/*=============================================
-							Arreglo de productos
-							=============================================*/
+						}else{
+							$failedSales++;
+						}
 
-							array_push($arrayProducts, array(
+						// Si se han procesado todas las ventas (exitosas o no), finalizar
+						if($countSales + $failedSales == count($getSales->results)){
 
-								"title_product" => urldecode($product->title_product),
-							    "sku_product"=>  $product->sku_product,
-							    "unit_product"=> $product->unit_product,
-							    "qty_product"=> $value->qty_sale,
-							    "tax_type_product"=> $value->tax_type_sale,
-							    "tax_product"=> $value->tax_sale,
-							    "discount_product"=> $value->discount_sale,
-							    "subtotal_product"=> $value->subtotal_sale
-							));
+								if($failedSales > 0){
 
-							if($countSales == count($getSales->results)){
+									$revertFields = http_build_query(array(
+										"method_order" => $_POST["methodPay"],
+										"transfer_order" => $_POST["transferPay"],
+										"status_order" => "Pendiente"
+									));
+									CurlController::request(
+										"orders?id=".$_POST["idOrderPay"]."&nameId=id_order&token=".$_SESSION["admin"]->token_admin."&table=admins&suffix=admin",
+										"PUT",
+										$revertFields
+									);
+
+									echo '<div class="alert alert-danger mt-3 p-3 rounded alertPos">No se pudieron marcar como completadas todas las ventas de la orden ('.$failedSales.' de '.count($getSales->results).'). La orden se dejó en estado pendiente.</div>
+
+									<script>
+										/*POS_ORDER_PAY_RESULT*/
+
+										fncMatPreloader("off");
+										fncSweetAlert("close", "", "");
+										fncSweetAlert("error", "No se completaron todas las líneas de venta. Revisa la conexión con la API e intenta de nuevo.", "").then(function(result) {
+											if (result) {
+												window.location.href = "/pos";
+											}
+										});
+										fncFormatInputs();
+									</script>
+									';
+									return;
+								}
 
 								/*=============================================
 								Traer info de la Sucursal
@@ -281,9 +419,18 @@ class OrdersController{
 									$transactionOrder = "#" . $_POST["idOrderPay"];
 								}
 
+								$cashOfficeHint = ($orderOfficeForCash !== null && $orderOfficeForCash > 0)
+									? $orderOfficeForCash
+									: null;
+								if(($cashOfficeHint === null || $cashOfficeHint <= 0) && !empty($getSales->results[0]->id_office_order)){
+									$cashOfficeHint = (int) $getSales->results[0]->id_office_order;
+								}
+								self::syncCashTotalsAfterPosPayment($cashOfficeHint);
+
 								echo '
 
 								<script>
+									/*POS_ORDER_PAY_RESULT*/
 
 									fncMatPreloader("off");
 									fncSweetAlert("close", "", "");
@@ -309,45 +456,6 @@ class OrdersController{
 							}
 
 						}
-
-					}
-
-				} else {
-					
-					/*=============================================
-					Caso: Orden completada sin ventas
-					=============================================*/
-
-					// Obtener el número de transacción
-					if(empty($transactionOrder)){
-						$transactionOrder = "#" . $_POST["idOrderPay"];
-					}
-
-					echo '
-
-					<script>
-
-						fncMatPreloader("off");
-						fncSweetAlert("close", "", "");
-						
-						Swal.fire({
-							icon: "success",
-							title: "Correcto",
-							text: "La órden '.$transactionOrder.' ha sido completada con éxito",
-							confirmButtonText: "OK"
-						}).then(function(result) {
-							if (result.isConfirmed || result.value) {
-								// Recargar la página
-								window.location.href = "/pos";
-							}
-						});
-						
-						fncFormatInputs();
-					 
-					</script>
-
-					';
-
 				}
 
 
@@ -356,6 +464,7 @@ class OrdersController{
 				echo'<div class="alert alert-danger mt-3 p-3 rounded alertPos">Error al procesar la orden</div>
 
 				<script>
+					/*POS_ORDER_PAY_RESULT*/
 
 					fncMatPreloader("off");
 					fncSweetAlert("error", "Error al procesar la orden", "").then(function(result) {
@@ -375,6 +484,33 @@ class OrdersController{
 
 		}
 
+	}
+
+	/*=============================================
+	Actualizar caja abierta: mismos totales que tras un gasto (ventas Completadas en la ventana de sesión)
+	=============================================*/
+	private static function syncCashTotalsAfterPosPayment($officeHint = null){
+
+		$office = ($officeHint !== null && (int) $officeHint > 0) ? (int) $officeHint : 0;
+
+		if($office <= 0 && isset($_SESSION["admin"]->id_office_admin) && (int) $_SESSION["admin"]->id_office_admin > 0){
+			$office = (int) $_SESSION["admin"]->id_office_admin;
+		}
+
+		if($office <= 0 && !empty($_POST["idOrderPay"])){
+			$urlOrder = "orders?linkTo=id_order&equalTo=".$_POST["idOrderPay"]."&select=id_office_order";
+			$rOrder = CurlController::request($urlOrder, "GET", array());
+			if(isset($rOrder->status) && $rOrder->status == 200 && !empty($rOrder->results[0]->id_office_order)){
+				$office = (int) $rOrder->results[0]->id_office_order;
+			}
+		}
+
+		if($office <= 0 || empty($_SESSION["admin"]->token_admin)){
+			return;
+		}
+
+		require_once __DIR__ . "/dynamic.controller.php";
+		DynamicController::syncOpenCashTotalsForOffice($_SESSION["admin"]->token_admin, $office);
 	}
 
 }

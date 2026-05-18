@@ -418,7 +418,7 @@ class DynamicTablesController{
 
 					    foreach ($module->columns as $index => $item){
 
-							if ($item->visible_column == 1){
+							if ($item->visible_column == 1 && !($module->title_module == "cashs" && $item->title_column == "status_cash")){
 								
     							$HTMLTable .= '<td>';
 
@@ -459,7 +459,6 @@ class DynamicTablesController{
 
 								}else if($item->type_column == "boolean"){
 
-
 									if($value[$item->title_column] == 1){	
 
 										$checked = 'checked';
@@ -483,10 +482,7 @@ class DynamicTablesController{
 										$HTMLTable .= '<label class="form-check-label ps-1 align-middle" for="mySwitch">'.$label.'</label>';
 									}
 
-								/*=============================================
-								Contenido tipo Array
-								=============================================*/
-							    }else if($item->type_column == "array"){
+								}else if($item->type_column == "array"){
 
 							    	$typeArray = explode(",",urldecode($value[$item->title_column]));
 
@@ -606,8 +602,12 @@ class DynamicTablesController{
 
 				 		if ($this->rolAdmin == "superadmin" || $module->editable_module == 1){
 
-							$HTMLTable .= '<td class="text-center">
-		    					<a href="/'.$module->url_page.'/manage/'.base64_encode($value["id_".$module->suffix_module]).'/copy" class="btn btn-sm text-dark rounded m-0 p-0 border-0">
+							$HTMLTable .= '<td class="text-center">';
+							if ($module->title_module == "cashs" && (int)$value["status_cash"] === 1) {
+								$expectedCash = isset($value["diff_cash"]) ? number_format((float)$value["diff_cash"], 2, '.', '') : "0.00";
+								$HTMLTable .= '<button type="button" class="btn btn-sm btn-dark rounded closeCash me-1" idItem="'.base64_encode($value["id_".$module->suffix_module]).'" table="'.$module->title_module.'" suffix="'.$module->suffix_module.'" column="status_cash" diffCash="'.htmlspecialchars($expectedCash, ENT_QUOTES, 'UTF-8').'">Cerrar</button>';
+							}
+							$HTMLTable .= '<a href="/'.$module->url_page.'/manage/'.base64_encode($value["id_".$module->suffix_module]).'/copy" class="btn btn-sm text-dark rounded m-0 p-0 border-0">
 		    						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-copy" viewBox="0 0 16 16">
 									  <path fill-rule="evenodd" d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/>
 									</svg>
@@ -660,6 +660,12 @@ class DynamicTablesController{
     public $tableChange;
 	public $suffixChange;
 	public $columnChange;
+	public $endCashChange;
+	public $diffCashChange;
+	public $idItemCashClose;
+	public $tableCashClose;
+	public $suffixCashClose;
+	public $columnCashClose;
 
 	public function changeBooleanItems(){
 
@@ -694,6 +700,83 @@ class DynamicTablesController{
     		}  		
 
 		}
+	}
+
+	/*=============================================
+    Cerrar caja
+    =============================================*/
+
+	public function closeCashItem(){
+
+		$url = $this->tableCashClose."?id=".base64_decode($this->idItemCashClose)."&nameId=id_".$this->suffixCashClose."&token=".$this->token."&table=admins&suffix=admin";
+		$method = "PUT";
+		$endCash = trim((string)$this->endCashChange);
+		$diffCash = trim((string)$this->diffCashChange);
+
+		if($diffCash === ""){
+			$diffCash = "0";
+		}
+
+
+
+		// Recuperar datos de la caja para calcular gastos e ingresos (solo ventana de esta sesión)
+		$cashUrl = $this->tableCashClose."?id=".base64_decode($this->idItemCashClose)."&nameId=id_".$this->suffixCashClose."&select=start_cash,date_created_cash,id_office_cash,date_start_cash,date_end_cash,status_cash&token=".$this->token;
+		$cashGet = CurlController::request($cashUrl,"GET",array());
+
+		$startCash = 0;
+		$cashOffice = isset($_SESSION["admin"]->id_office_admin) ? (int) $_SESSION["admin"]->id_office_admin : 0;
+		$cashSessionStart = date("Y-m-d")." 00:00:00";
+		$cashSessionEnd = date("Y-m-d H:i:s");
+
+		if(isset($cashGet->status) && $cashGet->status == 200 && !empty($cashGet->results)){
+			$cashItem = $cashGet->results[0];
+			$startCash = isset($cashItem->start_cash) ? $cashItem->start_cash : 0;
+			$cashOffice = isset($cashItem->id_office_cash) ? (int) $cashItem->id_office_cash : $cashOffice;
+			$cashRow = json_decode(json_encode($cashItem), true);
+			list($cashSessionStart, $cashSessionEnd) = TemplateController::cashSessionTimeBounds($cashRow);
+		}
+
+		// Calcular gastos (bills) solo entre apertura y cierre de esta caja
+		$totalBills = 0;
+		$urlBills = TemplateController::billsSessionApiUrl($cashOffice, $cashSessionStart, $cashSessionEnd);
+		$bills = CurlController::request($urlBills,"GET",array());
+		if(isset($bills->status) && $bills->status == 200){
+			foreach ($bills->results as $key => $value) {
+				$totalBills += $value->cost_bill;
+			}
+		}
+
+		// Calcular ingresos en efectivo (orders) en la misma ventana
+		$totalOrders = 0;
+		$urlOrders = TemplateController::ordersSessionApiUrl($cashOffice, $cashSessionStart, $cashSessionEnd);
+		$orders = CurlController::request($urlOrders,"GET",array());
+		if(isset($orders->status) && $orders->status == 200){
+			foreach ($orders->results as $key => $value) {
+				$s = isset($value->status_order) ? (string) $value->status_order : "";
+				if($s === "Completada"){
+					$totalOrders += (float) $value->total_order;
+				}
+			}
+		}
+
+		$calculatedDiff = (float)$startCash + (float)$totalOrders - (float)$totalBills;
+		$gapCash = (float)$endCash - (float)$calculatedDiff;
+
+		$fields = $this->columnCashClose."=0&end_cash=".urlencode($endCash).
+			"&gap_cash=".urlencode(number_format($gapCash, 2, '.', '')).
+			"&date_end_cash=".urlencode(date("Y-m-d H:i:s")).
+			"&bills_cash=".urlencode(number_format($totalBills,2,'.','')).
+			"&money_cash=".urlencode(number_format($totalOrders,2,'.','')).
+			"&diff_cash=".urlencode(number_format($calculatedDiff,2,'.',''));
+
+		$updateItem = CurlController::request($url,$method,$fields);
+
+		if(isset($updateItem->status) && $updateItem->status == 200){
+
+			echo 200;
+
+		}
+
 	}
 
 	/*=============================================
@@ -810,6 +893,24 @@ if(isset($_POST["tableChange"])){
     $ajax -> columnChange = $_POST["columnChange"];
     $ajax -> token = $_POST["token"];  
     $ajax -> changeBooleanItems();
+
+}
+
+/*=============================================
+Cerrar caja
+=============================================*/
+
+if(isset($_POST["tableCashClose"])){
+
+	$ajax = new DynamicTablesController();
+	$ajax -> endCashChange = $_POST["endCashChange"];
+	$ajax -> diffCashChange = $_POST["diffCashChange"];
+	$ajax -> idItemCashClose = $_POST["idItemCashClose"];
+	$ajax -> tableCashClose = $_POST["tableCashClose"];
+	$ajax -> suffixCashClose = $_POST["suffixCashClose"];
+	$ajax -> columnCashClose = $_POST["columnCashClose"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> closeCashItem();
 
 }
 
