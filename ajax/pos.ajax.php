@@ -940,3 +940,307 @@ if(isset($_POST["idOrderDelete"])){
 	$ajax -> deleteOrder();
 
 }
+
+/*=============================================
+Actualizar Stock Laboratorio
+=============================================*/
+if(isset($_POST["updateLabStock"])){
+	require_once "../api.pos/models/connection.php";
+	$id_raw_material = $_POST["id_raw_material"];
+	$qty = $_POST["qty"];
+
+	$db = Connection::connect();
+	$stmt = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty WHERE id_raw_material = :id");
+	$stmt->bindParam(":qty", $qty);
+	$stmt->bindParam(":id", $id_raw_material);
+	
+	if($stmt->execute()){
+		echo "ok";
+	}else{
+		echo "error";
+	}
+}
+
+/*=============================================
+Actualizar orden
+
+if(isset($_POST["idOrderUpdate"])){
+
+	$ajax = new PosController();
+	$ajax -> token = $_POST["token"];
+	$ajax -> idOrder = $_POST["idOrderUpdate"];
+	$ajax -> idClient = $_POST["idClient"];
+	$ajax -> subtotalOrder = $_POST["subtotalOrder"];
+	$ajax -> discountOrder = $_POST["discountOrder"];
+	$ajax -> taxOrder = $_POST["taxOrder"];
+	$ajax -> totalOrder = $_POST["totalOrder"];
+	$ajax -> updateOrder();
+}
+
+/*=============================================
+Agregar nuevo cliente
+=============================================*/	
+
+if(isset($_POST["name_client"])){
+
+	$ajax = new PosController();
+	$ajax -> name_client = $_POST["name_client"];
+	$ajax -> surname_client = $_POST["surname_client"];
+	$ajax -> dni_client = $_POST["dni_client"];
+	$ajax -> email_client = $_POST["email_client"];
+	$ajax -> phone_client = $_POST["phone_client"];
+	$ajax -> address_client = $_POST["address_client"];
+	$ajax -> idOffice = $_POST["idOffice"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> newClient();
+}
+
+/*=============================================
+Agregar producto a la lista de órdenes
+=============================================*/
+
+if(isset($_POST["idProduct"])){
+
+	$ajax = new PosController();
+	$ajax -> idProduct = $_POST["idProduct"];
+	$ajax -> idOrder = $_POST["idOrder"];
+	$ajax -> idClient = $_POST["idClient"];
+	$ajax -> seller = $_POST["seller"];
+	$ajax -> idOffice = $_POST["idOffice"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> addProductPos();
+
+}
+
+
+/*=============================================
+Actualizar Cantidad
+=============================================*/
+
+if(isset($_POST["idSaleUpdate"])){
+
+	$ajax = new PosController();
+	$ajax -> idSaleUpdate = $_POST["idSaleUpdate"];
+	$ajax -> qtySale = $_POST["qtySale"];
+	$ajax -> subtotalSale = $_POST["subtotalSale"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> updateSale();
+
+}
+
+
+/*=============================================
+Remover Venta
+=============================================*/
+
+if(isset($_POST["idSaleDelete"])){
+
+	$ajax = new PosController();
+	$ajax -> idSaleDelete = $_POST["idSaleDelete"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> deleteSale();
+
+}
+
+/*=============================================
+Remover todas las Ventas
+=============================================*/
+
+if(isset($_POST["idOrderSale"])){
+	$ajax = new PosController();
+	$ajax -> idOrderSale = $_POST["idOrderSale"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> deleteAllSale();
+
+}
+
+/*=============================================
+Remover Órden
+=============================================*/
+
+if(isset($_POST["idOrderDelete"])){
+
+	$ajax = new PosController();
+	$ajax -> idOrderDelete = $_POST["idOrderDelete"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> deleteOrder();
+
+}
+
+/*=============================================
+Actualizar Stock Laboratorio
+=============================================*/
+if(isset($_POST["updateLabStock"])){
+	require_once "../api.pos/models/connection.php";
+	$id_raw_material = $_POST["id_raw_material"];
+	$qty = $_POST["qty"];
+
+	$db = Connection::connect();
+	$stmt = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty WHERE id_raw_material = :id");
+	$stmt->bindParam(":qty", $qty);
+	$stmt->bindParam(":id", $id_raw_material);
+	
+	if($stmt->execute()){
+		echo "ok";
+	}else{
+		echo "error";
+	}
+}
+
+/*=============================================
+Proxy API Genérico
+=============================================*/
+if(isset($_POST["apiProxy"])){
+	$url = $_POST["url"];
+	$method = $_POST["method"];
+	$fields = json_decode($_POST["fields"], true);
+	
+	// Si fields es un array válido, lo convertimos a query string
+	// para que cURL lo envíe como application/x-www-form-urlencoded
+	// en lugar de multipart/form-data
+	if (is_array($fields)) {
+		$fields = http_build_query($fields);
+	} else if (!empty($_POST["fields"])) {
+		$fields = $_POST["fields"];
+	}
+	
+	$res = CurlController::request($url, $method, $fields);
+	echo json_encode($res);
+	exit; // Importante para evitar que se imprima basura al final
+}
+
+/*=============================================
+		// 5. Insertar CIFs
+		$cifs = json_decode($_POST['cifs'], true);
+		if (!empty($cifs)) {
+			$stmtCif = $db->prepare("INSERT INTO recipe_indirect_costs (id_recipe_indirect_recipe, id_type_indirect, amount_per_batch_indirect, date_created_indirect) VALUES (:id_rec, :id_type, :amt, NOW())");
+			foreach($cifs as $cif) {
+				$stmtCif->execute([
+					':id_rec' => $id_recipe,
+					':id_type' => $cif['id_type'],
+					':amt' => $cif['amount']
+				]);
+			}
+		}
+
+		$db->commit();
+		echo "ok";
+	} catch (Exception $e) {
+		$db->rollBack();
+		echo "error: " . $e->getMessage();
+	}
+}
+
+/*=============================================
+Completar Producción (Laboratorio)
+=============================================*/
+if(isset($_POST["completeProduction"])){
+	require_once "../api.pos/models/connection.php";
+	$db = Connection::connect();
+	
+	$id_production = $_POST['id_production'];
+	$id_recipe = $_POST['id_recipe'];
+	$batches = (float)$_POST['batches'];
+	$id_product = $_POST['id_product'];
+	
+	try {
+		$db->beginTransaction();
+
+		// 1. Obtener y validar stock de ingredientes
+		$stmtIng = $db->prepare("SELECT id_raw_material_ingredient, qty_ingredient FROM recipe_ingredients WHERE id_recipe_ingredient = :id_recipe");
+		$stmtIng->execute([':id_recipe' => $id_recipe]);
+		$ingredients = $stmtIng->fetchAll(PDO::FETCH_ASSOC);
+		
+		$total_mp_cost = 0;
+		$costs_snapshot = [];
+
+		foreach($ingredients as $ing) {
+			$id_raw = $ing['id_raw_material_ingredient'];
+			$qty_needed = $ing['qty_ingredient'] * $batches;
+
+			// Verificar stock y nombre para error
+			$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
+			$stmtCheck->execute([':id' => $id_raw]);
+			$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+			if($mp_info['stock_raw_material'] < $qty_needed) {
+				echo "stock_insuficiente|" . $mp_info['name_raw_material'];
+				$db->rollBack();
+				exit;
+			}
+
+			// Obtener precio actual de la última entrada aprobada
+			$stmtPrice = $db->prepare("SELECT unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
+			$stmtPrice->execute([':id' => $id_raw]);
+			$price_info = $stmtPrice->fetch(PDO::FETCH_ASSOC);
+			$unit_price = $price_info ? (float)$price_info['unit_price_entry'] : 0;
+
+			$subtotal = $unit_price * $qty_needed;
+			$total_mp_cost += $subtotal;
+
+			// Guardar snapshot para luego
+			$costs_snapshot[] = [
+				'id_raw' => $id_raw,
+				'qty' => $qty_needed,
+				'price' => $unit_price,
+				'subtotal' => $subtotal
+			];
+
+			// Descontar stock
+			$stmtUpdMP = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
+			$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_raw]);
+		}
+
+		// 2. Calcular otros costos (Mano de obra y CIF)
+		$total_mo_cost = 0;
+		$stmtLab = $db->prepare("SELECT total_cost_labor FROM recipe_labor WHERE id_recipe_labor = :id_recipe");
+		$stmtLab->execute([':id_recipe' => $id_recipe]);
+		while($lab = $stmtLab->fetch(PDO::FETCH_ASSOC)) {
+			$total_mo_cost += ($lab['total_cost_labor'] * $batches);
+		}
+
+		$total_cif_cost = 0;
+		$stmtCif = $db->prepare("SELECT amount_per_batch_indirect FROM recipe_indirect_costs WHERE id_recipe_indirect_recipe = :id_recipe");
+		$stmtCif->execute([':id_recipe' => $id_recipe]);
+		while($cif = $stmtCif->fetch(PDO::FETCH_ASSOC)) {
+			$total_cif_cost += ($cif['amount_per_batch_indirect'] * $batches);
+		}
+
+		$total_production_cost = $total_mp_cost + $total_mo_cost + $total_cif_cost;
+
+		// 3. Registrar snapshot en production_material_costs
+		$stmtSnap = $db->prepare("INSERT INTO production_material_costs (id_production_cost, id_raw_material_cost, qty_used_cost, unit_price_snapshot, total_cost_snapshot, date_created_cost) VALUES (:id_prod, :id_raw, :qty, :price, :sub, NOW())");
+		foreach($costs_snapshot as $snap) {
+			$stmtSnap->execute([
+				':id_prod' => $id_production,
+				':id_raw' => $snap['id_raw'],
+				':qty' => $snap['qty'],
+				':price' => $snap['price'],
+				':sub' => $snap['subtotal']
+			]);
+		}
+
+		// 4. Actualizar Producción (Estado y Costo)
+		$stmtProd = $db->prepare("UPDATE productions SET status_production = 'completado', total_cost_production = :cost WHERE id_production = :id");
+		$stmtProd->execute([':cost' => $total_production_cost, ':id' => $id_production]);
+
+		// 5. Incrementar stock del producto final
+		// Determinar cuantas unidades rinde la receta
+		$stmtRend = $db->prepare("SELECT batch_size_recipe FROM recipes WHERE id_recipe = :id_recipe");
+		$stmtRend->execute([':id_recipe' => $id_recipe]);
+		$batch_size = (float)$stmtRend->fetchColumn();
+		$unidades_finales = $batch_size * $batches;
+
+		// Y el precio de costo del producto en el catálogo puede actualizarse
+		$unit_cost_final = $total_production_cost / $unidades_finales;
+
+		$stmtUpdProd = $db->prepare("UPDATE products SET stock_product = stock_product + :qty, cost_product = :cost WHERE id_product = :id_product");
+		$stmtUpdProd->execute([':qty' => $unidades_finales, ':cost' => $unit_cost_final, ':id_product' => $id_product]);
+
+		$db->commit();
+		echo "ok";
+	} catch (Exception $e) {
+		$db->rollBack();
+		echo "error|" . $e->getMessage();
+	}
+}
