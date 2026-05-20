@@ -706,10 +706,12 @@ $(document).on("click", ".closeCash", function () {
 		title: "Cerrar caja",
 		text: "Ingresa el dinero final contado para cerrar la caja",
 		input: "number",
-		inputValue: diffCash,
+		inputValue: "",
+		inputPlaceholder: diffCash,
 		inputAttributes: {
 			step: "any",
-			min: 0
+			min: 0,
+			placeholder: diffCash
 		},
 		showCancelButton: true,
 		confirmButtonText: "Cerrar",
@@ -719,9 +721,15 @@ $(document).on("click", ".closeCash", function () {
 			confirmButton: 'swal2-confirm',
 			cancelButton: 'swal2-cancel'
 		},
+		didOpen: () => {
+			const input = Swal.getInput();
+			if (input) {
+				input.placeholder = diffCash;
+			}
+		},
 		preConfirm: (value) => {
 			if (value === null || value === "" || isNaN(Number(value))) {
-				Swal.showValidationMessage("Ingresa un monto válido");
+				Swal.showValidationMessage("Ingresa un monto válido (sugerido: " + diffCash + ")");
 				return false;
 			}
 			return value;

@@ -720,7 +720,8 @@ class DynamicTablesController{
 
 
 		// Recuperar datos de la caja para calcular gastos e ingresos (solo ventana de esta sesión)
-		$cashUrl = $this->tableCashClose."?id=".base64_decode($this->idItemCashClose)."&nameId=id_".$this->suffixCashClose."&select=start_cash,date_created_cash,id_office_cash,date_start_cash,date_end_cash,status_cash&token=".$this->token;
+		$idCashDecoded = base64_decode($this->idItemCashClose);
+		$cashUrl = "cashs?linkTo=id_cash&equalTo=" . $idCashDecoded . "&select=id_cash,start_cash,date_created_cash,id_office_cash,date_start_cash,date_end_cash,status_cash";
 		$cashGet = CurlController::request($cashUrl,"GET",array());
 
 		$startCash = 0;

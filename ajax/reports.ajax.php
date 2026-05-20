@@ -85,9 +85,9 @@ class ReportsController{
 			echo '<td>'.htmlspecialchars($orderInfo->date_created_order ?? $orderInfo->date_order ?? 'N/A').'</td>';
 			echo '<td>'.htmlspecialchars($orderInfo->method_order ?? 'N/A').'</td>';
 			echo '<td>'.htmlspecialchars($orderInfo->status_order ?? 'N/A').'</td>';
-			echo '<td>'.number_format($orderInfo->subtotal_order ?? 0, 2, ',', '.').'</td>';
-			echo '<td>'.number_format($orderInfo->discount_order ?? 0, 2, ',', '.').'</td>';
-			echo '<td>'.number_format($orderInfo->total_order ?? 0, 2, ',', '.').'</td>';
+			echo '<td>'.number_format($orderInfo->subtotal_order ?? 0, 2, '.', '').'</td>';
+			echo '<td>'.number_format($orderInfo->discount_order ?? 0, 2, '.', '').'</td>';
+			echo '<td>'.number_format($orderInfo->total_order ?? 0, 2, '.', '').'</td>';
 			echo '</tr>';
 		}
 		
@@ -168,10 +168,10 @@ class ReportsController{
 			echo '<td>'.($index + 1).'</td>';
 			echo '<td>'.htmlspecialchars(urldecode($saleInfo->title_product ?? 'N/A')).'</td>';
 			echo '<td>'.htmlspecialchars($saleInfo->qty_sale ?? '0').'</td>';
-			echo '<td>'.number_format($saleInfo->price_sale ?? 0, 2, ',', '.').'</td>';
+			echo '<td>'.number_format($saleInfo->price_sale ?? 0, 2, '.', '').'</td>';
 			echo '<td>'.htmlspecialchars($saleInfo->tax_sale ?? '0').'%</td>';
 			echo '<td>'.htmlspecialchars($saleInfo->discount_sale ?? '0').'%</td>';
-			echo '<td>'.number_format($saleInfo->subtotal_sale ?? 0, 2, ',', '.').'</td>';
+			echo '<td>'.number_format($saleInfo->subtotal_sale ?? 0, 2, '.', '').'</td>';
 			echo '<td>'.htmlspecialchars($saleInfo->status_sale ?? 'N/A').'</td>';
 			echo '<td>'.htmlspecialchars($saleInfo->date_created_sale ?? 'N/A').'</td>';
 			echo '</tr>';

@@ -5,7 +5,7 @@ Interfaz Dashboard - Premium Modern Design
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --sidebar-width: 280px;
+  --sidebar-width: 220px;
   --sidebar-collapsed-width: 80px;
   --sidebar-bg: #ffffff;
   --sidebar-accent: rgba(46, 125, 50, 0.08);

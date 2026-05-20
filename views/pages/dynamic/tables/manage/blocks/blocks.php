@@ -1,3 +1,20 @@
+<?php
+$colTitle = $module->columns[$i]->title_column;
+$isAutoAdminField = (($module->title_module === "cashs" && $colTitle === "id_admin_cash") || ($module->title_module === "bills" && $colTitle === "id_admin_bill"));
+
+if ($isAutoAdminField):
+	$currentValue = null;
+	if (!empty($data)) {
+		if (is_array($data) && array_key_exists($colTitle, $data)) {
+			$currentValue = $data[$colTitle];
+		} elseif (is_object($data) && property_exists($data, $colTitle)) {
+			$currentValue = $data->{$colTitle};
+		}
+	}
+	$inputValue = ($currentValue !== null) ? $currentValue : $_SESSION["admin"]->id_admin;
+?>
+	<input type="hidden" name="<?php echo htmlspecialchars($colTitle, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($colTitle, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo htmlspecialchars($inputValue, ENT_QUOTES, 'UTF-8'); ?>">
+<?php else: ?>
 <div class="card rounded border-0 shadow mb-3 pb-3">
 	
 	<div class="card-body">
@@ -141,3 +158,4 @@
 	</div>
 
 </div>
+<?php endif; ?>

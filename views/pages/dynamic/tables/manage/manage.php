@@ -26,6 +26,17 @@ if(!empty($routesArray[2])){
 Definiendo Bloques
 =============================================*/
 
+if ($module->title_module == "cashs") {
+	$filteredColumns = array();
+	$hideFields = array("status_cash", "bills_cash", "money_cash", "diff_cash", "end_cash", "gap_cash", "date_start_cash", "date_end_cash");
+	foreach ($module->columns as $col) {
+		if (!in_array($col->title_column, $hideFields)) {
+			$filteredColumns[] = $col;
+		}
+	}
+	$module->columns = $filteredColumns;
+}
+
 $block1 = ceil(count($module->columns)/2);
 $block2 = count($module->columns) - $block1;
 

@@ -150,8 +150,8 @@ CREATE TABLE `categories` (
 --
 
 INSERT INTO `categories` (`id_category`, `title_category`, `img_category`, `order_category`, `status_category`, `date_created_category`, `date_updated_category`) VALUES
-(8, 'Vinagres', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2F%2Fviews%2Fassets%2Ffiles%2F69025436db56e50.png', 0, 1, '2025-10-29', '2025-10-29 19:44:39'),
-(9, 'Tonicos', 'https://pos.desarrolloweb24siete.com//views/assets/files/69025436db56e50.png', 0, 1, '2025-10-29', '2025-10-29 19:45:27'),
+(8, 'Vinagres', 'http%3A%2F%2Flocalhost%3A8080%2F%2Fviews%2Fassets%2Ffiles%2F69025436db56e50.png', 0, 1, '2025-10-29', '2025-10-29 19:44:39'),
+(9, 'Tonicos', 'http://localhost:8080//views/assets/files/69025436db56e50.png', 0, 1, '2025-10-29', '2025-10-29 19:45:27'),
 (10, 'Vital+Herbs', '', 0, 1, '2025-10-29', '2025-10-29 20:39:56');
 
 -- --------------------------------------------------------
@@ -321,17 +321,17 @@ CREATE TABLE `files` (
 --
 
 INSERT INTO `files` (`id_file`, `id_folder_file`, `name_file`, `extension_file`, `type_file`, `size_file`, `link_file`, `thumbnail_vimeo_file`, `id_mailchimp_file`, `date_created_file`, `date_updated_file`) VALUES
-(2, 1, 'Vinagre (11)', 'png', 'image/png', 405934, 'https://pos.desarrolloweb24siete.com//views/assets/files/690253664dc6922.png', NULL, NULL, '2025-10-29', '2025-10-29 17:48:22'),
-(3, 1, 'Vinagre (10)', 'png', 'image/png', 416491, 'https://pos.desarrolloweb24siete.com//views/assets/files/690253669277c22.png', NULL, NULL, '2025-10-29', '2025-10-29 17:48:22'),
-(5, 1, 'Vinagre (2)', 'png', 'image/png', 450078, 'https://pos.desarrolloweb24siete.com//views/assets/files/69025366c5b8622.png', NULL, NULL, '2025-10-29', '2025-10-29 17:48:22'),
-(6, 1, 'ChatGPT Image 22 oct 2025, 12_24_24 p.m.', 'png', 'image/png', 1472808, 'https://pos.desarrolloweb24siete.com//views/assets/files/69025436db56e50.png', NULL, NULL, '2025-10-29', '2025-10-29 17:51:50'),
-(7, 1, 'VitalHerbs', 'png', 'image/png', 564976, 'https://pos.desarrolloweb24siete.com/views/assets/files/69027c36d94d230.png', NULL, NULL, '2025-10-29', '2025-10-29 20:42:30'),
-(8, 1, 'Vinagre (12)', 'png', 'image/png', 434964, 'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb326e451.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
-(9, 1, 'Vinagre (6)', 'png', 'image/png', 417891, 'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb3530c51.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
-(10, 1, 'Vinagre (5)', 'png', 'image/png', 416664, 'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb5ae1851.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
-(11, 1, 'Vinagre (9)', 'png', 'image/png', 434308, 'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb8968251.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
-(12, 1, 'Golden Milk', 'png', 'image/png', 554308, 'https://pos.desarrolloweb24siete.com/views/assets/files/69053796c997b30.png', NULL, NULL, '2025-10-31', '2025-11-07 21:23:37'),
-(13, 1, 'Viangre de Mora', 'jpeg', 'image/jpeg', 53055, 'https://pos.desarrolloweb24siete.com/views/assets/files/690ecc1c8438a36.jpeg', NULL, NULL, '2025-11-08', '2025-11-08 04:55:55');
+(2, 1, 'Vinagre (11)', 'png', 'image/png', 405934, 'http://localhost:8080//views/assets/files/690253664dc6922.png', NULL, NULL, '2025-10-29', '2025-10-29 17:48:22'),
+(3, 1, 'Vinagre (10)', 'png', 'image/png', 416491, 'http://localhost:8080//views/assets/files/690253669277c22.png', NULL, NULL, '2025-10-29', '2025-10-29 17:48:22'),
+(5, 1, 'Vinagre (2)', 'png', 'image/png', 450078, 'http://localhost:8080//views/assets/files/69025366c5b8622.png', NULL, NULL, '2025-10-29', '2025-10-29 17:48:22'),
+(6, 1, 'ChatGPT Image 22 oct 2025, 12_24_24 p.m.', 'png', 'image/png', 1472808, 'http://localhost:8080//views/assets/files/69025436db56e50.png', NULL, NULL, '2025-10-29', '2025-10-29 17:51:50'),
+(7, 1, 'VitalHerbs', 'png', 'image/png', 564976, 'http://localhost:8080/views/assets/files/69027c36d94d230.png', NULL, NULL, '2025-10-29', '2025-10-29 20:42:30'),
+(8, 1, 'Vinagre (12)', 'png', 'image/png', 434964, 'http://localhost:8080/views/assets/files/690280fb326e451.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
+(9, 1, 'Vinagre (6)', 'png', 'image/png', 417891, 'http://localhost:8080/views/assets/files/690280fb3530c51.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
+(10, 1, 'Vinagre (5)', 'png', 'image/png', 416664, 'http://localhost:8080/views/assets/files/690280fb5ae1851.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
+(11, 1, 'Vinagre (9)', 'png', 'image/png', 434308, 'http://localhost:8080/views/assets/files/690280fb8968251.png', NULL, NULL, '2025-10-29', '2025-10-29 21:02:51'),
+(12, 1, 'Golden Milk', 'png', 'image/png', 554308, 'http://localhost:8080/views/assets/files/69053796c997b30.png', NULL, NULL, '2025-10-31', '2025-11-07 21:23:37'),
+(13, 1, 'Viangre de Mora', 'jpeg', 'image/jpeg', 53055, 'http://localhost:8080/views/assets/files/690ecc1c8438a36.jpeg', NULL, NULL, '2025-11-08', '2025-11-08 04:55:55');
 
 -- --------------------------------------------------------
 
@@ -356,7 +356,7 @@ CREATE TABLE `folders` (
 --
 
 INSERT INTO `folders` (`id_folder`, `name_folder`, `size_folder`, `total_folder`, `max_upload_folder`, `url_folder`, `keys_folder`, `date_created_folder`, `date_updated_folder`) VALUES
-(1, 'Server', '200000000000', 5621477, '500000000', 'https://pos.desarrolloweb24siete.com', NULL, '2024-12-16', '2025-11-08 04:50:36');
+(1, 'Server', '200000000000', 5621477, '500000000', 'http://localhost:8080', NULL, '2024-12-16', '2025-11-08 04:50:36');
 
 -- --------------------------------------------------------
 
@@ -565,20 +565,20 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`id_product`, `title_product`, `img_product`, `id_category_product`, `sku_product`, `unit_product`, `rte_product`, `stock_product`, `discount_product`, `status_product`, `id_office_product`, `code_product`, `date_created_product`, `date_updated_product`) VALUES
-(12, 'Vinagre+de+Fresa', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png', 8, 'VF1', '1Lt', NULL, '0', 0, 0, 3, '133331441', '2025-10-31', '2025-11-04 18:48:17'),
-(13, 'Vinagre+de+Fresa', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png', 8, 'VF1', '1Lt', NULL, '16', 0, 1, 4, '133331441', '2025-10-31', '2025-11-04 04:19:54'),
-(14, 'Green+Powder', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png', 10, 'VHGP10', '500gr', NULL, '9', 3, 1, 3, '33322212215', '2025-10-31', '2025-11-08 04:40:07'),
-(15, 'Green+Powder', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png', 10, 'VHGP10', '500gr', NULL, '21', 3, 1, 4, '33322212215', '2025-10-31', '2025-11-04 04:19:54'),
-(16, 'Vinagre+de+Pitaya', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png', 8, 'VP10', '1Lt', NULL, '11', 0, 1, 3, '14445455', '2025-11-04', '2025-11-08 04:40:07'),
-(17, 'Vinagre+de+Pitaya', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png', 8, 'VP10', '1Lt', NULL, '', 0, 1, 4, '14445455', '2025-11-04', '2025-11-04 17:36:55'),
-(18, 'Vinagre de Durazno', 'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb5ae1851.png', 8, 'VD10', '1Lt', NULL, '10', 3, 1, 3, '6061611165', '2025-11-04', '2025-11-07 21:48:27'),
-(19, 'Vinagre+de+Durazno', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb5ae1851.png', 8, 'VD10', '1Lt', NULL, '', 0, 1, 4, '6061611165', '2025-11-04', '2025-11-04 17:38:51'),
-(21, 'Vinagre de Perejil', 'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb326e451.png', 8, 'dsf', '1Lt', NULL, '3', 3, 1, 3, '61511515', '2025-11-04', '2025-11-07 22:15:47'),
-(22, 'Vinagre de Perejil', 'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb326e451.png', 8, 'VP10', '1Lt', NULL, '', 0, 1, 4, '61511515', '2025-11-04', '2025-11-04 18:59:14'),
-(23, 'Vinagre+de+Mel%C3%B3n', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png', 8, 'VM10', '1Lt', NULL, '2', 0, 1, 3, '151515511', '2025-11-04', '2025-11-08 04:57:54'),
-(24, 'Vinagre+de+Mel%C3%B3n', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png', 8, 'VM10', '1Lt', NULL, '', 0, 1, 4, '151515511', '2025-11-04', '2025-11-04 19:01:32'),
-(25, 'Vinagre+de+Mora', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg', 8, 'VM10', '1Lt', NULL, '9', 0, 1, 3, '633361148481', '2025-11-08', '2025-11-08 04:58:06'),
-(26, 'Vinagre+de+Mora', 'https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg', 8, 'VM10', '1Lt', NULL, '', 0, 1, 4, '633361148481', '2025-11-08', '2025-11-08 04:51:28');
+(12, 'Vinagre+de+Fresa', 'http%3A%2F%2Flocalhost%3A8080%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png', 8, 'VF1', '1Lt', NULL, '0', 0, 0, 3, '133331441', '2025-10-31', '2025-11-04 18:48:17'),
+(13, 'Vinagre+de+Fresa', 'http%3A%2F%2Flocalhost%3A8080%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png', 8, 'VF1', '1Lt', NULL, '16', 0, 1, 4, '133331441', '2025-10-31', '2025-11-04 04:19:54'),
+(14, 'Green+Powder', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png', 10, 'VHGP10', '500gr', NULL, '9', 3, 1, 3, '33322212215', '2025-10-31', '2025-11-08 04:40:07'),
+(15, 'Green+Powder', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png', 10, 'VHGP10', '500gr', NULL, '21', 3, 1, 4, '33322212215', '2025-10-31', '2025-11-04 04:19:54'),
+(16, 'Vinagre+de+Pitaya', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png', 8, 'VP10', '1Lt', NULL, '11', 0, 1, 3, '14445455', '2025-11-04', '2025-11-08 04:40:07'),
+(17, 'Vinagre+de+Pitaya', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png', 8, 'VP10', '1Lt', NULL, '', 0, 1, 4, '14445455', '2025-11-04', '2025-11-04 17:36:55'),
+(18, 'Vinagre de Durazno', 'http://localhost:8080/views/assets/files/690280fb5ae1851.png', 8, 'VD10', '1Lt', NULL, '10', 3, 1, 3, '6061611165', '2025-11-04', '2025-11-07 21:48:27'),
+(19, 'Vinagre+de+Durazno', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb5ae1851.png', 8, 'VD10', '1Lt', NULL, '', 0, 1, 4, '6061611165', '2025-11-04', '2025-11-04 17:38:51'),
+(21, 'Vinagre de Perejil', 'http://localhost:8080/views/assets/files/690280fb326e451.png', 8, 'dsf', '1Lt', NULL, '3', 3, 1, 3, '61511515', '2025-11-04', '2025-11-07 22:15:47'),
+(22, 'Vinagre de Perejil', 'http://localhost:8080/views/assets/files/690280fb326e451.png', 8, 'VP10', '1Lt', NULL, '', 0, 1, 4, '61511515', '2025-11-04', '2025-11-04 18:59:14'),
+(23, 'Vinagre+de+Mel%C3%B3n', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png', 8, 'VM10', '1Lt', NULL, '2', 0, 1, 3, '151515511', '2025-11-04', '2025-11-08 04:57:54'),
+(24, 'Vinagre+de+Mel%C3%B3n', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png', 8, 'VM10', '1Lt', NULL, '', 0, 1, 4, '151515511', '2025-11-04', '2025-11-04 19:01:32'),
+(25, 'Vinagre+de+Mora', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg', 8, 'VM10', '1Lt', NULL, '9', 0, 1, 3, '633361148481', '2025-11-08', '2025-11-08 04:58:06'),
+(26, 'Vinagre+de+Mora', 'http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg', 8, 'VM10', '1Lt', NULL, '', 0, 1, 4, '633361148481', '2025-11-08', '2025-11-08 04:51:28');
 
 -- --------------------------------------------------------
 

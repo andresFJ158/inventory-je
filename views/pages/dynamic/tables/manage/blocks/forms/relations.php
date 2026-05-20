@@ -18,6 +18,42 @@ if (!empty($data)) {
 }
 ?>
 
+<?php
+$isAutoAdmin = (($module->title_module === "cashs" && $titleCol === "id_admin_cash") || ($module->title_module === "bills" && $titleCol === "id_admin_bill"));
+?>
+
+<?php if ($isAutoAdmin): ?>
+	<?php
+	// Obtener registros de la tabla relacionada (administradores)
+	$url    = $matrix;
+	$method = "GET";
+	$fields = [];
+
+	$resp = CurlController::request($url, $method, $fields);
+	$rows = (!empty($resp) && isset($resp->status) && $resp->status == 200) ? ($resp->results ?? []) : [];
+
+	$targetId = ($currentValue !== null) ? (string)$currentValue : (string)$_SESSION["admin"]->id_admin;
+	$selectedEmail = '';
+	foreach ($rows as $row) {
+		$arr = (array)$row;
+		$keys = array_keys($arr);
+		if (count($keys) >= 2 && (string)$arr[$keys[0]] === $targetId) {
+			$selectedEmail = urldecode((string)$arr[$keys[1]]);
+			break;
+		}
+	}
+	if (empty($selectedEmail) && !empty($_SESSION["admin"])) {
+		$selectedEmail = $_SESSION["admin"]->email_admin;
+	}
+	?>
+	<!-- Mostrar el correo del administrador de forma inalterable -->
+	<input type="text" class="form-control rounded mb-3 bg-light" value="<?php echo htmlspecialchars($selectedEmail, ENT_QUOTES, 'UTF-8'); ?>" disabled>
+	
+	<!-- Guardar el ID de forma oculta pero válida para el POST -->
+	<input type="hidden" name="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo htmlspecialchars($targetId, ENT_QUOTES, 'UTF-8'); ?>">
+
+<?php else: ?>
+
 <!-- Selector de tabla relacionada -->
 <select
 	class="form-select rounded mb-3 select2 changeRelations"
@@ -126,5 +162,7 @@ if (!empty($data)) {
 		<i class="bi bi-info-circle me-1"></i>
 		Selecciona "Todas las Sucursales" para crear el producto en todas las sucursales con un solo registro.
 	</small>
+<?php endif; ?>
+
 <?php endif; ?>
 <?php endif; ?>

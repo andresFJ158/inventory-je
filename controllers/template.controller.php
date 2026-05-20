@@ -26,6 +26,10 @@ class TemplateController{
 		$script = $_SERVER["SCRIPT_NAME"];
 		$dir = str_replace("/index.php", "", $script);
 		
+		if(strpos($dir, "/ajax/") !== false){
+			$dir = substr($dir, 0, strpos($dir, "/ajax/"));
+		}
+		
 		return $protocol . "://" . $host . $dir . "/";
 
 	}

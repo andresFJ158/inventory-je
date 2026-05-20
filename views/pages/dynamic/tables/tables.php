@@ -598,6 +598,9 @@ Cargamos el módulo tabla
 	        				<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
 
 	        					<td class="text-center">
+		        					<?php if ($module->title_module == "cashs"): ?>
+		        						<button type="button" class="btn btn-sm backColor rounded viewCashDetails me-1" idCash="<?php echo (int)$value["id_".$module->suffix_module] ?>"><i class="bi bi-eye"></i> Ver detalles</button>
+		        					<?php endif ?>
 		        					<?php if ($module->title_module == "cashs" && (int)$value["status_cash"] === 1): ?>
 		        						<?php $expectedCash = isset($value["diff_cash"]) ? number_format((float)$value["diff_cash"], 2, '.', '') : "0.00"; ?>
 		        						<button type="button" class="btn btn-sm btn-dark rounded closeCash me-1" idItem="<?php echo base64_encode($value["id_".$module->suffix_module]) ?>" table="<?php echo $module->title_module ?>" suffix="<?php echo $module->suffix_module ?>" column="status_cash" diffCash="<?php echo htmlspecialchars($expectedCash, ENT_QUOTES, 'UTF-8') ?>">Cerrar</button>
@@ -694,7 +697,11 @@ Cargamos el módulo tabla
 <?php 
 
   include "views/modules/modals/booleans.php"; 
-  include "views/modules/modals/selects.php"; 
+  include "views/modules/modals/selects.php";
+
+  if($module->title_module == "cashs"){
+    include "views/modules/modals/cash-details.php";
+  }
 
 ?>
 

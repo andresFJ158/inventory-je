@@ -9,3 +9,5 @@ RUN apt-get update \
 
 WORKDIR /var/www/html
 COPY . /var/www/html
+
+RUN chown -R www-data:www-data /var/www/html/views/assets/files
