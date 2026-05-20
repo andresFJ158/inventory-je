@@ -20,9 +20,33 @@ if (!empty($data)) {
 
 <?php
 $isAutoAdmin = (($module->title_module === "cashs" && $titleCol === "id_admin_cash") || ($module->title_module === "bills" && $titleCol === "id_admin_bill"));
+
+// Auto-asignar sucursal: para caja, gastos y ventas, los usuarios NO superadmin no pueden seleccionar otra sucursal
+$isAutoOffice = false;
+$autoOfficeTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order"];
+if (isset($autoOfficeTables[$module->title_module]) && $titleCol === $autoOfficeTables[$module->title_module]) {
+	$rolAdmin = isset($_SESSION['admin']->rol_admin) ? $_SESSION['admin']->rol_admin : '';
+	$isAutoOffice = ($rolAdmin !== 'superadmin');
+}
 ?>
 
-<?php if ($isAutoAdmin): ?>
+<?php if ($isAutoOffice): ?>
+	<?php
+	// Obtener la sucursal del usuario y mostrarla sin permitir cambio
+	$adminOfficeId = isset($_SESSION['admin']->id_office_admin) ? (int)$_SESSION['admin']->id_office_admin : 0;
+	$adminOfficeName = '';
+	// Buscar nombre de la sucursal
+	$respOffice = CurlController::request('offices?linkTo=id_office&equalTo=' . $adminOfficeId, 'GET', []);
+	if (isset($respOffice->status) && $respOffice->status == 200 && !empty($respOffice->results)) {
+		$officeRow = (array)$respOffice->results[0];
+		$officeKeys = array_keys($officeRow);
+		$adminOfficeName = count($officeKeys) >= 2 ? urldecode($officeRow[$officeKeys[1]]) : '';
+	}
+	?>
+	<input type="text" class="form-control rounded mb-3 bg-light" value="<?php echo htmlspecialchars($adminOfficeId . ' - ' . $adminOfficeName, ENT_QUOTES, 'UTF-8'); ?>" disabled>
+	<input type="hidden" name="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo $adminOfficeId; ?>">
+
+<?php elseif ($isAutoAdmin): ?>
 	<?php
 	// Obtener registros de la tabla relacionada (administradores)
 	$url    = $matrix;

@@ -1,4 +1,4 @@
-<?php 
+﻿<?php 
 
 class DynamicController{
 
@@ -163,6 +163,12 @@ class DynamicController{
 						$billOffice = $_SESSION["admin"]->id_office_admin;
 					}
 				}
+				// Seguridad: si el usuario NO es superadmin, siempre usar su propia sucursal para gastos
+				$rolAdminBill = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+				if($isBill && $rolAdminBill !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
+					$billOffice = $_SESSION["admin"]->id_office_admin;
+				}
+
 
 				/*=============================================
 				Validar que exista caja abierta antes de crear un gasto
@@ -260,6 +266,12 @@ class DynamicController{
 					if($newCashOffice <= 0 && isset($_SESSION["admin"]->id_office_admin)){
 						$newCashOffice = (int) $_SESSION["admin"]->id_office_admin;
 					}
+
+				// Seguridad: si el usuario NO es superadmin, forzar su propia sucursal (evita el bug de caja en sucursal incorrecta)
+				$rolAdminCash = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+				if($rolAdminCash !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
+					$newCashOffice = (int) $_SESSION["admin"]->id_office_admin;
+				}
 
 					if($newCashOffice > 0){
 						$urlOpenCash = "cashs?linkTo=id_office_cash,status_cash&equalTo=".$newCashOffice.",1&select=id_cash";
@@ -370,6 +382,14 @@ class DynamicController{
 							$fields["diff_cash"] = 0;
 							$fields["status_cash"] = 1;
 						}
+
+					// Seguridad: para caja, gastos y ventas, el campo de sucursal siempre viene del usuario si no es superadmin
+					$rolAdminSave = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order"];
+					if(isset($officeForceTables[$module->title_module]) && $rolAdminSave !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
+						$forceOfficeField = $officeForceTables[$module->title_module];
+						$fields[$forceOfficeField] = (int)$_SESSION["admin"]->id_office_admin;
+					}
 
 						/*=============================================
 						Crear producto en múltiples sucursales si está configurado

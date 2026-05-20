@@ -277,7 +277,7 @@ function approveEntry() {
     
     var payload = new URLSearchParams();
     payload.append("apiProxy", "ok");
-    payload.append("url", "raw_material_entries?id=" + id_entry + "&nameId=id_entry&token=" + localStorage.getItem("tokenAdmin"));
+    payload.append("url", "raw_material_entries?id=" + id_entry + "&nameId=id_entry&token=" + localStorage.getItem("tokenAdmin") + "&table=admins&suffix=admin");
     payload.append("method", "PUT");
     payload.append("fields", JSON.stringify(fields));
 

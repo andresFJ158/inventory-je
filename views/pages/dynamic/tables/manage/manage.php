@@ -37,6 +37,17 @@ if ($module->title_module == "cashs") {
 	$module->columns = $filteredColumns;
 }
 
+if ($module->title_module == "admins") {
+	$filteredColumns = array();
+	$hideFields = array("token_admin", "token_exp_admin", "status_admin");
+	foreach ($module->columns as $col) {
+		if (!in_array($col->title_column, $hideFields)) {
+			$filteredColumns[] = $col;
+		}
+	}
+	$module->columns = $filteredColumns;
+}
+
 $block1 = ceil(count($module->columns)/2);
 $block2 = count($module->columns) - $block1;
 

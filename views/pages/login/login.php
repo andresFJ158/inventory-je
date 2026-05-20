@@ -51,6 +51,8 @@ if(isset($_GET["scode"])){
 					id="email_admin_login"
 					name="email_admin"
 					placeholder="Escribe el correo"
+					onkeydown="if(event.key === ' ' || event.keyCode === 32) return false;"
+					oninput="this.value = this.value.replace(/\s/g, '');"
 					required
 					>
 
@@ -78,6 +80,8 @@ if(isset($_GET["scode"])){
 						id="password_admin"
 						name="password_admin"
 						placeholder="Escribe la contraseña"
+						onkeydown="if(event.key === ' ' || event.keyCode === 32) return false;"
+						oninput="this.value = this.value.replace(/\s/g, '');"
 						required
 						>
 
@@ -118,6 +122,8 @@ if(isset($_GET["scode"])){
 						id="scode_admin"
 						name="scode_admin"
 						placeholder="Escribe el código de seguridad"
+						onkeydown="if(event.key === ' ' || event.keyCode === 32) return false;"
+						oninput="this.value = this.value.replace(/\s/g, '');"
 						required
 						>
 
