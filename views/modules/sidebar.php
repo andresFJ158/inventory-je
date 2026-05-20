@@ -34,7 +34,28 @@ if($pages->status == 200){
 			<?php foreach ($pages as $key => $value): ?>
 
 
-				<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $_SESSION["admin"]->rol_admin == "admin" || $_SESSION["admin"]->rol_admin == "editor" && isset(json_decode(urldecode($_SESSION["admin"]->permissions_admin), true)[$value->url_page]) && json_decode(urldecode($_SESSION["admin"]->permissions_admin), true)[$value->url_page] == "on" ): ?>
+				<?php 
+				$role = $_SESSION["admin"]->rol_admin;
+				$allowed_menu = false;
+				$page_url = $value->url_page;
+
+				if ($role == "superadmin" || $role == "admin") {
+					$allowed_menu = true;
+				} else if ($role == "lab_admin") {
+					$lab_routes = ["lab_materiales", "lab_entradas", "lab_cif", "lab_recetas", "lab_produccion"];
+					if (in_array($page_url, $lab_routes)) $allowed_menu = true;
+				} else if ($role == "lab_worker") {
+					$lab_routes = ["lab_materiales", "lab_entradas", "lab_recetas", "lab_produccion"];
+					if (in_array($page_url, $lab_routes)) $allowed_menu = true;
+				} else if ($role == "editor") {
+					$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
+					if (isset($perms[$page_url]) && $perms[$page_url] == "on") {
+						$allowed_menu = true;
+					}
+				}
+				?>
+
+				<?php if ($allowed_menu): ?>
 
 				<li class="list-group-item list-group-item-action position-relative" idPage="<?php echo base64_encode($value->id_page) ?>">
 

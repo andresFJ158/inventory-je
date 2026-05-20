@@ -325,7 +325,28 @@ if($adminTable->status == 404){
 						Validar permisos
 						===========================================-->
 
-						<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $_SESSION["admin"]->rol_admin == "admin" || $_SESSION["admin"]->rol_admin == "editor" && isset(json_decode(urldecode($_SESSION["admin"]->permissions_admin), true)[$routesArray[0]]) && json_decode(urldecode($_SESSION["admin"]->permissions_admin), true)[$routesArray[0]] == "on"): ?>
+						<?php 
+						$role = $_SESSION["admin"]->rol_admin;
+						$allowed = false;
+						$route = $routesArray[0];
+
+						if ($role == "superadmin" || $role == "admin") {
+							$allowed = true;
+						} else if ($role == "lab_admin") {
+							$lab_routes = ["lab_materiales", "lab_entradas", "lab_cif", "lab_recetas", "lab_produccion"];
+							if (in_array($route, $lab_routes)) $allowed = true;
+						} else if ($role == "lab_worker") {
+							$lab_routes = ["lab_materiales", "lab_entradas", "lab_recetas", "lab_produccion"];
+							if (in_array($route, $lab_routes)) $allowed = true;
+						} else if ($role == "editor") {
+							$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
+							if (isset($perms[$route]) && $perms[$route] == "on") {
+								$allowed = true;
+							}
+						}
+						?>
+
+						<?php if ($allowed): ?>
 
 							<!--=========================================
 							Agregamos páginas dinámicas y personalizadas
@@ -367,7 +388,7 @@ if($adminTable->status == 404){
 
 
 					<!--=========================================
-				 	Validar permisos para super y admins
+				 	Validar permisos para inicio
 					===========================================-->
 
 					<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $_SESSION["admin"]->rol_admin == "admin"): ?>
@@ -402,37 +423,53 @@ if($adminTable->status == 404){
 
 					<?php else: ?>
 
-					<!--=========================================
-				 	Validar permisos para editores
-					===========================================-->
+						<?php if ($_SESSION["admin"]->rol_admin == "lab_admin"): ?>
 
-						<?php if ($_SESSION["admin"]->rol_admin == "editor"): ?>
+							<script>window.location = "lab_produccion";</script>
 
-							<?php
+						<?php else: ?>
+							
+							<?php if ($_SESSION["admin"]->rol_admin == "lab_worker"): ?>
 
-								$url = "pages?linkTo=url_page&equalTo=".array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
-								$method = "GET";
-								$fields = array();
+								<script>window.location = "lab_entradas";</script>
 
-								$page = CurlController::request($url,$method,$fields);
+							<?php else: ?>
 
-								$routesArray[0] = array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
+								<!--=========================================
+								Validar permisos para editores
+								===========================================-->
 
-								if($page->status == 200 && $page->results[0]->type_page == "modules"){
+								<?php if ($_SESSION["admin"]->rol_admin == "editor"): ?>
 
-									include "pages/dynamic/dynamic.php";
-								
-								}else if($page->status == 200 && $page->results[0]->type_page == "custom"){
+									<?php
 
-									include "pages/custom/".$page->results[0]->url_page."/".$page->results[0]->url_page.".php";
-								
-								}else{
+										$url = "pages?linkTo=url_page&equalTo=".array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
+										$method = "GET";
+										$fields = array();
 
-									include "pages/404/404.php";
-								
-								}
+										$page = CurlController::request($url,$method,$fields);
 
-							?>
+										$routesArray[0] = array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
+
+										if($page->status == 200 && $page->results[0]->type_page == "modules"){
+
+											include "pages/dynamic/dynamic.php";
+										
+										}else if($page->status == 200 && $page->results[0]->type_page == "custom"){
+
+											include "pages/custom/".$page->results[0]->url_page."/".$page->results[0]->url_page.".php";
+										
+										}else{
+
+											include "pages/404/404.php";
+										
+										}
+
+									?>
+
+								<?php endif ?>
+
+							<?php endif ?>
 
 						<?php endif ?>
 
