@@ -231,9 +231,11 @@ Cargamos el módulo tabla
 				        	Eliminación masiva
 				        	===========================================-->
 
+							<?php if($module->title_module != "cashs" || ($_SESSION["admin"]->rol_admin == "superadmin" || $_SESSION["admin"]->rol_admin == "admin")): ?>
 							<button type="button" class="btn btn-sm bg-maroon rounded border-0 deleteAllItems">
 								<i class="bi bi-trash"></i>
 							</button>
+							<?php endif ?>
 
 						</li>
 
@@ -303,9 +305,12 @@ Cargamos el módulo tabla
 		        Filtar por búsqueda de registros
 		        ===========================================-->
 
-		        <div class="mb-3">
+		        <div class="mb-3 input-group input-group-sm">
 		        	
-		        	<input type="text" id="searchItem" class="form-control rounded form-control-sm" placeholder="Buscar...">
+		        	<input type="text" id="searchItem" class="form-control rounded-start" placeholder="Buscar...">
+					<button class="btn btn-default border rounded-end bg-light" type="button" id="btnSearchItem">
+						<i class="bi bi-search"></i>
+					</button>
 
 		        </div>
 
@@ -513,13 +518,24 @@ Cargamos el módulo tabla
 
 									    	echo 'Bs'.number_format(urldecode($value[$item->title_column]),2);
 
-									    /*=============================================
+										/*=============================================
 										Contenido tipo Relaciones
 										=============================================*/
 
-										}else if($item->type_column == "relations"){
+										}else if($item->type_column == "relations" || $item->title_column == "id_client_order"){
 
-											if($item->matrix_column != null && $value[$item->title_column] > 0){
+											if($item->title_column == "id_client_order"){
+												$urlClient = "clients?linkTo=id_client&equalTo=".$value[$item->title_column];
+												$clientResp = CurlController::request($urlClient,"GET",array());
+												if(isset($clientResp->status) && $clientResp->status == 200 && !empty($clientResp->results)){
+													echo urldecode($clientResp->results[0]->name_client);
+													if(isset($clientResp->results[0]->surname_client)){
+														echo ' ' . urldecode($clientResp->results[0]->surname_client);
+													}
+												} else {
+													echo $value[$item->title_column]; 
+												}
+											}else if($item->matrix_column != null && $value[$item->title_column] > 0){
 
 												$url = "relations?rel=modules,pages&type=module,page&linkTo=type_module,title_module&equalTo=tables,".$item->matrix_column."&select=url_page,suffix_module";
 												$method = "GET";
@@ -613,9 +629,11 @@ Cargamos el módulo tabla
 		        					<a href="/<?php echo $module->url_page ?>/manage/<?php echo base64_encode($value["id_".$module->suffix_module]) ?>" class="btn btn-sm text-primary rounded m-0 p-0 border-0">
 		        						<i class="bi bi-pencil-square"></i>
 		        					</a>
+									<?php if($module->title_module != "cashs" || ($_SESSION["admin"]->rol_admin == "superadmin" || $_SESSION["admin"]->rol_admin == "admin")): ?>
 		        					<button type="button" class="btn btn-sm text-maroon rounded m-0 p-0 border-0 deleteItem" idItem="<?php echo base64_encode($value["id_".$module->suffix_module]) ?>" table="<?php echo $module->title_module ?>" suffix="<?php echo $module->suffix_module ?>">
 		        						<i class="bi bi-trash"></i>
 		        					</button>
+									<?php endif ?>
 		        				</td>
 
 		        			<?php else: ?>

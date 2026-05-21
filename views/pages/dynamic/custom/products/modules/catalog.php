@@ -85,13 +85,13 @@ if($products->status == 200){
 
 							<?php 
 
-							$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=price_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
+							$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
 
 							$price = CurlController::request($url,$method,$fields);
 
 							if($price->status == 200){
 
-								$price = $price->results[0]->price_purchase;
+								$price = $price->results[0]->cost_purchase;
 
 								if($value->discount_product > 0){
 

@@ -131,7 +131,7 @@ SIDEBAR MENU ITEMS
 }
 
 #sidebar-wrapper .list-group-item a {
-  color: var(--sidebar-text-muted) !important;
+  color: var(--primary) !important;
   font-size: 0.9rem;
   font-weight: 600;
   display: flex;
@@ -150,7 +150,8 @@ SIDEBAR MENU ITEMS
   width: 24px;
   text-align: center;
   flex-shrink: 0;
-  opacity: 0.7;
+  opacity: 1;
+  color: var(--primary) !important;
   transition: var(--transition);
 }
 
@@ -165,6 +166,7 @@ SIDEBAR MENU ITEMS
 
 #sidebar-wrapper .list-group-item.active-page i {
   opacity: 1;
+  color: #ffffff !important;
 }
 
 /* Add page button */

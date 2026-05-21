@@ -432,11 +432,11 @@ class TemplateController{
 		$status = isset($c["status_cash"]) ? (int) $c["status_cash"] : 1;
 
 		if($status === 1 || $end === "" || $end === "0000-00-00 00:00:00" || $end === "0000-00-00"){
-			$end = date("Y-m-d H:i:s");
+			$end = $dateCreated." 23:59:59";
 		}
 
 		if(strtotime($start) !== false && strtotime($end) !== false && strtotime($start) > strtotime($end)){
-			$end = date("Y-m-d H:i:s");
+			$end = $dateCreated." 23:59:59";
 		}
 
 		return array($start, $end);
@@ -446,6 +446,7 @@ class TemplateController{
 
 		return "bills?linkTo=date_bill&between1=".rawurlencode($sessionStart)."&between2=".rawurlencode($sessionEnd)."&filterTo=id_office_bill&inTo=".(int) $officeId."&select=cost_bill,date_bill,id_office_bill";
 	}
+
 
 	static public function ordersSessionApiUrl($officeId, $sessionStart, $sessionEnd){
 

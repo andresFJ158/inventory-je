@@ -446,21 +446,24 @@ function loadProductsByOffice(officeSelect, productSelect) {
 	// Limpiar el select de productos y mostrar mensaje de carga
 	productSelect.html('<option value="">Cargando productos...</option>').prop("disabled", true);
 
-	// Construir la URL para obtener productos filtrados por sucursal
-	var url = "relations?rel=products,categories&type=product,category" +
-		"&linkTo=id_office_product" +
-		"&equalTo=" + encodeURIComponent(selectedOffice) +
-		"&select=id_product,title_product,sku_product";
-
-
+	// Construir los datos para enviarlos al proxy PHP
+	var data = new FormData();
+	data.append("id_office", selectedOffice);
+	data.append("token", localStorage.getItem("tokenAdmin"));
 
 	$.ajax({
-		url: apiUrl + "/" + url,
-		method: "GET",
-		headers: {
-			'Authorization': 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
-		},
+		url: "/ajax/dynamic-forms.ajax.php",
+		method: "POST",
+		data: data,
+		contentType: false,
+		cache: false,
+		processData: false,
 		success: function (response) {
+			// Parsear el string de respuesta de PHP a JSON
+			if (typeof response === "string") {
+				try { response = JSON.parse(response); } catch(e) {}
+			}
+
 			// Limpiar el select
 			productSelect.html('').prop("disabled", false);
 

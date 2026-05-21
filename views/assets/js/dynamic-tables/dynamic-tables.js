@@ -125,7 +125,7 @@ $(document).on("click", ".orderFilter", function () {
 Búsqueda de registros
 =============================================*/
 
-$(document).on("keyup", "#searchItem", function () {
+$(document).on("click", "#btnSearchItem", function () {
 
 	var contentModule = $("#contentModule").val();
 	var orderBy = $("#orderByTable").val();
@@ -133,7 +133,7 @@ $(document).on("keyup", "#searchItem", function () {
 	var limit = $("#limitTable").val();
 	var page = 1;
 	var filter = "search";
-	var search = $(this).val();
+	var search = $("#searchItem").val();
 	var between1 = $("#between1").val();
 	var between2 = $("#between2").val();
 
@@ -145,6 +145,12 @@ $(document).on("keyup", "#searchItem", function () {
 
 	loadAjaxTable(contentModule, orderBy, orderMode, limit, page, filter, search, between1, between2);
 
+})
+
+$(document).on("keyup", "#searchItem", function (e) {
+	if(e.keyCode == 13){
+		$("#btnSearchItem").click();
+	}
 })
 
 /*=============================================
@@ -783,6 +789,85 @@ $(document).on("click", ".closeCash", function () {
 			}
 
 		})
+
+	})
+
+})
+
+/*=============================================
+Abrir caja
+=============================================*/
+
+$(document).on("click", ".openCash", function () {
+
+	Swal.fire({
+		title: "Abrir caja",
+		text: "Ingresa el dinero inicial para abrir la caja",
+		input: "number",
+		inputValue: "",
+		inputPlaceholder: "0.00",
+		inputAttributes: {
+			step: "any",
+			min: 0,
+			placeholder: "0.00"
+		},
+		showCancelButton: true,
+		confirmButtonText: "Abrir",
+		cancelButtonText: "Cancelar",
+		confirmButtonColor: "#28a745",
+		customClass: {
+			popup: 'swal-premium',
+			confirmButton: 'swal2-confirm',
+			cancelButton: 'swal2-cancel'
+		},
+		didOpen: () => {
+			const input = Swal.getInput();
+			if (input) input.placeholder = "0.00";
+		},
+		preConfirm: (value) => {
+			if (value === null || value === "" || isNaN(Number(value)) || Number(value) < 0) {
+				Swal.showValidationMessage("Ingresa un monto válido mayor o igual a 0");
+				return false;
+			}
+			return value;
+		}
+	}).then((result) => {
+
+		if (!result.isConfirmed) return;
+
+		fncMatPreloader("on");
+		fncSweetAlert("loading", "Abriendo caja...", "");
+
+		var data = new FormData();
+		data.append("startCashOpen", result.value);
+		data.append("tableCashOpen", "cashs");
+		data.append("token", localStorage.getItem("tokenAdmin"));
+
+		$.ajax({
+			url: "/ajax/dynamic-tables.ajax.php",
+			method: "POST",
+			data: data,
+			contentType: false,
+			cache: false,
+			processData: false,
+			success: function (response) {
+				fncMatPreloader("off");
+				fncSweetAlert("close", "", "");
+				if (response == 200) {
+					fncToastr("success", "Caja abierta con éxito");
+					setTimeout(() => location.reload(), 1250);
+				} else if (response == "already_open") {
+					fncSweetAlert("error", "Ya existe una caja abierta para esta sucursal hoy", "");
+				} else {
+					fncSweetAlert("error", "No se pudo abrir la caja", "");
+				}
+			},
+			error: function () {
+				fncMatPreloader("off");
+				fncSweetAlert("close", "", "");
+				fncSweetAlert("error", "Error al procesar la apertura de caja", "");
+			}
+		});
 
 	})
 

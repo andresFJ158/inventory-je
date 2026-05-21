@@ -1,4 +1,4 @@
-﻿<?php 
+<?php 
 
 class DynamicController{
 
@@ -385,7 +385,7 @@ class DynamicController{
 
 					// Seguridad: para caja, gastos y ventas, el campo de sucursal siempre viene del usuario si no es superadmin
 					$rolAdminSave = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
-					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order"];
+					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client"];
 					if(isset($officeForceTables[$module->title_module]) && $rolAdminSave !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
 						$forceOfficeField = $officeForceTables[$module->title_module];
 						$fields[$forceOfficeField] = (int)$_SESSION["admin"]->id_office_admin;

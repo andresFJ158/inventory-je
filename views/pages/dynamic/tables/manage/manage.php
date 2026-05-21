@@ -39,7 +39,7 @@ if ($module->title_module == "cashs") {
 
 if ($module->title_module == "admins") {
 	$filteredColumns = array();
-	$hideFields = array("token_admin", "token_exp_admin", "status_admin");
+	$hideFields = array("token_admin", "token_exp_admin", "status_admin", "scode_admin", "symbol_admin");
 	foreach ($module->columns as $col) {
 		if (!in_array($col->title_column, $hideFields)) {
 			$filteredColumns[] = $col;

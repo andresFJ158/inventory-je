@@ -54,6 +54,8 @@ services:
         condition: service_started
     ports:
       - "8080:80"
+    volumes:
+      - ./views/assets/files:/var/www/html/views/assets/files
 
 volumes:
   db_data:
