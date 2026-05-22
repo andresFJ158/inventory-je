@@ -217,13 +217,13 @@ class PosController{
 
 								</div>';
 
-								$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=price_purchase";
+								$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase";
 
 								$price = CurlController::request($url,$method,$fields);
 
 								if($price->status == 200){
 
-									$price = $price->results[0]->price_purchase;
+									$price = $price->results[0]->cost_purchase;
 
 									if($value->discount_product > 0){
 
@@ -261,7 +261,8 @@ class PosController{
 
 		$response = array(
 			"htmlProducts" => $htmlProducts,
-			"totalPagesProducts" => $totalPageProducts
+			"totalPagesProducts" => $totalPageProducts,
+			"debug_isWholesale" => isset($_POST["isWholesale"]) ? $_POST["isWholesale"] : "NOT_SET"
 		);
 
 		echo json_encode($response);
@@ -501,12 +502,14 @@ class PosController{
 				Subir a ventas
 				=============================================*/
 
+				$selling_price = (isset($_POST["isWholesale"]) && $_POST["isWholesale"] == 1 && !empty($product->may_product) && $product->discount_product <= 0) ? $product->may_product : $product->cost_purchase;
+
 				if($product->discount_product > 0){
 
-					$price_purchase = round($product->price_purchase-($product->price_purchase*($product->discount_product/100)));
+					$price_purchase = round($selling_price-($selling_price*($product->discount_product/100)));
 				}else{
 
-					$price_purchase = round($product->price_purchase);
+					$price_purchase = round($selling_price);
 
 				}
 
@@ -519,7 +522,7 @@ class PosController{
 					"tax_sale" => explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[1] ?? "0",
 					"discount_sale" => $product->discount_product,
 					"qty_sale" => 1,
-					"subtotal_sale" => $product->price_purchase,
+					"subtotal_sale" => $selling_price,
 					"status_sale" => "Pendiente",
 					"id_admin_sale" => $this->seller,
 					"id_client_sale" => $this->idClient,
@@ -550,12 +553,12 @@ class PosController{
 												$html .= '<span class="badge badge-default bg-red rounded ms-1" style="font-size:10px">'.$product->discount_product.'%</span>
 
 												<h6 class="font-weight-bold  mb-0 text-muted"><strong>'.urldecode($product->title_product).'</strong></h6>
-												<small>Bs '.number_format($price_purchase,2).' <span class="ms-1 text-red" style="font-size:12px"><s>Bs '.number_format($product->price_purchase,2).' </s></span></small>';
+												<small>Bs '.number_format($price_purchase,2).' <span class="ms-1 text-red" style="font-size:12px"><s>Bs '.number_format($selling_price,2).' </s></span></small>';
 
 											}else{
 
 												$html .= '<h6 class="font-weight-bold  mb-0 text-muted"><strong>'.urldecode($product->title_product).'</strong></h6>
-												<small>Bs '.number_format($product->price_purchase,2).'</small>';
+												<small>Bs '.number_format($selling_price,2).'</small>';
 											}
 
 										$html .= '</div>
@@ -584,7 +587,7 @@ class PosController{
 								</td>
 
 								<td>
-									<h6 class="text-center my-3 pricePurchase pricePurchase_'.$product->id_product.'" pricePurchase="'.$product->price_purchase.'" originalPricePurchase="'.$product->price_purchase.'">Bs '.number_format($product->price_purchase,2).'</h6>
+									<h6 class="text-center my-3 pricePurchase pricePurchase_'.$product->id_product.'" pricePurchase="'.$selling_price.'" originalPricePurchase="'.$selling_price.'">Bs '.number_format($selling_price,2).'</h6>
 								</td>
 
 								<td class="text-center">
@@ -638,6 +641,49 @@ class PosController{
 			echo "logout";
 		}
 
+	}
+
+	/*=============================================
+	Alternar Precio Mayorista en el Carrito
+	=============================================*/
+	public $isWholesale;
+
+	public function toggleCartWholesale(){
+
+		$url = "sales?linkTo=id_order_sale&equalTo=".$this->idOrder."&select=id_sale,id_product_sale,qty_sale,discount_sale";
+		$method = "GET";
+		$fields = array();
+
+		$getSales = CurlController::request($url,$method,$fields);
+
+		if(isset($getSales->status) && $getSales->status == 200){
+
+			foreach ($getSales->results as $key => $sale) {
+				
+				$urlProduct = "purchases?linkTo=id_product_purchase&equalTo=".$sale->id_product_sale."&select=cost_purchase,may_product";
+				$getProduct = CurlController::request($urlProduct,$method,$fields);
+
+				if(isset($getProduct->status) && $getProduct->status == 200){
+					
+					$product = $getProduct->results[0];
+					$selling_price = ($this->isWholesale == 1 && !empty($product->may_product) && $sale->discount_sale <= 0) ? $product->may_product : $product->cost_purchase;
+
+					$urlUpdate = "sales?id=".$sale->id_sale."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
+					$methodUpdate = "PUT";
+					$fieldsUpdate = array(
+						"subtotal_sale" => round($selling_price, 2)
+					);
+					$fieldsUpdate = http_build_query($fieldsUpdate);
+
+					CurlController::request($urlUpdate, $methodUpdate, $fieldsUpdate);
+				}
+			}
+
+			echo "ok";
+
+		}else{
+			echo "error";
+		}
 	}
 
 	/*=============================================
@@ -1098,6 +1144,20 @@ if(isset($_POST["idOrderDelete"])){
 	$ajax -> idOrderDelete = $_POST["idOrderDelete"];
 	$ajax -> token = $_POST["token"];
 	$ajax -> deleteOrder();
+
+}
+
+/*=============================================
+Alternar Precio Mayorista en el Carrito
+=============================================*/
+
+if(isset($_POST["toggleWholesaleCart"])){
+
+	$ajax = new PosController();
+	$ajax -> idOrder = $_POST["idOrder"];
+	$ajax -> isWholesale = $_POST["isWholesale"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> toggleCartWholesale();
 
 }
 

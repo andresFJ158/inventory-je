@@ -72,6 +72,11 @@ if($clients->status == 200){
 
 	</div>	
 
-
+	<div class="col-12 mt-2">
+		<div class="form-check form-switch custom-control custom-switch">
+			<input type="checkbox" class="form-check-input custom-control-input" id="wholesaleSwitch">
+			<label class="form-check-label custom-control-label" for="wholesaleSwitch">Habilitar precio mayorista</label>
+		</div>
+	</div>
 
 </div>

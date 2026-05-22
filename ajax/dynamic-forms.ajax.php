@@ -134,6 +134,28 @@ class DynamicFormsController{
 
 
 	}
+
+	/*=============================================
+	Obtener productos por sucursal
+	=============================================*/
+
+	public $id_office;
+
+	public function getProductsByOffice(){
+
+		$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product&equalTo=".$this->id_office."&select=id_product,title_product,sku_product";
+		$method = "GET";
+		$fields = array();
+
+		$products = CurlController::request($url,$method,$fields);
+
+		if($products->status == 200){
+			echo urldecode(json_encode($products));
+		} else {
+			echo json_encode(array("status" => 404, "error" => "No products found"));
+		}
+	}
+
 }
 
 /*=============================================
@@ -168,5 +190,14 @@ if(isset($_POST["matrix_prompt"])){
 	$ajax -> id_prompt = $_POST["id_prompt"];
 	$ajax -> token = $_POST["token"];
 	$ajax -> updateMatrixPrompt(); 
+
+}
+
+if(isset($_POST["id_office"])){
+
+	$ajax = new DynamicFormsController();
+	$ajax -> id_office = $_POST["id_office"];
+	$ajax -> token = $_POST["token"];
+	$ajax -> getProductsByOffice(); 
 
 }

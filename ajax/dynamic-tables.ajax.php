@@ -1,5 +1,9 @@
 <?php
 
+if(session_status() === PHP_SESSION_NONE){
+    session_start();
+}
+
 require_once "../controllers/curl.controller.php";
 require_once "../controllers/template.controller.php";
 
@@ -302,19 +306,63 @@ class DynamicTablesController{
 				}
 			}
 
+			// Asegurar que id_client_order esté en la lista de búsqueda para órdenes (para buscar por nombre de cliente)
+			if($module->title_module == "orders" && !in_array("id_client_order", $linkTo)){
+				array_push($linkTo, "id_client_order");
+			}
+
 			/*=============================================
 			Itineración de búsqueda
 			=============================================*/
 			foreach ($linkTo as $key => $value) {
 
-				if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+				if($value == "id_client_order" && $module->title_module == "orders" && !is_numeric($this->search)){
+					
+					// Buscar en clientes por nombre
+					$urlClients = "clients?linkTo=name_client&search=".str_replace(" ", "_", $this->search)."&select=id_client";
+					$clients = CurlController::request($urlClients, "GET", array());
+					
+					$clientIds = array();
+					if(isset($clients->status) && $clients->status == 200 && !empty($clients->results)){
+						foreach($clients->results as $c){
+							$clientIds[] = $c->id_client;
+						}
+					}
+					
+					// Buscar en clientes por apellido
+					$urlClients = "clients?linkTo=surname_client&search=".str_replace(" ", "_", $this->search)."&select=id_client";
+					$clients = CurlController::request($urlClients, "GET", array());
+					if(isset($clients->status) && $clients->status == 200 && !empty($clients->results)){
+						foreach($clients->results as $c){
+							if(!in_array($c->id_client, $clientIds)){
+								$clientIds[] = $c->id_client;
+							}
+						}
+					}
 
-					$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
+					if(count($clientIds) > 0){
+						$inIds = implode(",", $clientIds);
+						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+							$url = $module->title_module."?filterTo=".$value."&inTo=".$inIds."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
+						}else{
+							$url = $module->title_module."?filterTo=".$value.",id_office_".$module->suffix_module."&inTo=".$inIds.",".$this->idOffice."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
+						}
+					}else{
+						// No se encontraron clientes, forzar a que no encuentre nada
+						$url = $module->title_module."?linkTo=".$value."&search=NOT_FOUND_FORCE_EMPTY&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
+					}
 
 				}else{
 
-					$url = $module->title_module."?linkTo=".$value.",id_office_".$module->suffix_module."&search=".str_replace(" ", "_", $this->search).",".$this->idOffice."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
+					if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 
+						$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
+
+					}else{
+
+						$url = $module->title_module."?linkTo=".$value.",id_office_".$module->suffix_module."&search=".str_replace(" ", "_", $this->search).",".$this->idOffice."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
+
+					}
 				}
 
 				$method = "GET";
@@ -326,14 +374,22 @@ class DynamicTablesController{
 
 					$table = $table->results;
 
-					if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
-				
-						$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&select=id_".$module->suffix_module;
-
+					if($value == "id_client_order" && $module->title_module == "orders" && !is_numeric($this->search) && isset($inIds) && count($clientIds) > 0){
+						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+							$url = $module->title_module."?filterTo=".$value."&inTo=".$inIds."&select=id_".$module->suffix_module;
+						}else{
+							$url = $module->title_module."?filterTo=".$value.",id_office_".$module->suffix_module."&inTo=".$inIds.",".$this->idOffice."&select=id_".$module->suffix_module;
+						}
 					}else{
+						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+					
+							$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&select=id_".$module->suffix_module;
 
-						$url = $module->title_module."?linkTo=".$value.",id_office_".$module->suffix_module."&search=".str_replace(" ", "_", $this->search).",".$this->idOffice."&select=id_".$module->suffix_module;
+						}else{
 
+							$url = $module->title_module."?linkTo=".$value.",id_office_".$module->suffix_module."&search=".str_replace(" ", "_", $this->search).",".$this->idOffice."&select=id_".$module->suffix_module;
+
+						}
 					}
 
 					$totalData = CurlController::request($url,$method,$fields)->total;
@@ -534,9 +590,20 @@ class DynamicTablesController{
 								Contenido tipo Relaciones
 								=============================================*/
 
-								}else if($item->type_column == "relations"){
+								}else if($item->type_column == "relations" || $item->title_column == "id_client_order"){
 
-									if($item->matrix_column != null && $value[$item->title_column] > 0){
+									if($item->title_column == "id_client_order"){
+										$urlClient = "clients?linkTo=id_client&equalTo=".$value[$item->title_column];
+										$clientResp = CurlController::request($urlClient,"GET",array());
+										if(isset($clientResp->status) && $clientResp->status == 200 && !empty($clientResp->results)){
+											$HTMLTable .= urldecode($clientResp->results[0]->name_client);
+											if(isset($clientResp->results[0]->surname_client)){
+												$HTMLTable .= ' ' . urldecode($clientResp->results[0]->surname_client);
+											}
+										} else {
+											$HTMLTable .= $value[$item->title_column]; 
+										}
+									}else if($item->matrix_column != null && $value[$item->title_column] > 0){
 
 										$url = "relations?rel=modules,pages&type=module,page&linkTo=type_module,title_module&equalTo=tables,".$item->matrix_column."&select=url_page,suffix_module";
 										$method = "GET";
@@ -614,11 +681,13 @@ class DynamicTablesController{
 		    					</a>
 			    					<a href="/'.$module->url_page.'/manage/'.base64_encode($value["id_".$module->suffix_module]).'" class="btn btn-sm text-primary rounded m-0 p-0 border-0">
 			    						<i class="bi bi-pencil-square"></i>
-			    					</a>
-			    					<button type="button" class="btn btn-sm text-maroon rounded m-0 p-0 border-0 deleteItem" idItem="'.base64_encode($value["id_".$module->suffix_module]).'" table="'.$module->title_module.'" suffix="'.$module->suffix_module.'">
+			    					</a>';
+									if($module->title_module != "cashs" || ($this->rolAdmin == "superadmin" || $this->rolAdmin == "admin")){
+			    					$HTMLTable .= '<button type="button" class="btn btn-sm text-maroon rounded m-0 p-0 border-0 deleteItem" idItem="'.base64_encode($value["id_".$module->suffix_module]).'" table="'.$module->title_module.'" suffix="'.$module->suffix_module.'">
 			    						<i class="bi bi-trash"></i>
-			    					</button>
-			    				</td>';
+			    					</button>';
+									}
+			    				$HTMLTable .= '</td>';
 
     					}else{
 
@@ -781,6 +850,53 @@ class DynamicTablesController{
 	}
 
 	/*=============================================
+    Abrir caja
+    =============================================*/
+
+	public $startCashOpen;
+	public $idOfficeOpen;
+	public $idAdminOpen;
+
+	public function openCashItem(){
+
+		$today = date("Y-m-d");
+		$now   = date("Y-m-d H:i:s");
+
+		// Verificar si ya existe una caja abierta para esta sucursal
+		$urlCheck = "cashs?linkTo=id_office_cash,status_cash&equalTo=".$this->idOfficeOpen.",1&select=id_cash";
+		$existing = CurlController::request($urlCheck, "GET", array());
+		if(isset($existing->status) && $existing->status == 200 && !empty($existing->results)){
+			echo "already_open";
+			return;
+		}
+
+		$tokenSession = isset($_SESSION["admin"]->token_admin) ? $_SESSION["admin"]->token_admin : $this->token;
+
+		$url    = "cashs?token=".$tokenSession."&table=admins&suffix=admin";
+		$method = "POST";
+		$fields = array(
+			"start_cash"         => (float)$this->startCashOpen,
+			"bills_cash"         => 0,
+			"money_cash"         => 0,
+			"diff_cash"          => 0,
+			"status_cash"        => 1,
+			"date_start_cash"    => $now,
+			"id_admin_cash"      => $this->idAdminOpen,
+			"id_office_cash"     => $this->idOfficeOpen,
+			"date_created_cash"  => $today,
+		);
+
+		$result = CurlController::request($url, $method, $fields);
+
+		if(isset($result->status) && $result->status == 200){
+			echo 200;
+		} else {
+			echo "error";
+		}
+
+	}
+
+	/*=============================================
     Cambiar selección
     =============================================*/
     public $itemSelect;
@@ -912,6 +1028,21 @@ if(isset($_POST["tableCashClose"])){
 	$ajax -> columnCashClose = $_POST["columnCashClose"];
 	$ajax -> token = $_POST["token"];
 	$ajax -> closeCashItem();
+
+}
+
+/*=============================================
+Abrir caja
+=============================================*/
+
+if(isset($_POST["tableCashOpen"])){
+
+	$ajax = new DynamicTablesController();
+	$ajax -> startCashOpen = $_POST["startCashOpen"];
+	$ajax -> idOfficeOpen  = isset($_SESSION["admin"]->id_office_admin) ? (int)$_SESSION["admin"]->id_office_admin : 0;
+	$ajax -> idAdminOpen   = isset($_SESSION["admin"]->id_admin) ? (int)$_SESSION["admin"]->id_admin : 0;
+	$ajax -> token         = isset($_POST["token"]) ? $_POST["token"] : "";
+	$ajax -> openCashItem();
 
 }
 

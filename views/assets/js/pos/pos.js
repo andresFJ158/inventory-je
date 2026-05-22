@@ -86,6 +86,54 @@ $(document).on("keyup", "#searchProduct", function () {
 })
 
 /*=============================================
+RESTORE WHOLESALE STATE
+=============================================*/
+$(document).ready(function(){
+	if(localStorage.getItem("isWholesale") == "1"){
+		$("#wholesaleSwitch").prop("checked", true);
+	}
+	
+	if ($("#orderHeader").attr("mode") == "on") {
+		calculateProducts();
+	}
+});
+
+/*=============================================
+TOGGLE WHOLESALE PRICING
+=============================================*/
+
+$(document).on("change", "#wholesaleSwitch", function () {
+	
+	var isWholesale = $(this).is(":checked") ? 1 : 0;
+	localStorage.setItem("isWholesale", isWholesale);
+
+	if ($("#orderHeader").attr("mode") == "on") {
+		var idOrder = $("#orderHeader").attr("idOrder");
+		
+		var data = new FormData();
+		data.append("toggleWholesaleCart", "yes");
+		data.append("idOrder", idOrder);
+		data.append("isWholesale", isWholesale);
+		data.append("token", localStorage.getItem("tokenAdmin"));
+		
+		fncSweetAlert("loading", "Actualizando precios...", "");
+		
+		$.ajax({
+			url: "/ajax/pos.ajax.php",
+			method: "POST",
+			data: data,
+			contentType: false,
+			cache: false,
+			processData: false,
+			success: function (response) {
+				fncSweetAlert("close", "", "");
+				window.location.reload();
+			}
+		});
+	}
+})
+
+/*=============================================
 FUNCIÓN PARA CARGAR MÁS PRODUCTOS
 =============================================*/
 
@@ -103,6 +151,7 @@ function loadMoreProducts(limit, startAt, category, search) {
 	data.append("category", category);
 	data.append("search", search);
 	data.append("idOffice", $("#idOffice").val());
+	data.append("isWholesale", $("#wholesaleSwitch").is(":checked") ? 1 : 0);
 
 	$.ajax({
 
@@ -415,6 +464,7 @@ $(document).on("click", ".addProductPos", function () {
 		data.append("seller", $("#seller").attr("idAdmin"));
 		data.append("idOffice", $("#idOffice").val());
 		data.append("token", localStorage.getItem("tokenAdmin"));
+		data.append("isWholesale", $("#wholesaleSwitch").is(":checked") ? 1 : 0);
 
 		$.ajax({
 

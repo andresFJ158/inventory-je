@@ -63,10 +63,7 @@ if(!empty($order)){
 
 				<?php foreach ($sales as $key => $value): 
 
-					$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=price_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
-					
-
-					 $original_price = CurlController::request($url,$method,$fields)->results[0]->price_purchase;
+					$original_price = $value->subtotal_sale;
 				?>
 
 					<tr>
@@ -81,22 +78,22 @@ if(!empty($order)){
 
 									<?php if ($value->discount_product > 0):
 
-										$price_purchase = $original_price-($original_price*($value->discount_product/100));
+										$cost_purchase = $original_price-($original_price*($value->discount_product/100));
 
 									?>
 
 										<span class="badge badge-default bg-red rounded ms-1" style="font-size:10px"><?php echo $value->discount_product ?>%</span>
 
 										<h6 class="font-weight-bold  mb-0 text-muted"><strong><?php echo urldecode($value->title_product) ?></strong></h6>
-										<small>Bs <?php echo number_format($price_purchase,2) ?> <span class="ms-1 text-red" style="font-size:12px"><s>Bs <?php echo  number_format($original_price,2) ?></s></span></small>
+										<small>Bs <?php echo number_format($cost_purchase,2) ?> <span class="ms-1 text-red" style="font-size:12px"><s>Bs <?php echo  number_format($original_price,2) ?></s></span></small>
 
 									<?php else: 
 
-										$price_purchase = $original_price;
+										$cost_purchase = $original_price;
 									?>
 
 										<h6 class="font-weight-bold  mb-0 text-muted"><strong><?php echo urldecode($value->title_product) ?></strong></h6>
-										<small>Bs <?php echo  number_format($price_purchase,2) ?></small>
+										<small>Bs <?php echo  number_format($cost_purchase,2) ?></small>
 										
 									<?php endif ?>
 
@@ -126,7 +123,7 @@ if(!empty($order)){
 						</td>
 
 						<td>
-							<h6 class="text-center my-3 pricePurchase pricePurchase_<?php echo $value->id_product ?>" pricePurchase="<?php echo $value->subtotal_sale ?>" originalPricePurchase="<?php echo $original_price ?>">Bs <?php echo number_format($value->subtotal_sale,2) ?></h6>
+							<h6 class="text-center my-3 pricePurchase pricePurchase_<?php echo $value->id_product ?>" pricePurchase="<?php echo $value->subtotal_sale ?>" originalPricePurchase="<?php echo $value->subtotal_sale ?>">Bs <?php echo number_format($value->subtotal_sale,2) ?></h6>
 						</td>
 
 						<td class="text-center">
