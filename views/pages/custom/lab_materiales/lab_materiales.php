@@ -31,23 +31,27 @@ if ($materials->status == 200) {
                                 <tr>
                                     <th>#</th>
                                     <th>Nombre</th>
+                                    <th>Tipo</th>
                                     <th>Unidad</th>
                                     <th>Descripción</th>
-                                    <th>Stock Actual</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach($materials as $index => $material): ?>
+                                <?php foreach($materials as $index => $material): 
+                                    $badgeClass = 'bg-secondary';
+                                    $tipoLabel = 'Desconocido';
+                                    if(isset($material->measure_type)) {
+                                        if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = '🟠 Peso'; }
+                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '🔵 Volumen'; }
+                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '🟢 Unidad'; }
+                                    }
+                                ?>
                                 <tr>
                                     <td><?php echo $index + 1 ?></td>
                                     <td class="text-uppercase"><?php echo $material->name_raw_material ?></td>
+                                    <td><span class="badge <?php echo $badgeClass ?>"><?php echo $tipoLabel ?></span></td>
                                     <td><span class="badge bg-secondary"><?php echo $material->unit_raw_material ?></span></td>
                                     <td><?php echo $material->description_raw_material ?></td>
-                                    <td>
-                                        <span class="badge <?php echo $material->stock_raw_material > 0 ? 'bg-success' : 'bg-danger' ?>">
-                                            <?php echo $material->stock_raw_material ?>
-                                        </span>
-                                    </td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -76,9 +80,26 @@ if ($materials->status == 200) {
                 <label>Nombre de Materia Prima</label>
                 <input type="text" class="form-control" id="name_raw_material" placeholder="Ej: Jabón Base" required>
             </div>
+            
+            <div class="mb-3">
+                <label>Tipo de Medida</label>
+                <div class="btn-group w-100" role="group" aria-label="Tipo de medida">
+                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_weight" value="weight" onchange="updateUnitSelect()">
+                    <label class="btn btn-outline-warning" for="type_weight">⚖️ Peso</label>
+
+                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_volume" value="volume" onchange="updateUnitSelect()">
+                    <label class="btn btn-outline-info" for="type_volume">🧪 Volumen</label>
+
+                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_unit" value="unit" onchange="updateUnitSelect()" checked>
+                    <label class="btn btn-outline-success" for="type_unit">📦 Unidad</label>
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label>Unidad de Medida</label>
-                <input type="text" class="form-control" id="unit_raw_material" placeholder="Ej: kg, g, l, ml, und" required>
+                <select class="form-select" id="unit_raw_material" required>
+                    <!-- Options populated by JS -->
+                </select>
             </div>
             <div class="mb-3">
                 <label>Descripción (Opcional)</label>
@@ -95,14 +116,39 @@ if ($materials->status == 200) {
 </div>
 
 <script>
+const unitOptions = {
+    'weight': ['kg', 'g'],
+    'volume': ['L', 'ml'],
+    'unit': ['und']
+};
+
+function updateUnitSelect() {
+    var type = $('input[name="measure_type"]:checked').val();
+    var select = $('#unit_raw_material');
+    select.empty();
+    
+    if(unitOptions[type]) {
+        unitOptions[type].forEach(function(unit) {
+            select.append(`<option value="${unit}">${unit}</option>`);
+        });
+    }
+}
+
+// Call on load
+$(document).ready(function() {
+    updateUnitSelect();
+});
+
 function openMaterialModal() {
     $('#formMaterial')[0].reset();
+    updateUnitSelect();
     $('#modalMaterial').modal('show');
 }
 
 function saveMaterial() {
     var name = $('#name_raw_material').val();
     var unit = $('#unit_raw_material').val();
+    var measure_type = $('input[name="measure_type"]:checked').val();
     var desc = $('#description_raw_material').val();
     var id_office = $('#id_office_raw_material').val();
     var id_admin = $('#id_admin_raw_material').val();
@@ -114,6 +160,7 @@ function saveMaterial() {
 
     var fields = {
         name_raw_material: name,
+        measure_type: measure_type,
         unit_raw_material: unit,
         description_raw_material: desc,
         id_office_raw_material: id_office,
