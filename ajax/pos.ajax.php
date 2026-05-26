@@ -1186,6 +1186,21 @@ if(isset($_POST["completeProduction"])){
     $pkg_envase_type = trim(htmlspecialchars($_POST['pkg_envase_type'] ?? 'und'));
 	$id_office = $_POST['id_office'] ?? 1; // Default or taken from session
 	
+	$real_bulk_qty = isset($_POST['real_bulk_qty']) && $_POST['real_bulk_qty'] !== '' 
+		? (float)$_POST['real_bulk_qty'] 
+		: null;
+	$original_bulk_qty = isset($_POST['original_bulk_qty']) && $_POST['original_bulk_qty'] !== '' 
+		? (float)$_POST['original_bulk_qty'] 
+		: null;
+
+	$yield_variance = null;
+	$yield_variance_pct = null;
+
+	if ($real_bulk_qty !== null && $original_bulk_qty !== null) {
+		$yield_variance = $real_bulk_qty - $original_bulk_qty;
+		$yield_variance_pct = ($original_bulk_qty > 0) ? ($yield_variance / $original_bulk_qty * 100) : 0;
+	}
+	
 	try {
 		$db->beginTransaction();
 
@@ -1319,6 +1334,9 @@ if(isset($_POST["completeProduction"])){
 			':real_cif' => $real_cif,
 			':pkg_mo' => $extra_mo,
 			':pkg_cif' => $extra_cif,
+			':real_bulk_qty' => $real_bulk_qty,
+			':yield_variance' => $yield_variance,
+			':yield_variance_pct' => $yield_variance_pct,
 			':id' => $id_production
 		];
 		$id_packaged_product = 0;
@@ -1357,6 +1375,9 @@ if(isset($_POST["completeProduction"])){
 			real_indirect_cost = :real_cif, 
 			pkg_labor_cost = :pkg_mo, 
 			pkg_indirect_cost = :pkg_cif, 
+			real_bulk_qty = :real_bulk_qty,
+			yield_variance = :yield_variance,
+			yield_variance_pct = :yield_variance_pct,
 			date_updated_production = NOW() 
 		WHERE id_production = :id");
 		$updateProdData[':id_pkg'] = $id_packaged_product;

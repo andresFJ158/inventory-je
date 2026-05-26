@@ -159,6 +159,7 @@ var adminId = <?php echo $_SESSION["admin"]->id_admin; ?>;
 var materialsData = <?php echo json_encode($materialsData ?? []); ?>;
 
 let currentBulkQty = 0;
+let _originalBulkQty = 0;
 let currentBulkUnit = '';
 let currentRecipeName = '';
 
@@ -383,7 +384,13 @@ function saveProduction() {
             </div>
             <div class="col-sm-6 text-end">
                 <strong>Lotes (Factor):</strong> <span id="det_factor"></span><br>
-                <strong>Cantidad Producida:</strong> <span id="det_qty"></span><br>
+                <strong>Cantidad Esperada:</strong> <span id="det_qty"></span><br>
+                <div id="det_yield_container" class="d-none border rounded p-1 bg-light my-1 text-start d-inline-block" style="min-width: 220px;">
+                    <div class="px-2 small">
+                        <strong>Cantidad Real:</strong> <span id="det_real_qty" class="fw-bold"></span><br>
+                        <strong>Variación:</strong> <span id="det_yield_variance" class="fw-bold"></span>
+                    </div>
+                </div><br>
                 <strong>Costo Unitario:</strong> <span id="det_unit_cost" class="text-primary fw-bold"></span>
             </div>
         </div>
@@ -461,6 +468,22 @@ function viewProductionDetails(id_production) {
             $('#det_factor').text(p.batches_production + 'x');
             $('#det_qty').text(p.total_qty_production + ' ' + (p.unit_product || ''));
 
+            // Populate Yield / Variance Details
+            if (p.real_bulk_qty !== null && p.real_bulk_qty !== undefined && p.real_bulk_qty !== '') {
+                $('#det_yield_container').removeClass('d-none');
+                $('#det_real_qty').text(parseFloat(p.real_bulk_qty).toFixed(2) + ' ' + (p.unit_product || ''));
+                
+                let variance = parseFloat(p.yield_variance) || 0;
+                let pct = parseFloat(p.yield_variance_pct) || 0;
+                let sign = variance >= 0 ? '+' : '';
+                let colorClass = variance >= 0 ? 'text-success' : 'text-danger';
+                let emoji = variance > 0 ? '🟢 Excedente' : (variance < 0 ? '🔴 Merma' : '⚪ Sin cambio');
+                
+                $('#det_yield_variance').html(`<span class="${colorClass}">${emoji} (${sign}${variance.toFixed(2)} / ${sign}${pct.toFixed(1)}%)</span>`);
+            } else {
+                $('#det_yield_container').addClass('d-none');
+            }
+
             let real_cif = parseFloat(p.real_indirect_cost) || parseFloat(p.proj_indirect_cost) || 0;
             let real_mo = parseFloat(p.real_labor_cost) || parseFloat(p.proj_labor_cost) || 0;
             let total_mat = 0;
@@ -533,6 +556,29 @@ function viewProductionDetails(id_production) {
             <div class="col-md-6 text-end">
                 <strong>Envases Calculados:</strong> 
                 <span id="pkg_calculated_envases" class="fs-5 text-success fw-bold">0</span> Unidades
+            </div>
+        </div>
+
+        <!-- SECCIÓN: Rendimiento Real / Merma -->
+        <div class="mb-4 border rounded p-3 bg-light">
+            <h6 class="mb-3 text-secondary"><i class="fas fa-flask"></i> Resultado del Proceso de Elaboración</h6>
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <span>Rendimiento esperado: <strong id="pkg_expected_qty_label" class="text-primary"></strong></span>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="yield_type" id="yield_same" value="same" checked onchange="onYieldTypeChange()">
+                <label class="form-check-label" for="yield_same">No, obtuve exactamente la cantidad esperada</label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="yield_type" id="yield_diff" value="diff" onchange="onYieldTypeChange()">
+                <label class="form-check-label" for="yield_diff">Sí, el resultado fue diferente — obtuve:</label>
+            </div>
+            <div id="yield_real_input" class="d-none mt-2 p-2 border-start border-primary border-3 bg-white rounded">
+                <div class="input-group mb-2" style="max-width:250px;">
+                    <input type="number" step="0.01" class="form-control" id="pkg_real_bulk_qty" placeholder="Cantidad real" oninput="onRealQtyChange()">
+                    <span class="input-group-text" id="pkg_bulk_unit_label2"></span>
+                </div>
+                <div id="yield_variance_banner" class="alert py-2 px-3 d-none mb-0"></div>
             </div>
         </div>
 
@@ -619,10 +665,19 @@ function showPackagingModal(id_production, id_recipe, batches, id_product, total
     $('#pkg_id_product').val(id_product);
     
     currentBulkQty = parseFloat(total_qty) || 0;
+    _originalBulkQty = currentBulkQty;
     currentBulkUnit = bulk_unit || '';
 
     $('#pkg_total_qty_display').text(currentBulkQty + ' ' + currentBulkUnit);
     $('#pkg_bulk_unit_label').text(currentBulkUnit);
+    
+    // Reset yield inputs and UI
+    $('#pkg_expected_qty_label').text(_originalBulkQty + ' ' + currentBulkUnit);
+    $('#pkg_bulk_unit_label2').text(currentBulkUnit);
+    $('#yield_same').prop('checked', true);
+    $('#yield_real_input').addClass('d-none');
+    $('#pkg_real_bulk_qty').val('');
+    $('#yield_variance_banner').addClass('d-none').html('');
     
     // Auto-select compatible unit
     if(currentBulkUnit === 'L') {
@@ -642,6 +697,43 @@ function showPackagingModal(id_production, id_recipe, batches, id_product, total
     $('#pkg_extra_cif').val('0');
 
     $('#modalPackaging').modal('show');
+}
+
+function onYieldTypeChange() {
+    if ($('#yield_diff').is(':checked')) {
+        $('#yield_real_input').removeClass('d-none');
+        onRealQtyChange();
+    } else {
+        $('#yield_real_input').addClass('d-none');
+        $('#yield_variance_banner').addClass('d-none');
+        currentBulkQty = _originalBulkQty; // Reset to original expected quantity
+        $('#pkg_total_qty_display').text(currentBulkQty + ' ' + currentBulkUnit);
+        calcEnvases();
+    }
+}
+
+function onRealQtyChange() {
+    let real = parseFloat($('#pkg_real_bulk_qty').val()) || 0;
+    if (real > 0) {
+        let variance = real - _originalBulkQty;
+        let pct = (_originalBulkQty > 0) ? ((variance / _originalBulkQty) * 100) : 0;
+        
+        let cls = variance >= 0 ? 'alert-success' : 'alert-danger';
+        let sign = variance >= 0 ? '+' : '';
+        let emoji = variance > 0 ? '🟢 Excedente' : (variance < 0 ? '🔴 Merma' : '⚪ Sin cambio');
+        
+        $('#yield_variance_banner').removeClass('d-none alert-success alert-danger').addClass(cls)
+            .html(`<strong>${emoji}</strong> &nbsp; Variación: ${sign}${variance.toFixed(2)} ${currentBulkUnit} (${sign}${pct.toFixed(1)}%)`);
+        
+        currentBulkQty = real;
+        $('#pkg_total_qty_display').text(currentBulkQty + ' ' + currentBulkUnit);
+        calcEnvases();
+    } else {
+        $('#yield_variance_banner').addClass('d-none');
+        currentBulkQty = _originalBulkQty;
+        $('#pkg_total_qty_display').text(currentBulkQty + ' ' + currentBulkUnit);
+        calcEnvases();
+    }
 }
 
 function calcEnvases() {
@@ -716,6 +808,9 @@ function submitPackaging() {
         return;
     }
 
+    let isYieldDiff = $('#yield_diff').is(':checked');
+    let real_bulk_qty = isYieldDiff ? ($('#pkg_real_bulk_qty').val() || null) : null;
+
     let payload = {
         completeProduction: "ok",
         id_production: $('#pkg_id_prod').val(),
@@ -728,7 +823,9 @@ function submitPackaging() {
         pkg_final_qty: final_qty,
         pkg_final_name: final_name,
         pkg_envase_type: $('#pkg_envase_type').val(),
-        id_office: typeof officeId !== 'undefined' ? officeId : 1
+        id_office: typeof officeId !== 'undefined' ? officeId : 1,
+        real_bulk_qty: real_bulk_qty !== null ? real_bulk_qty : "",
+        original_bulk_qty: _originalBulkQty
     };
 
     fncSweetAlert("loading", "Procesando envasado y cerrando producción...", "");
