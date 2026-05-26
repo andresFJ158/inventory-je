@@ -43,7 +43,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                         <table class="table table-bordered table-striped">
                             <thead>
                                 <tr>
-                                    <th># Orden</th>
+                                    <th>ID Orden</th>
                                     <th>Producto</th>
                                     <th>Factor de Escala</th>
                                     <th>Cantidad Total (a granel)</th>
@@ -156,6 +156,11 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
 <script>
 var officeId = <?php echo $_SESSION["admin"]->id_office_admin; ?>;
 var adminId = <?php echo $_SESSION["admin"]->id_admin; ?>;
+var materialsData = <?php echo json_encode($materialsData ?? []); ?>;
+
+let currentBulkQty = 0;
+let currentBulkUnit = '';
+let currentRecipeName = '';
 
 function openProductionModal() {
     $('#formProduction')[0].reset();
@@ -353,48 +358,6 @@ function saveProduction() {
     });
 }
 
-function completeProduction(id_production, id_recipe, batches, id_product) {
-    fncSweetAlert("confirm", "¿Está seguro de finalizar esta producción?", "Esto descontará el stock de materias primas y calculará los costos finales.").then(resp => {
-        if(resp) {
-            fncSweetAlert("loading", "Procesando Finalización...", "");
-            
-            var data = new FormData();
-            data.append("completeProduction", "ok");
-            data.append("id_production", id_production);
-            data.append("id_recipe", id_recipe);
-            data.append("batches", batches);
-            data.append("id_product", id_product);
-            data.append("id_office", officeId);
-            data.append("token", localStorage.getItem("tokenAdmin"));
-
-            $.ajax({
-                url: "/ajax/pos.ajax.php",
-                method: "POST",
-                data: data,
-                contentType: false,
-                cache: false,
-                processData: false,
-                success: function(response) {
-                    fncSweetAlert("close", "", "");
-                    if(response.trim() == "ok") {
-                        fncToastr("success", "Producción completada y stock actualizado.");
-                        setTimeout(() => { location.reload(); }, 1500);
-                    } else if(response.includes("stock_insuficiente")) {
-                        let mp_name = response.split("|")[1];
-                        fncToastr("error", "Stock insuficiente de: " + mp_name);
-                    } else {
-                        fncToastr("error", "Error al finalizar la producción.");
-                        console.error(response);
-                    }
-                },
-                error: function() {
-                    fncSweetAlert("close", "", "");
-                    fncToastr("error", "Error de servidor");
-                }
-            });
-        }
-    });
-}
 </script>
 
 <!-- Modal Detalles de Producción -->
@@ -642,12 +605,6 @@ function viewProductionDetails(id_production) {
 </div>
 
 <script>
-var materialsData = <?php echo json_encode($materialsData ?? []); ?>;
-
-let currentBulkQty = 0;
-let currentBulkUnit = '';
-let currentRecipeName = '';
-
 function showPackagingModal(id_production, id_recipe, batches, id_product, total_qty, bulk_unit, recipe_name) {
     currentRecipeName = recipe_name || '';
     $('#pkg_id_prod').val(id_production);

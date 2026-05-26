@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $role = $_SESSION["admin"]->rol_admin;
 
 // Obtener todas las materias primas para el select
@@ -7,8 +7,6 @@ $mpRes = CurlController::request($urlMP, "GET", array());
 $materials = ($mpRes->status == 200) ? $mpRes->results : array();
 
 // Obtener entradas
-$urlEntradas = "raw_material_entries?linkTo=status_entry&equalTo=pendiente"; 
-// Join con raw_materials para ver el nombre
 $urlEntradas = "relations?rel=raw_material_entries,raw_materials,admins&type=entry,raw_material,admin&linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin."&orderBy=id_entry&orderMode=ASC";
 $entRes = CurlController::request($urlEntradas, "GET", array());
 $entries = ($entRes->status == 200) ? $entRes->results : array();
@@ -34,7 +32,7 @@ $entries = ($entRes->status == 200) ? $entRes->results : array();
                         <table class="table table-bordered table-striped">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th>ID</th>
                                     <th>Materia Prima</th>
                                     <th>Cantidad</th>
                                     <th>Proveedor</th>
@@ -286,107 +284,23 @@ function approveEntry() {
 
     fncSweetAlert("loading", "Aprobando y actualizando stock...", "");
 
-    // 1. Actualizar entrada
-    var today = new Date().toISOString().split('T')[0];
-    
-    var fields = {
-        unit_price_entry: price,
-        total_cost_entry: total,
-        status_entry: "aprobado",
-        id_approved_by_entry: id_admin,
-        date_approved_entry: today
-    };
-    
-    var payload = new URLSearchParams();
-    payload.append("apiProxy", "ok");
-    payload.append("url", "raw_material_entries?id=" + id_entry + "&nameId=id_entry&token=" + localStorage.getItem("tokenAdmin") + "&table=admins&suffix=admin");
-    payload.append("method", "PUT");
-    payload.append("fields", JSON.stringify(fields));
-
-    $.ajax({
-        url: "/ajax/pos.ajax.php",
-        method: "POST",
-        data: payload.toString(),
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-        },
-        success: function(response) {
-            try {
-                var res = typeof response === "string" ? JSON.parse(response) : response;
-                if(res.status == 200) {
-                    // 2. Actualizar stock en raw_materials
-                    updateStockInBackend(id_raw_material, qty);
-                } else {
-                    fncSweetAlert("close", "", "");
-                    fncToastr("error", "Error al aprobar la entrada");
-                }
-            } catch(e) {
-                fncSweetAlert("close", "", "");
-                fncToastr("error", "Respuesta inválida");
-            }
-        },
-        error: function(err) {
-            fncSweetAlert("close", "", "");
-            fncToastr("error", "Error de comunicación con el servidor");
-        }
-    });
-}
-
-function updateStockInBackend(id_raw_material, qty) {
-    // Paso 1: Leer el stock actual via apiProxy
-    var getPayload = new URLSearchParams();
-    getPayload.append("apiProxy", "ok");
-    getPayload.append("url", "raw_materials?linkTo=id_raw_material&equalTo=" + id_raw_material);
-    getPayload.append("method", "GET");
-    getPayload.append("fields", "{}");
-
-    $.ajax({
-        url: "/ajax/pos.ajax.php",
-        method: "POST",
-        data: getPayload.toString(),
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        success: function(response) {
-            try {
-                var res = typeof response === "string" ? JSON.parse(response) : response;
-                if(res.status == 200 && res.results && res.results.length > 0) {
-                    var currentStock = parseFloat(res.results[0].stock_raw_material) || 0;
-                    var newStock = currentStock + parseFloat(qty);
-
-                    // Paso 2: Actualizar con el nuevo stock acumulado
-                    var putPayload = new URLSearchParams();
-                    putPayload.append("apiProxy", "ok");
-                    putPayload.append("url", "raw_materials?id=" + id_raw_material + "&nameId=id_raw_material&token=" + localStorage.getItem("tokenAdmin") + "&table=admins&suffix=admin");
-                    putPayload.append("method", "PUT");
-                    putPayload.append("fields", JSON.stringify({ stock_raw_material: newStock }));
-
-                    $.ajax({
-                        url: "/ajax/pos.ajax.php",
-                        method: "POST",
-                        data: putPayload.toString(),
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        success: function() {
-                            fncSweetAlert("close", "", "");
-                            fncToastr("success", "Entrada aprobada y stock actualizado");
-                            setTimeout(function() { location.reload(); }, 1000);
-                        },
-                        error: function() {
-                            fncSweetAlert("close", "", "");
-                            fncToastr("error", "Error al actualizar stock");
-                        }
-                    });
-                } else {
-                    fncSweetAlert("close", "", "");
-                    fncToastr("error", "No se pudo leer el stock actual");
-                }
-            } catch(e) {
-                fncSweetAlert("close", "", "");
-                fncToastr("error", "Error al procesar stock");
-            }
-        },
-        error: function() {
-            fncSweetAlert("close", "", "");
-            fncToastr("error", "Error de comunicacion al leer stock");
+    $.post("/ajax/pos.ajax.php", {
+        approveRawMaterialEntry: "ok",
+        id_entry: id_entry,
+        id_raw_material: id_raw_material,
+        qty: qty,
+        price: price,
+        total: total,
+        id_admin: id_admin
+    }, function(res) {
+        fncSweetAlert("close", "", "");
+        if(res.trim() == "ok") {
+            fncToastr("success", "Entrada aprobada y stock actualizado");
+            setTimeout(function() { location.reload(); }, 1000);
+        } else {
+            fncToastr("error", res.split("|")[1] || "Error al aprobar la entrada");
         }
     });
 }
 </script>
+

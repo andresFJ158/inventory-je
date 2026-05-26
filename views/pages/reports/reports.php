@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -634,7 +634,7 @@ Página de Informes
 									
 									<thead>
 										<tr>
-											<th>#</th>
+											<th>ID</th>
 											<th>Transacción</th>
 											<th>Cliente</th>
 											<th>Fecha</th>
@@ -717,7 +717,7 @@ Página de Informes
 									
 									<thead>
 										<tr>
-											<th>#</th>
+											<th>ID</th>
 											<th>Producto</th>
 											<th>Cantidad</th>
 											<th>Precio Unitario</th>
@@ -1201,3 +1201,4 @@ $(document).ready(function(){
 });
 
 </script>
+

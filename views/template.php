@@ -333,11 +333,13 @@ if($adminTable->status == 404){
 						if ($role == "superadmin" || $role == "admin") {
 							$allowed = true;
 						} else if ($role == "lab_admin") {
-							$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final"];
+							$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final", "lab_calidad"];
 							if (in_array($route, $lab_routes)) $allowed = true;
 						} else if ($role == "lab_worker") {
 							$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final"];
 							if (in_array($route, $lab_routes)) $allowed = true;
+						} else if ($role == "qc_inspector") {
+							if ($route === "lab_calidad") $allowed = true;
 						} else if ($role == "editor") {
 							$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
 							if (isset($perms[$route]) && $perms[$route] == "on") {
@@ -421,59 +423,51 @@ if($adminTable->status == 404){
 						
 						?>
 
-					<?php else: ?>
+			<?php else: ?>
 
-						<?php if ($_SESSION["admin"]->rol_admin == "lab_admin"): ?>
+				<?php if ($_SESSION["admin"]->rol_admin == "lab_admin"): ?>
 
-							<script>window.location = "lab_produccion";</script>
+					<script>window.location = "lab_produccion";</script>
 
-						<?php else: ?>
-							
-							<?php if ($_SESSION["admin"]->rol_admin == "lab_worker"): ?>
+				<?php elseif ($_SESSION["admin"]->rol_admin == "lab_worker"): ?>
 
-								<script>window.location = "lab_entradas";</script>
+					<script>window.location = "lab_entradas";</script>
 
-							<?php else: ?>
+				<?php elseif ($_SESSION["admin"]->rol_admin == "qc_inspector"): ?>
 
-								<!--=========================================
-								Validar permisos para editores
-								===========================================-->
+					<script>window.location = "lab_calidad";</script>
 
-								<?php if ($_SESSION["admin"]->rol_admin == "editor"): ?>
+				<?php elseif ($_SESSION["admin"]->rol_admin == "editor"): ?>
 
-									<?php
+					<?php
 
-										$url = "pages?linkTo=url_page&equalTo=".array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
-										$method = "GET";
-										$fields = array();
+						$url = "pages?linkTo=url_page&equalTo=".array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
+						$method = "GET";
+						$fields = array();
 
-										$page = CurlController::request($url,$method,$fields);
+						$page = CurlController::request($url,$method,$fields);
 
-										$routesArray[0] = array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
+						$routesArray[0] = array_keys(json_decode(urldecode($_SESSION["admin"]->permissions_admin),true))[0];
 
-										if($page->status == 200 && $page->results[0]->type_page == "modules"){
+						if($page->status == 200 && $page->results[0]->type_page == "modules"){
 
-											include "pages/dynamic/dynamic.php";
-										
-										}else if($page->status == 200 && $page->results[0]->type_page == "custom"){
+							include "pages/dynamic/dynamic.php";
+						
+						}else if($page->status == 200 && $page->results[0]->type_page == "custom"){
 
-											include "pages/custom/".$page->results[0]->url_page."/".$page->results[0]->url_page.".php";
-										
-										}else{
+							include "pages/custom/".$page->results[0]->url_page."/".$page->results[0]->url_page.".php";
+						
+						}else{
 
-											include "pages/404/404.php";
-										
-										}
+							include "pages/404/404.php";
+						
+						}
 
-									?>
+					?>
 
-								<?php endif ?>
+				<?php endif ?>
 
-							<?php endif ?>
-
-						<?php endif ?>
-
-					<?php endif ?>
+			<?php endif ?>
 
 				<?php endif ?>
 

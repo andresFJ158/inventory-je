@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // Get all recipes
 $urlRecipes = "relations?rel=recipes,products,admins&type=recipe,product,admin&linkTo=id_office_recipe&equalTo=".$_SESSION["admin"]->id_office_admin;
 $recRes = CurlController::request($urlRecipes, "GET", array());
@@ -43,7 +43,7 @@ foreach($materials as $mp) {
                         <table class="table table-bordered table-striped">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th>ID</th>
                                     <th>Producto</th>
                                     <th>Cantidad Base</th>
                                     <th>Unidad</th>
@@ -219,7 +219,7 @@ function editRecipe(id) {
 
 function deleteRecipe(id) {
     fncFormatInputs();
-    fncSweetAlert("confirm", "¿Estás seguro de eliminar esta receta?", "").then(resp => {
+    fncSweetAlert("confirm", "Â¿Estás seguro de eliminar esta receta?", "").then(resp => {
         if(resp){
             $.post("/ajax/pos.ajax.php", { deleteRecipe: "ok", id_recipe: id }, function(res) {
                 if(res.trim() == "ok") {
@@ -321,7 +321,6 @@ function saveRecipe() {
     });
 
     let recipeData = {
-        saveRecipe: "ok",
         name_product: name_product,
         batch_size: batch_size,
         unit_batch: unit_batch,
@@ -331,6 +330,14 @@ function saveRecipe() {
         labor: JSON.stringify(labors),
         token: localStorage.getItem("tokenAdmin")
     };
+
+    let edit_id = $('#edit_id_recipe').val();
+    if (edit_id) {
+        recipeData.editRecipe = "ok";
+        recipeData.id_recipe = edit_id;
+    } else {
+        recipeData.saveRecipe = "ok";
+    }
 
     fncSweetAlert("loading", "Guardando Receta...", "");
 
@@ -459,3 +466,4 @@ function viewRecipe(id) {
     });
 }
 </script>
+

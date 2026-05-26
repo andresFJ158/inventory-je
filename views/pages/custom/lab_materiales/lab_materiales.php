@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $url = "raw_materials?linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin;
 $method = "GET";
 $fields = array();
@@ -29,7 +29,7 @@ if ($materials->status == 200) {
                         <table class="table table-bordered table-striped" id="materialsTable">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th>ID</th>
                                     <th>Nombre</th>
                                     <th>Tipo</th>
                                     <th>Unidad</th>
@@ -41,9 +41,9 @@ if ($materials->status == 200) {
                                     $badgeClass = 'bg-secondary';
                                     $tipoLabel = 'Desconocido';
                                     if(isset($material->measure_type)) {
-                                        if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = '🟠 Peso'; }
-                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '🔵 Volumen'; }
-                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '🟢 Unidad'; }
+                                        if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = 'ðŸŸ  Peso'; }
+                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = 'ðŸ”µ Volumen'; }
+                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = 'ðŸŸ¢ Unidad'; }
                                     }
                                 ?>
                                 <tr>
@@ -85,13 +85,13 @@ if ($materials->status == 200) {
                 <label>Tipo de Medida</label>
                 <div class="btn-group w-100" role="group" aria-label="Tipo de medida">
                     <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_weight" value="weight" onchange="updateUnitSelect()">
-                    <label class="btn btn-outline-warning" for="type_weight">⚖️ Peso</label>
+                    <label class="btn btn-outline-warning" for="type_weight">âš–ï¸ Peso</label>
 
                     <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_volume" value="volume" onchange="updateUnitSelect()">
-                    <label class="btn btn-outline-info" for="type_volume">🧪 Volumen</label>
+                    <label class="btn btn-outline-info" for="type_volume">ðŸ§ª Volumen</label>
 
                     <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_unit" value="unit" onchange="updateUnitSelect()" checked>
-                    <label class="btn btn-outline-success" for="type_unit">📦 Unidad</label>
+                    <label class="btn btn-outline-success" for="type_unit">ðŸ“¦ Unidad</label>
                 </div>
             </div>
 
@@ -204,3 +204,4 @@ function saveMaterial() {
     });
 }
 </script>
+

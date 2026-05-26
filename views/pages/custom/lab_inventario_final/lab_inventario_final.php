@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $url = "products?linkTo=id_office_product,is_compound_product&equalTo=".$_SESSION["admin"]->id_office_admin.",1";
 $method = "GET";
 $fields = array();
@@ -23,7 +23,7 @@ $products = ($productsRes->status == 200) ? $productsRes->results : array();
                         <table class="table table-bordered table-striped" id="finalInventoryTable">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th>ID</th>
                                     <th>Resumen de Inventario</th>
                                     <th class="text-end">Costo Unitario</th>
                                     <th class="text-end">Valor Total del Lote</th>
@@ -35,8 +35,11 @@ $products = ($productsRes->status == 200) ? $productsRes->results : array();
                                 $count = 0;
                                 foreach($products as $prod): 
                                     if ($prod->stock_product <= 0) continue;
-                                    // Ignorar productos a granel usando sus unidades base
-                                    if (in_array(strtolower($prod->unit_product), ['l', 'ml', 'kg', 'g'])) continue;
+                                    // Ignorar productos a granel (INC-03)
+                                    // Los productos envasados generalmente tienen unidades como 'und', 'pza', 'caja', 'pack'
+                                    // Los a granel suelen tener 'l', 'ml', 'kg', 'g', 'oz'
+                                    $bulk_units = ['l', 'ml', 'kg', 'g', 'oz', 'gal', 'lb'];
+                                    if (in_array(strtolower($prod->unit_product), $bulk_units)) continue;
                                     
                                     $estimatedValue = $prod->stock_product * $prod->rte_product;
                                     $count++;
@@ -149,3 +152,4 @@ function viewLots(id_product, product_name) {
     });
 }
 </script>
+

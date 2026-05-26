@@ -1002,149 +1002,44 @@ if(isset($_POST["idOrderDelete"])){
 }
 
 /*=============================================
-Actualizar Stock Laboratorio
+Aprobar Entrada de Materia Prima
 =============================================*/
-if(isset($_POST["updateLabStock"])){
-	// require_once removed
-	$id_raw_material = $_POST["id_raw_material"];
-	$qty = $_POST["qty"];
-
+if(isset($_POST["approveRawMaterialEntry"])){
 	$db = LocalConnection::connect();
-	$stmt = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty WHERE id_raw_material = :id");
-	$stmt->bindParam(":qty", $qty);
-	$stmt->bindParam(":id", $id_raw_material);
-	
-	if($stmt->execute()){
+	try {
+		$db->beginTransaction();
+		
+		$id_entry = $_POST['id_entry'];
+		$id_raw_material = $_POST['id_raw_material'];
+		$qty = (float)$_POST['qty'];
+		$price = (float)$_POST['price'];
+		$total = (float)$_POST['total'];
+		$id_admin = $_POST['id_admin'];
+
+		// Check status first to prevent double-approval
+		$stmtCheck = $db->prepare("SELECT status_entry FROM raw_material_entries WHERE id_entry = :id");
+		$stmtCheck->execute([':id' => $id_entry]);
+		if($stmtCheck->fetchColumn() === 'aprobado') {
+			echo "error|La entrada ya fue aprobada.";
+			$db->rollBack();
+			exit;
+		}
+
+		// Update entry
+		$stmtEntry = $db->prepare("UPDATE raw_material_entries SET unit_price_entry = :price, total_cost_entry = :total, status_entry = 'aprobado', id_approved_by_entry = :admin, date_approved_entry = CURRENT_DATE() WHERE id_entry = :id");
+		$stmtEntry->execute([':price' => $price, ':total' => $total, ':admin' => $id_admin, ':id' => $id_entry]);
+
+		// Update stock
+		$stmtStock = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty WHERE id_raw_material = :id_raw");
+		$stmtStock->execute([':qty' => $qty, ':id_raw' => $id_raw_material]);
+
+		$db->commit();
 		echo "ok";
-	}else{
-		echo "error";
+	} catch (Exception $e) {
+		$db->rollBack();
+		echo "error|" . $e->getMessage();
 	}
-}
-
-/*=============================================
-Actualizar Stock Laboratorio
-=============================================*/
-if(isset($_POST["updateLabStock"])){
-	// require_once removed
-	$id_raw_material = $_POST["id_raw_material"];
-	$qty = $_POST["qty"];
-
-	$db = LocalConnection::connect();
-	$stmt = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty WHERE id_raw_material = :id");
-	$stmt->bindParam(":qty", $qty);
-	$stmt->bindParam(":id", $id_raw_material);
-	
-	if($stmt->execute()){
-		echo "ok";
-	}else{
-		echo "error";
-	}
-}
-
-/*=============================================
-Actualizar orden
-
-if(isset($_POST["idOrderUpdate"])){
-
-	$ajax = new PosController();
-	$ajax -> token = $_POST["token"];
-	$ajax -> idOrder = $_POST["idOrderUpdate"];
-	$ajax -> idClient = $_POST["idClient"];
-	$ajax -> subtotalOrder = $_POST["subtotalOrder"];
-	$ajax -> discountOrder = $_POST["discountOrder"];
-	$ajax -> taxOrder = $_POST["taxOrder"];
-	$ajax -> totalOrder = $_POST["totalOrder"];
-	$ajax -> updateOrder();
-}
-
-/*=============================================
-Agregar nuevo cliente
-=============================================*/	
-
-if(isset($_POST["name_client"])){
-
-	$ajax = new PosController();
-	$ajax -> name_client = $_POST["name_client"];
-	$ajax -> surname_client = $_POST["surname_client"];
-	$ajax -> dni_client = $_POST["dni_client"];
-	$ajax -> email_client = $_POST["email_client"];
-	$ajax -> phone_client = $_POST["phone_client"];
-	$ajax -> address_client = $_POST["address_client"];
-	$ajax -> idOffice = $_POST["idOffice"];
-	$ajax -> token = $_POST["token"];
-	$ajax -> newClient();
-}
-
-/*=============================================
-Agregar producto a la lista de órdenes
-=============================================*/
-
-if(isset($_POST["idProduct"])){
-
-	$ajax = new PosController();
-	$ajax -> idProduct = $_POST["idProduct"];
-	$ajax -> idOrder = $_POST["idOrder"];
-	$ajax -> idClient = $_POST["idClient"];
-	$ajax -> seller = $_POST["seller"];
-	$ajax -> idOffice = $_POST["idOffice"];
-	$ajax -> token = $_POST["token"];
-	$ajax -> addProductPos();
-
-}
-
-
-/*=============================================
-Actualizar Cantidad
-=============================================*/
-
-if(isset($_POST["idSaleUpdate"])){
-
-	$ajax = new PosController();
-	$ajax -> idSaleUpdate = $_POST["idSaleUpdate"];
-	$ajax -> qtySale = $_POST["qtySale"];
-	$ajax -> subtotalSale = $_POST["subtotalSale"];
-	$ajax -> token = $_POST["token"];
-	$ajax -> updateSale();
-
-}
-
-
-/*=============================================
-Remover Venta
-=============================================*/
-
-if(isset($_POST["idSaleDelete"])){
-
-	$ajax = new PosController();
-	$ajax -> idSaleDelete = $_POST["idSaleDelete"];
-	$ajax -> token = $_POST["token"];
-	$ajax -> deleteSale();
-
-}
-
-/*=============================================
-Remover todas las Ventas
-=============================================*/
-
-if(isset($_POST["idOrderSale"])){
-	$ajax = new PosController();
-	$ajax -> idOrderSale = $_POST["idOrderSale"];
-	$ajax -> token = $_POST["token"];
-	$ajax -> deleteAllSale();
-
-}
-
-/*=============================================
-Remover Órden
-=============================================*/
-
-if(isset($_POST["idOrderDelete"])){
-
-	$ajax = new PosController();
-	$ajax -> idOrderDelete = $_POST["idOrderDelete"];
-	$ajax -> token = $_POST["token"];
-	$ajax -> deleteOrder();
-
+	exit;
 }
 
 /*=============================================
@@ -1162,32 +1057,20 @@ if(isset($_POST["toggleWholesaleCart"])){
 }
 
 /*=============================================
-Actualizar Stock Laboratorio
-=============================================*/
-if(isset($_POST["updateLabStock"])){
-	// require_once removed
-	$id_raw_material = $_POST["id_raw_material"];
-	$qty = $_POST["qty"];
-
-	$db = LocalConnection::connect();
-	$stmt = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty WHERE id_raw_material = :id");
-	$stmt->bindParam(":qty", $qty);
-	$stmt->bindParam(":id", $id_raw_material);
-	
-	if($stmt->execute()){
-		echo "ok";
-	}else{
-		echo "error";
-	}
-}
-
-/*=============================================
 Proxy API Genérico
 =============================================*/
 if(isset($_POST["apiProxy"])){
 	$url = $_POST["url"];
 	$method = $_POST["method"];
 	$fields = json_decode($_POST["fields"], true);
+	
+	// SEC-01: Whitelist de endpoints
+	$allowed_endpoints = ['raw_materials', 'raw_material_entries', 'recipes', 'productions'];
+	$endpoint = explode('?', $url)[0];
+	if(!in_array($endpoint, $allowed_endpoints)) {
+		echo json_encode(["status" => 403, "results" => "Endpoint no permitido"]);
+		exit;
+	}
 	
 	// Si fields es un array válido, lo convertimos a query string
 	// para que cURL lo envíe como application/x-www-form-urlencoded
@@ -1212,11 +1095,20 @@ if(isset($_POST["saveRecipe"])){
 	try {
 		$db->beginTransaction();
 
-		$name_product = $_POST['name_product'];
+		$name_product = trim(htmlspecialchars($_POST['name_product']));
 		$batch_size = (float)$_POST['batch_size'];
-		$unit_batch = $_POST['unit_batch'];
-		$id_office = $_POST['id_office'];
-		$id_admin = $_POST['id_admin'];
+		$unit_batch = trim(htmlspecialchars($_POST['unit_batch']));
+		$id_office = (int)$_POST['id_office'];
+		$id_admin = (int)$_POST['id_admin'];
+
+		// INC-05: Validar duplicados de nombre en la sucursal
+		$stmtDup = $db->prepare("SELECT id_product FROM products WHERE title_product = :name AND id_office_product = :office LIMIT 1");
+		$stmtDup->execute([':name' => $name_product, ':office' => $id_office]);
+		if($stmtDup->fetch()) {
+			echo "error|Ya existe un producto con ese nombre en esta sucursal.";
+			$db->rollBack();
+			exit;
+		}
 
 		// 1. Crear producto (a granel, is_compound_product=1)
 		$stmtProd = $db->prepare("INSERT INTO products (title_product, unit_product, id_office_product, is_compound_product, status_product, stock_product, rte_product) VALUES (:name, :unit, :office, 1, 1, '0', '0')");
@@ -1290,12 +1182,22 @@ if(isset($_POST["completeProduction"])){
 	$extra_cif = (float)($_POST['extra_cif'] ?? 0);
 	
 	$pkg_final_qty = (float)($_POST['pkg_final_qty'] ?? 0);
-	$pkg_final_name = $_POST['pkg_final_name'] ?? '';
-    $pkg_envase_type = $_POST['pkg_envase_type'] ?? 'und';
+	$pkg_final_name = trim(htmlspecialchars($_POST['pkg_final_name'] ?? ''));
+    $pkg_envase_type = trim(htmlspecialchars($_POST['pkg_envase_type'] ?? 'und'));
 	$id_office = $_POST['id_office'] ?? 1; // Default or taken from session
 	
 	try {
 		$db->beginTransaction();
+
+		// SEC-02: Check idempotency
+		$stmtCheckStatus = $db->prepare("SELECT status_production FROM productions WHERE id_production = :id");
+		$stmtCheckStatus->execute([':id' => $id_production]);
+		$status = $stmtCheckStatus->fetchColumn();
+		if($status === 'completado') {
+			echo "error|La producción ya fue completada anteriormente.";
+			$db->rollBack();
+			exit;
+		}
 
 		// 1. Obtener y validar stock de ingredientes
 		$stmtIng = $db->prepare("SELECT id_raw_material_ingredient, qty_ingredient FROM recipe_ingredients WHERE id_recipe_ingredient = :id_recipe");
@@ -1405,20 +1307,14 @@ if(isset($_POST["completeProduction"])){
 		}
 
 		// 4. Actualizar Producción (Estado y Costo)
-		// We will update the production record to show the final_qty packaged, and we could also change the name in the recipe or product but we leave id_product as is, and just update the DB with the new final product.
 		$unit_cost_final = $pkg_final_qty > 0 ? ($total_production_cost / $pkg_final_qty) : 0;
 		
-		// Retrasamos este update para tener el id_packaged_product
 		$updateProdData = [
 			':cost' => $total_production_cost, 
-			':mo_cost' => $total_mo_cost, 
-			':cif_cost' => $total_cif_cost,
-			':pkg_mo' => $extra_mo,
-			':pkg_cif' => $extra_cif,
-			':final_qty' => $pkg_final_qty,
 			':unit_cost' => $unit_cost_final,
 			':id' => $id_production
 		];
+		$id_packaged_product = 0;
 
 		// 5. Inventario de Productos Finales (is_compound_product = 1)
 		if($pkg_final_name && $pkg_final_qty > 0) {
@@ -1428,39 +1324,26 @@ if(isset($_POST["completeProduction"])){
 			$existing_product = $stmtFind->fetch(PDO::FETCH_ASSOC);
 
 			if($existing_product) {
-				// Actualizar stock y recalcular precio promedio ponderado
-				$old_stock = (float)$existing_product['stock_product'];
-				$old_rte = (float)$existing_product['rte_product'];
-				$new_stock = $old_stock + $pkg_final_qty;
-				$new_rte = (($old_stock * $old_rte) + ($pkg_final_qty * $unit_cost_final)) / $new_stock;
-
-				$stmtUpdProd = $db->prepare("UPDATE products SET stock_product = :stock, rte_product = :rte, unit_product = :unit WHERE id_product = :id");
-				$stmtUpdProd->execute([':stock' => $new_stock, ':rte' => $new_rte, ':unit' => $pkg_envase_type, ':id' => $existing_product['id_product']]);
+				// Solo actualizamos la unidad, el stock se mantiene hasta pasar QC
+				$stmtUpdProd = $db->prepare("UPDATE products SET unit_product = :unit WHERE id_product = :id");
+				$stmtUpdProd->execute([':unit' => $pkg_envase_type, ':id' => $existing_product['id_product']]);
+				$id_packaged_product = $existing_product['id_product'];
 			} else {
-				// Insertar nuevo producto final
-				$stmtInsProd = $db->prepare("INSERT INTO products (title_product, unit_product, stock_product, rte_product, is_compound_product, id_office_product, status_product) VALUES (:name, 'und', :stock, :rte, 1, :office, 1)");
+				// Insertar nuevo producto final con stock 0 temporalmente
+				$stmtInsProd = $db->prepare("INSERT INTO products (title_product, unit_product, stock_product, rte_product, is_compound_product, id_office_product, status_product) VALUES (:name, 'und', 0, 0, 1, :office, 1)");
 				$stmtInsProd->execute([
 					':name' => $pkg_final_name,
-					':unit' => $pkg_envase_type,
-					':stock' => $pkg_final_qty,
-					':rte' => $unit_cost_final,
 					':office' => $id_office
 				]);
+				$id_packaged_product = $db->lastInsertId();
 			}
 		}
 
-		// 5. Incrementar stock del producto final
-		// Determinar cuantas unidades rinde la receta
-		$stmtRend = $db->prepare("SELECT batch_size_recipe FROM recipes WHERE id_recipe = :id_recipe");
-		$stmtRend->execute([':id_recipe' => $id_recipe]);
-		$batch_size = (float)$stmtRend->fetchColumn();
-		$unidades_finales = $batch_size * $batches;
-
-		// Y el precio de costo del producto en el catálogo puede actualizarse
-		$unit_cost_final = $total_production_cost / $unidades_finales;
-
-		$stmtUpdProd = $db->prepare("UPDATE products SET stock_product = stock_product + :qty, rte_product = :cost WHERE id_product = :id_product");
-		$stmtUpdProd->execute([':qty' => $unidades_finales, ':cost' => $unit_cost_final, ':id_product' => $id_product]);
+		// BUG-04, BUG-05 fix: Se elimina el segundo UPDATE del producto base
+		
+		$stmtUpdateProd = $db->prepare("UPDATE productions SET status_production = 'pendiente_qc', real_total_cost = :cost, real_unit_cost = :unit_cost, id_packaged_product = :id_pkg, date_updated_production = NOW() WHERE id_production = :id");
+		$updateProdData[':id_pkg'] = $id_packaged_product;
+		$stmtUpdateProd->execute($updateProdData);
 
 		$db->commit();
 		echo "ok";
@@ -1541,6 +1424,15 @@ Iniciar Producción (En Proceso)
 if(isset($_POST["startProduction"])){
 	$db = LocalConnection::connect();
 	$id = $_POST['id_production'];
+
+	$stmtCheckStatus = $db->prepare("SELECT status_production FROM productions WHERE id_production = :id");
+	$stmtCheckStatus->execute([':id' => $id]);
+	$status = $stmtCheckStatus->fetchColumn();
+	if($status !== 'pendiente') {
+		echo "error";
+		exit;
+	}
+
 	$stmt = $db->prepare("UPDATE productions SET status_production = 'en_proceso', start_date_production = NOW() WHERE id_production = :id");
 	if($stmt->execute([':id' => $id])){
 		echo "ok";
@@ -1696,6 +1588,11 @@ if(isset($_POST["deleteRecipe"])){
 		
 		$id_recipe = $_POST['id_recipe'];
 
+		// Obtener id_product antes de eliminar
+		$stmtProd = $db->prepare("SELECT id_product_recipe FROM recipes WHERE id_recipe = :id");
+		$stmtProd->execute([':id' => $id_recipe]);
+		$id_product = $stmtProd->fetchColumn();
+
 		$stmtDelIng = $db->prepare("DELETE FROM recipe_ingredients WHERE id_recipe_ingredient = :id");
 		$stmtDelIng->execute([':id' => $id_recipe]);
 
@@ -1704,6 +1601,11 @@ if(isset($_POST["deleteRecipe"])){
 
 		$stmtDelRec = $db->prepare("DELETE FROM recipes WHERE id_recipe = :id");
 		$stmtDelRec->execute([':id' => $id_recipe]);
+
+		if ($id_product) {
+			$stmtDelProduct = $db->prepare("DELETE FROM products WHERE id_product = :id");
+			$stmtDelProduct->execute([':id' => $id_product]);
+		}
 
 		$db->commit();
 		echo "ok";
@@ -1718,9 +1620,127 @@ if(isset($_POST["deleteRecipe"])){
 // GET PRODUCTION LOTS
 //=====================================
 if(isset($_POST["getProductionLots"]) && $_POST["getProductionLots"] == "ok") {
+	$db = LocalConnection::connect();
 	$id_packaged_product = $_POST["id_packaged_product"];
-	$stmt = $db->prepare("SELECT id_production, total_qty_production, real_unit_cost, real_total_cost, date_updated_production FROM productions WHERE id_packaged_product = :id AND status_production = 'completado' ORDER BY date_updated_production DESC");
+	$stmt = $db->prepare("SELECT id_production, total_qty_production, real_unit_cost, real_total_cost, date_updated_production FROM productions WHERE id_packaged_product = :id AND status_production IN ('completado','pendiente_qc') ORDER BY date_updated_production DESC");
 	$stmt->execute([':id' => $id_packaged_product]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// GET PENDING QC
+//=====================================
+if(isset($_POST["getPendingQC"]) && $_POST["getPendingQC"] == "ok") {
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT p.id_production, p.total_qty_production, p.date_updated_production,
+			   p.real_total_cost, p.real_unit_cost, p.id_packaged_product,
+			   r.name_recipe, pr.title_product, pr.unit_product
+		FROM productions p
+		JOIN recipes r ON p.id_recipe_production = r.id_recipe
+		JOIN products pr ON p.id_product_production = pr.id_product
+		WHERE p.id_office_production = :office AND p.status_production = 'pendiente_qc'
+		ORDER BY p.date_updated_production DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// SUBMIT QUALITY CHECK
+//=====================================
+if(isset($_POST["submitQualityCheck"]) && $_POST["submitQualityCheck"] == "ok") {
+	$db = LocalConnection::connect();
+	try {
+		$db->beginTransaction();
+
+		$id_production  = intval($_POST['id_production']);
+		$id_admin       = intval($_POST['id_admin']);
+		$id_office      = intval($_POST['id_office']);
+		$result         = $_POST['result_qc']; // aprobado | rechazado | aprobado_con_obs
+		$qty_approved   = floatval($_POST['qty_approved']);
+		$qty_rejected   = floatval($_POST['qty_rejected']);
+		$notes          = trim($_POST['notes_qc']);
+
+		// Validar que la producción existe y está pendiente de QC
+		$stmtCheck = $db->prepare("SELECT id_production, id_packaged_product, status_production, real_unit_cost FROM productions WHERE id_production = :id AND id_office_production = :office");
+		$stmtCheck->execute([':id' => $id_production, ':office' => $id_office]);
+		$prod = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+		if (!$prod || $prod['status_production'] !== 'pendiente_qc') {
+			echo 'error|La producción no está en estado pendiente de QC.';
+			exit;
+		}
+
+		// Insertar registro de QC
+		$stmtInsert = $db->prepare("
+			INSERT INTO quality_checks
+				(id_production_qc, id_admin_qc, id_office_qc, result_qc, qty_approved_qc, qty_rejected_qc, notes_qc, date_created_qc)
+			VALUES (:id_prod, :id_admin, :id_office, :result, :approved, :rejected, :notes, CURDATE())
+		");
+		$stmtInsert->execute([
+			':id_prod'   => $id_production,
+			':id_admin'  => $id_admin,
+			':id_office' => $id_office,
+			':result'    => $result,
+			':approved'  => $qty_approved,
+			':rejected'  => $qty_rejected,
+			':notes'     => $notes
+		]);
+
+		$new_status = ($result === 'rechazado') ? 'rechazado' : 'completado';
+		$stmtProd = $db->prepare("UPDATE productions SET status_production = :status WHERE id_production = :id");
+		$stmtProd->execute([':status' => $new_status, ':id' => $id_production]);
+
+		// Solo ingresamos inventario de venta SI pasa el QC (aprobado o aprobado_con_obs)
+		if ($qty_approved > 0 && $prod['id_packaged_product'] && $new_status === 'completado') {
+			$stmtFind = $db->prepare("SELECT stock_product, rte_product FROM products WHERE id_product = :id");
+            $stmtFind->execute([':id' => $prod['id_packaged_product']]);
+            $pData = $stmtFind->fetch(PDO::FETCH_ASSOC);
+
+            $old_stock = (float)$pData['stock_product'];
+            $old_rte = (float)$pData['rte_product'];
+            $unit_cost = (float)$prod['real_unit_cost'];
+            
+            $new_stock = $old_stock + $qty_approved;
+            $new_rte = (($old_stock * $old_rte) + ($qty_approved * $unit_cost)) / $new_stock;
+
+			$stmtStock = $db->prepare("UPDATE products SET stock_product = :stock, rte_product = :rte WHERE id_product = :id_product");
+			$stmtStock->execute([':stock' => $new_stock, ':rte' => $new_rte, ':id_product' => $prod['id_packaged_product']]);
+		}
+
+		$db->commit();
+		echo json_encode(['status' => 'ok', 'result' => $new_status]);
+	} catch (Exception $e) {
+		$db->rollBack();
+		echo 'error|' . $e->getMessage();
+	}
+	exit;
+}
+
+//=====================================
+// GET QC HISTORY
+//=====================================
+if(isset($_POST["getQCHistory"]) && $_POST["getQCHistory"] == "ok") {
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT qc.id_qc, qc.id_production_qc, qc.result_qc,
+			   qc.qty_approved_qc, qc.qty_rejected_qc, qc.notes_qc,
+			   qc.date_created_qc,
+			   a.name_admin AS inspector_name,
+			   pr.title_product, pr.unit_product
+		FROM quality_checks qc
+		JOIN admins a ON qc.id_admin_qc = a.id_admin
+		JOIN productions p ON qc.id_production_qc = p.id_production
+		JOIN products pr ON p.id_product_production = pr.id_product
+		WHERE qc.id_office_qc = :office
+		ORDER BY qc.date_created_qc DESC
+	");
+	$stmt->execute([':office' => $id_office]);
 	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
 	exit;
 }

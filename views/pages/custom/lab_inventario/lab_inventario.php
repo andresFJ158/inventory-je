@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $url = "raw_materials?linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin;
 $method = "GET";
 $fields = array();
@@ -32,7 +32,7 @@ if ($materials->status == 200) {
                         <table class="table table-bordered table-striped" id="inventoryTable">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th>ID</th>
                                     <th>Nombre</th>
                                     <th>Tipo</th>
                                     <th>Unidad</th>
@@ -48,9 +48,9 @@ if ($materials->status == 200) {
                                     $badgeClass = 'bg-secondary';
                                     $tipoLabel = 'Desconocido';
                                     if(isset($material->measure_type)) {
-                                        if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = '🟠 Peso'; }
-                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '🔵 Volumen'; }
-                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '🟢 Unidad'; }
+                                        if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = 'ðŸŸ  Peso'; }
+                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = 'ðŸ”µ Volumen'; }
+                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = 'ðŸŸ¢ Unidad'; }
                                     }
                                     $estimatedValue = $material->stock_raw_material * $material->last_price;
                                 ?>
@@ -85,3 +85,4 @@ $(document).ready(function() {
     });
 });
 </script>
+
