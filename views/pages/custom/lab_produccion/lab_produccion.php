@@ -297,7 +297,13 @@ function startProduction(id_production) {
                 if(res.trim() == "ok") {
                     fncToastr("success", "Producción iniciada");
                     setTimeout(() => { location.reload(); }, 1000);
+                } else if(res.includes("stock_insuficiente")) {
+                    fncSweetAlert("close", "", "");
+                    let parts = res.split("|");
+                    let itemName = parts[1] || "Materia Prima";
+                    fncSweetAlert("error", "Stock Insuficiente", `No hay suficiente inventario de: ${itemName}`);
                 } else {
+                    fncSweetAlert("close", "", "");
                     fncToastr("error", "Error al iniciar");
                 }
             });

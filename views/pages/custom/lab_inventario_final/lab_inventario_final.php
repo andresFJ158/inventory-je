@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $url = "products?linkTo=id_office_product,is_compound_product&equalTo=".$_SESSION["admin"]->id_office_admin.",1";
 $method = "GET";
 $fields = array();
@@ -38,8 +38,8 @@ $products = ($productsRes->status == 200) ? $productsRes->results : array();
                                     // Ignorar productos a granel (INC-03)
                                     // Los productos envasados generalmente tienen unidades como 'und', 'pza', 'caja', 'pack'
                                     // Los a granel suelen tener 'l', 'ml', 'kg', 'g', 'oz'
-                                    $bulk_units = ['l', 'ml', 'kg', 'g', 'oz', 'gal', 'lb'];
-                                    if (in_array(strtolower($prod->unit_product), $bulk_units)) continue;
+                                    $bulk_units = ['l', 'ltr', 'litro', 'litros', 'ml', 'mililitro', 'mililitros', 'kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos', 'g', 'gr', 'gramo', 'gramos', 'oz', 'onza', 'onzas', 'gal', 'galon', 'galones', 'lb', 'libra', 'libras'];
+                                    if (in_array(strtolower(trim($prod->unit_product)), $bulk_units)) continue;
                                     
                                     $estimatedValue = $prod->stock_product * $prod->rte_product;
                                     $count++;
