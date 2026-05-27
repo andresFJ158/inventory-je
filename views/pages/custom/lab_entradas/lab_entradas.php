@@ -9,7 +9,7 @@ $materials = ($mpRes->status == 200) ? $mpRes->results : array();
 // Obtener entradas
 $urlEntradas = "raw_material_entries?linkTo=status_entry&equalTo=pendiente"; 
 // Join con raw_materials para ver el nombre
-$urlEntradas = "relations?rel=raw_material_entries,raw_materials,admins&type=entry,raw_material,admin&linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin."&orderBy=id_entry&orderMode=DESC";
+$urlEntradas = "relations?rel=raw_material_entries,raw_materials,admins&type=entry,raw_material,admin&linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin."&orderBy=id_entry&orderMode=ASC";
 $entRes = CurlController::request($urlEntradas, "GET", array());
 $entries = ($entRes->status == 200) ? $entRes->results : array();
 
@@ -37,11 +37,9 @@ $entries = ($entRes->status == 200) ? $entRes->results : array();
                                     <th>#</th>
                                     <th>Materia Prima</th>
                                     <th>Cantidad</th>
-                                    <th>Lote Prov.</th>
                                     <th>Proveedor</th>
                                     <th>Fecha</th>
                                     <th>Estado</th>
-                                    <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -50,22 +48,19 @@ $entries = ($entRes->status == 200) ? $entRes->results : array();
                                     <td><?php echo $entry->id_entry ?></td>
                                     <td class="text-uppercase"><?php echo $entry->name_raw_material ?></td>
                                     <td><?php echo $entry->qty_entry ?> <span class="small text-muted"><?php echo $entry->unit_raw_material ?></span></td>
-                                    <td><?php echo $entry->lot_number_entry ?></td>
                                     <td><?php echo $entry->supplier_entry ?></td>
                                     <td><?php echo $entry->date_entry ?></td>
                                     <td>
                                         <?php if($entry->status_entry == 'pendiente'): ?>
-                                            <span class="badge bg-warning text-dark">Pendiente</span>
+                                            <span class="badge bg-warning text-dark mb-1">Pendiente</span><br>
+                                            <?php if($role == 'lab_admin' || $role == 'superadmin' || $role == 'admin'): ?>
+                                                <button class="btn btn-sm btn-success rounded mt-1" onclick="openApproveModal(<?php echo $entry->id_entry ?>, '<?php echo $entry->name_raw_material ?>', <?php echo $entry->qty_entry ?>, '<?php echo $entry->unit_raw_material ?>', <?php echo $entry->id_raw_material_entry ?>)">
+                                                    Aprobar y Costear
+                                                </button>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="badge bg-success">Aprobado</span><br>
                                             <small class="text-muted">Bs <?php echo $entry->unit_price_entry ?> c/u</small>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if($entry->status_entry == 'pendiente' && ($role == 'lab_admin' || $role == 'superadmin' || $role == 'admin')): ?>
-                                            <button class="btn btn-sm btn-success rounded" onclick="openApproveModal(<?php echo $entry->id_entry ?>, '<?php echo $entry->name_raw_material ?>', <?php echo $entry->qty_entry ?>, '<?php echo $entry->unit_raw_material ?>', <?php echo $entry->id_raw_material_entry ?>)">
-                                                Aprobar y Costear
-                                            </button>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -93,16 +88,19 @@ $entries = ($entRes->status == 200) ? $entRes->results : array();
             
             <div class="mb-3">
                 <label>Materia Prima</label>
-                <select class="form-select" id="id_raw_material_entry" required>
-                    <option value="">Seleccione...</option>
+                <select class="form-select" id="id_raw_material_entry" required onchange="updateEntryInput()">
+                    <option value="" data-type="" data-unit="">Seleccione...</option>
                     <?php foreach($materials as $mp): ?>
-                        <option value="<?php echo $mp->id_raw_material ?>"><?php echo $mp->name_raw_material ?> (<?php echo $mp->unit_raw_material ?>)</option>
+                        <option value="<?php echo $mp->id_raw_material ?>" data-type="<?php echo isset($mp->measure_type) ? $mp->measure_type : 'unit' ?>" data-unit="<?php echo $mp->unit_raw_material ?>"><?php echo $mp->name_raw_material ?> (<?php echo $mp->unit_raw_material ?>)</option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <div class="mb-3">
                 <label>Cantidad Recibida</label>
-                <input type="number" step="0.01" class="form-control" id="qty_entry" required>
+                <div class="input-group">
+                    <input type="number" step="0.01" class="form-control" id="qty_entry" required disabled placeholder="Seleccione materia prima primero">
+                    <span class="input-group-text" id="entry_unit_addon">--</span>
+                </div>
             </div>
             <div class="mb-3">
                 <label>Número de Lote (Proveedor)</label>
@@ -163,8 +161,32 @@ $entries = ($entRes->status == 200) ? $entRes->results : array();
 </div>
 
 <script>
+function updateEntryInput() {
+    var selected = $('#id_raw_material_entry').find(':selected');
+    var type = selected.data('type');
+    var unit = selected.data('unit');
+    var input = $('#qty_entry');
+    var addon = $('#entry_unit_addon');
+    
+    if(!type) {
+        input.prop('disabled', true).val('').attr('placeholder', 'Seleccione materia prima primero');
+        addon.text('--');
+        return;
+    }
+    
+    input.prop('disabled', false).attr('placeholder', '0.00');
+    addon.text(unit);
+    
+    if(type === 'unit') {
+        input.attr('step', '1');
+    } else {
+        input.attr('step', '0.001');
+    }
+}
+
 function openEntryModal() {
     $('#formEntry')[0].reset();
+    updateEntryInput();
     $('#modalEntry').modal('show');
 }
 
@@ -311,28 +333,59 @@ function approveEntry() {
 }
 
 function updateStockInBackend(id_raw_material, qty) {
-    // Usaremos un endpoint AJAX en pos.ajax.php para ser atómicos o hacer fetch
-    var data = new FormData();
-    data.append("updateLabStock", "ok");
-    data.append("id_raw_material", id_raw_material);
-    data.append("qty", qty);
-    data.append("token", localStorage.getItem("tokenAdmin"));
+    // Paso 1: Leer el stock actual via apiProxy
+    var getPayload = new URLSearchParams();
+    getPayload.append("apiProxy", "ok");
+    getPayload.append("url", "raw_materials?linkTo=id_raw_material&equalTo=" + id_raw_material);
+    getPayload.append("method", "GET");
+    getPayload.append("fields", "{}");
 
     $.ajax({
         url: "/ajax/pos.ajax.php",
         method: "POST",
-        data: data,
-        contentType: false,
-        cache: false,
-        processData: false,
+        data: getPayload.toString(),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         success: function(response) {
-            fncSweetAlert("close", "", "");
-            fncToastr("success", "Entrada aprobada y stock actualizado");
-            setTimeout(() => { location.reload(); }, 1000);
+            try {
+                var res = typeof response === "string" ? JSON.parse(response) : response;
+                if(res.status == 200 && res.results && res.results.length > 0) {
+                    var currentStock = parseFloat(res.results[0].stock_raw_material) || 0;
+                    var newStock = currentStock + parseFloat(qty);
+
+                    // Paso 2: Actualizar con el nuevo stock acumulado
+                    var putPayload = new URLSearchParams();
+                    putPayload.append("apiProxy", "ok");
+                    putPayload.append("url", "raw_materials?id=" + id_raw_material + "&nameId=id_raw_material&token=" + localStorage.getItem("tokenAdmin") + "&table=admins&suffix=admin");
+                    putPayload.append("method", "PUT");
+                    putPayload.append("fields", JSON.stringify({ stock_raw_material: newStock }));
+
+                    $.ajax({
+                        url: "/ajax/pos.ajax.php",
+                        method: "POST",
+                        data: putPayload.toString(),
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        success: function() {
+                            fncSweetAlert("close", "", "");
+                            fncToastr("success", "Entrada aprobada y stock actualizado");
+                            setTimeout(function() { location.reload(); }, 1000);
+                        },
+                        error: function() {
+                            fncSweetAlert("close", "", "");
+                            fncToastr("error", "Error al actualizar stock");
+                        }
+                    });
+                } else {
+                    fncSweetAlert("close", "", "");
+                    fncToastr("error", "No se pudo leer el stock actual");
+                }
+            } catch(e) {
+                fncSweetAlert("close", "", "");
+                fncToastr("error", "Error al procesar stock");
+            }
         },
         error: function() {
             fncSweetAlert("close", "", "");
-            fncToastr("error", "Error al actualizar stock");
+            fncToastr("error", "Error de comunicacion al leer stock");
         }
     });
 }

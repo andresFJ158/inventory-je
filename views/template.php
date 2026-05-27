@@ -188,7 +188,7 @@ if($adminTable->status == 404){
 	<!-- https://www.w3schools.com/bootstrap5/ -->
 	<link rel="stylesheet" href="/views/assets/plugins/bootstrap5/bootstrap.min.css" >
 	<!-- https://fontawesome.com/v5/search -->
-	<link rel="stylesheet" href="/views/assets/plugins/fontawesome-free/css/all.min.css">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 	<!-- https://icons.getbootstrap.com/ -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.3/font/bootstrap-icons.min.css">
 	<!-- https://www.jqueryscript.net/demo/Google-Inbox-Style-Linear-Preloader-Plugin-with-jQuery-CSS3/#google_vignette -->
@@ -333,10 +333,10 @@ if($adminTable->status == 404){
 						if ($role == "superadmin" || $role == "admin") {
 							$allowed = true;
 						} else if ($role == "lab_admin") {
-							$lab_routes = ["lab_materiales", "lab_entradas", "lab_cif", "lab_recetas", "lab_produccion"];
+							$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final"];
 							if (in_array($route, $lab_routes)) $allowed = true;
 						} else if ($role == "lab_worker") {
-							$lab_routes = ["lab_materiales", "lab_entradas", "lab_recetas", "lab_produccion"];
+							$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final"];
 							if (in_array($route, $lab_routes)) $allowed = true;
 						} else if ($role == "editor") {
 							$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);

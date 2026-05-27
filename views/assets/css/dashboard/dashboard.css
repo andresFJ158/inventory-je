@@ -24,8 +24,9 @@ Interfaz Dashboard - Premium Modern Design
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-* {
-  font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif !important;
+body, p, span, div, h1, h2, h3, h4, h5, h6,
+a, input, button, select, textarea, label, td, th, li {
+  font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 body {
