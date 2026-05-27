@@ -573,13 +573,37 @@ class PosController{
 								</td>
 
 								<td>
-									<h6 class="text-center my-3 pricePurchase pricePurchase_'.$product->id_product.'" pricePurchase="'.$selling_price.'" originalPricePurchase="'.$selling_price.'">Bs '.number_format($selling_price,2).'</h6>
+									<h6 class="text-center my-3 pricePurchase pricePurchase_'.$product->id_product.'" 
+									pricePurchase="'.$selling_price.'" 
+									originalPricePurchase="'.$selling_price.'"
+									basePrice="'.$product->cost_purchase.'"
+									wholesalePrice="'.(empty($product->may_product) ? 0 : $product->may_product).'"
+									wholesaleQty="'.(empty($product->wholesale_quantity) ? 0 : $product->wholesale_quantity).'"
+									appliedPriceType="base"
+									>Bs '.number_format($selling_price,2).'</h6>
 								</td>
 
 								<td class="text-center">
-									<button type="button" class="btn btn-sm rounded ms-1 mt-2 py-2 px-3 bg-red deleteSale deleteSale_'.$product->id_product.'" idSale="'.$createSale->results->lastId.'" taxSale="'.(explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[1] ?? "0").'" discountSale="'.$product->discount_product.'">
-										<i class="bi bi-trash"></i>
-									</button>
+									<div class="d-flex justify-content-center">';
+
+										$urlAdmin = "admins?linkTo=id_admin&equalTo=".$this->seller."&select=permissions_admin";
+										$adminReq = CurlController::request($urlAdmin, "GET", array());
+										$canOverride = false;
+										if (isset($adminReq->status) && $adminReq->status == 200 && !empty($adminReq->results)) {
+											$perms = json_decode(urldecode($adminReq->results[0]->permissions_admin), true);
+											$canOverride = isset($perms["todo"]) || isset($perms["pos_override_price"]) ? true : false;
+										}
+
+										if($canOverride){
+											$html .= '<button type="button" class="btn btn-sm rounded mt-2 py-2 px-3 btn-info editPriceSale text-white" idSale="'.$createSale->results->lastId.'" idProduct="'.$product->id_product.'" currentPrice="'.$price_purchase.'">
+												<i class="bi bi-pencil"></i>
+											</button>';
+										}
+
+										$html .= '<button type="button" class="btn btn-sm rounded ms-1 mt-2 py-2 px-3 bg-red deleteSale deleteSale_'.$product->id_product.'" idSale="'.$createSale->results->lastId.'" taxSale="'.(explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[1] ?? "0").'" discountSale="'.$product->discount_product.'">
+											<i class="bi bi-trash"></i>
+										</button>
+									</div>
 								</td>
 							</tr>';
 
@@ -847,6 +871,65 @@ class PosController{
 			}
 
 		}
+	}
+
+
+	/*=============================================
+	Sobrescribir Precio Manualmente
+	=============================================*/
+
+	public $idSaleOverride;
+	public $idOrderOverride;
+	public $idProductOverride;
+	public $originalPriceOverride;
+	public $newPriceOverride;
+	public $reasonOverride;
+
+	public function overridePrice(){
+
+		/*=============================================
+		Actualizar Venta con nuevo precio
+		=============================================*/
+
+		$url = "sales?id=".$this->idSaleOverride."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
+		$method = "PUT";
+		$fields = array(
+			"subtotal_sale" => round($this->newPriceOverride, 2),
+			"applied_price_type" => "manual",
+			"original_price_sale" => round($this->originalPriceOverride, 2)
+		);
+
+		$fields = http_build_query($fields);
+
+		$updateSale = CurlController::request($url,$method,$fields);
+
+		if($updateSale->status == 200){
+
+			/*=============================================
+			Registrar en Auditoría (price_overrides)
+			=============================================*/
+			
+			$urlAudit = "price_overrides?token=".$this->token."&table=admins&suffix=admin";
+			$methodAudit = "POST";
+			$fieldsAudit = array(
+				"id_sale_override" => $this->idSaleOverride,
+				"id_order_override" => $this->idOrderOverride,
+				"id_product_override" => $this->idProductOverride,
+				"id_admin_override" => $this->seller,
+				"original_price" => round($this->originalPriceOverride, 2),
+				"override_price" => round($this->newPriceOverride, 2),
+				"reason_override" => $this->reasonOverride
+			);
+
+			CurlController::request($urlAudit, $methodAudit, $fieldsAudit);
+
+			echo "ok";
+		
+		}else{
+
+			echo "logout";
+		}
+
 	}
 
 }
@@ -1304,3 +1387,17 @@ if(isset($_POST["completeProduction"])){
 		echo "error|" . $e->getMessage();
 	}
 }
+
+if(isset($_POST['overridePriceCart'])){
+	$ajax = new PosController();
+	$ajax -> idSaleOverride = $_POST['idSaleOverride'];
+	$ajax -> idOrderOverride = $_POST['idOrderOverride'];
+	$ajax -> idProductOverride = $_POST['idProductOverride'];
+	$ajax -> originalPriceOverride = $_POST['originalPriceOverride'];
+	$ajax -> newPriceOverride = $_POST['newPriceOverride'];
+	$ajax -> reasonOverride = $_POST['reasonOverride'];
+	$ajax -> token = $_POST['token'];
+	$ajax -> seller = $_POST['seller'];
+	$ajax -> overridePrice();
+}
+

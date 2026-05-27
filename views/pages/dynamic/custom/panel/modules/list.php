@@ -64,6 +64,15 @@ if(!empty($order)){
 				<?php foreach ($sales as $key => $value): 
 
 					$original_price = $value->subtotal_sale;
+
+					$urlPurch = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,may_product,wholesale_quantity";
+					$reqPurch = CurlController::request($urlPurch, "GET", array());
+					$basePrice = 0; $wholesalePrice = 0; $wholesaleQty = 0;
+					if(isset($reqPurch->status) && $reqPurch->status == 200 && !empty($reqPurch->results)){
+						$basePrice = $reqPurch->results[0]->cost_purchase;
+						$wholesalePrice = $reqPurch->results[0]->may_product;
+						$wholesaleQty = $reqPurch->results[0]->wholesale_quantity;
+					}
 				?>
 
 					<tr>
@@ -123,13 +132,31 @@ if(!empty($order)){
 						</td>
 
 						<td>
-							<h6 class="text-center my-3 pricePurchase pricePurchase_<?php echo $value->id_product ?>" pricePurchase="<?php echo $value->subtotal_sale ?>" originalPricePurchase="<?php echo $value->subtotal_sale ?>">Bs <?php echo number_format($value->subtotal_sale,2) ?></h6>
+							<h6 class="text-center my-3 pricePurchase pricePurchase_<?php echo $value->id_product ?>" 
+							pricePurchase="<?php echo $value->subtotal_sale ?>" 
+							originalPricePurchase="<?php echo $value->subtotal_sale ?>"
+							basePrice="<?php echo $basePrice ?>"
+							wholesalePrice="<?php echo empty($wholesalePrice) ? 0 : $wholesalePrice ?>"
+							wholesaleQty="<?php echo empty($wholesaleQty) ? 0 : $wholesaleQty ?>"
+							appliedPriceType="<?php echo isset($value->applied_price_type) ? $value->applied_price_type : 'base' ?>"
+							>Bs <?php echo number_format($value->subtotal_sale,2) ?></h6>
 						</td>
 
 						<td class="text-center">
-							<button type="button" class="btn btn-sm rounded ms-1 mt-2 py-2 px-3 bg-red deleteSale deleteSale_<?php echo $value->id_product ?>" idSale="<?php echo$value->id_sale ?>" taxSale="<?php echo explode("_",$value->tax_product)[1] ?>" discountSale="<?php echo $value->discount_product ?>">
-								<i class="bi bi-trash"></i>
-							</button>
+							<?php
+							$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
+							$canOverride = isset($perms["todo"]) || isset($perms["pos_override_price"]) ? true : false;
+							?>
+							<div class="d-flex justify-content-center">
+								<?php if($canOverride): ?>
+									<button type="button" class="btn btn-sm rounded mt-2 py-2 px-3 btn-info editPriceSale text-white" idSale="<?php echo $value->id_sale ?>" idProduct="<?php echo $value->id_product ?>" currentPrice="<?php echo $cost_purchase ?>">
+										<i class="bi bi-pencil"></i>
+									</button>
+								<?php endif ?>
+								<button type="button" class="btn btn-sm rounded ms-1 mt-2 py-2 px-3 bg-red deleteSale deleteSale_<?php echo $value->id_product ?>" idSale="<?php echo $value->id_sale ?>" taxSale="<?php echo explode("_",$value->tax_product)[1] ?? 0 ?>" discountSale="<?php echo $value->discount_product ?>">
+									<i class="bi bi-trash"></i>
+								</button>
+							</div>
 						</td>
 					</tr>
 					

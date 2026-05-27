@@ -686,11 +686,15 @@ class GetModel{
 		}
 
 		$filter = "";
-
 		if($filterTo != null && $inTo != null){
-
-			$filter = 'AND '.$filterTo.' IN ('.$inTo.')';
-
+			$filterToArray = explode(",",$filterTo);
+			$inToArray = explode(",",$inTo);
+			foreach($filterToArray as $key => $value){
+				if(isset($inToArray[$key])){
+					$inVals = str_replace("_", ",", $inToArray[$key]);
+					$filter .= ' AND '.$value.' IN ('.$inVals.')';
+				}
+			}
 		}
 
 		/*=============================================
@@ -771,11 +775,15 @@ class GetModel{
 		}
 
 		$filter = "";
-
 		if($filterTo != null && $inTo != null){
-
-			$filter = 'AND '.$filterTo.' IN ('.$inTo.')';
-
+			$filterToArray = explode(",",$filterTo);
+			$inToArray = explode(",",$inTo);
+			foreach($filterToArray as $key => $value){
+				if(isset($inToArray[$key])){
+					$inVals = str_replace("_", ",", $inToArray[$key]);
+					$filter .= ' AND '.$value.' IN ('.$inVals.')';
+				}
+			}
 		}
 
 		$relArray = explode(",", $rel);

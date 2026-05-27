@@ -84,6 +84,20 @@ class DynamicController{
 
 						$fields = substr($fields,0,-1);
 
+						// Seguridad: forzar que no cambien de sucursal al editar si no son superadmin
+						$rolAdminEdit = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+						$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "products" => "id_office_product", "purchases" => "id_office_purchase"];
+						if(isset($officeForceTables[$module->title_module]) && $rolAdminEdit !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
+							$forceOfficeField = $officeForceTables[$module->title_module];
+							// Reemplazar o añadir el campo forzadamente en el string x-www-form-urlencoded
+							$pattern = '/(&|^)'.$forceOfficeField.'=[^&]*/';
+							if(preg_match($pattern, $fields)){
+								$fields = preg_replace($pattern, '$1'.$forceOfficeField.'='.(int)$_SESSION["admin"]->id_office_admin, $fields);
+							}else{
+								$fields .= '&'.$forceOfficeField.'='.(int)$_SESSION["admin"]->id_office_admin;
+							}
+						}
+
 						$update = CurlController::request($url,$method,$fields);
 
 						if(isset($update->status) && $update->status == 200){
@@ -331,6 +345,13 @@ class DynamicController{
 						
 					}
 					
+					// Seguridad: si NO es superadmin, deshabilitar múltiples sucursales y forzar la suya
+					$rolAdminProd = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+					if($rolAdminProd !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
+						$useMultipleOffices = false;
+						$multipleOffices = array();
+					}
+					
 				}
 
 				foreach ($module->columns as $key => $value) {
@@ -385,7 +406,7 @@ class DynamicController{
 
 					// Seguridad: para caja, gastos y ventas, el campo de sucursal siempre viene del usuario si no es superadmin
 					$rolAdminSave = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
-					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client"];
+					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "products" => "id_office_product", "purchases" => "id_office_purchase"];
 					if(isset($officeForceTables[$module->title_module]) && $rolAdminSave !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
 						$forceOfficeField = $officeForceTables[$module->title_module];
 						$fields[$forceOfficeField] = (int)$_SESSION["admin"]->id_office_admin;

@@ -1,9 +1,10 @@
 <?php 
 
 /*=============================================
-Depurar Errores
+Depurar Errores y Zona Horaria
 =============================================*/
 
+date_default_timezone_set('America/La_Paz');
 define('DIR',__DIR__);
 
 ini_set("display_errors", 0);

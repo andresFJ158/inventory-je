@@ -324,3 +324,44 @@ Modal para buscar órdenes
 
 </div>
 
+<!-- =======================================
+Modal para modificar precio manualmente
+==========================================-->
+
+<div class="modal fade" id="modalOverridePrice">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content rounded">
+			<form id="formOverridePrice">
+				<div class="modal-header">
+					<h4 class="modal-title">Modificar Precio</h4>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>	
+				</div>
+				<div class="modal-body">
+					<input type="hidden" id="overrideIdSale" name="overrideIdSale">
+					<input type="hidden" id="overrideIdProduct" name="overrideIdProduct">
+					<div class="form-floating mb-3">
+						<input type="number" class="form-control rounded" id="overrideOriginalPrice" readonly>
+						<label for="overrideOriginalPrice">Precio Original</label>
+					</div>
+					<div class="form-floating mb-3">
+						<input type="number" step="0.01" class="form-control rounded" id="overrideNewPrice" name="overrideNewPrice" placeholder="Nuevo Precio" required>
+						<label for="overrideNewPrice">Nuevo Precio</label>
+					</div>
+					<div class="form-floating mb-3">
+						<input type="text" class="form-control rounded" id="overrideReason" name="overrideReason" placeholder="Motivo del cambio" required>
+						<label for="overrideReason">Motivo del cambio</label>
+					</div>
+				</div>
+				<div class="modal-footer d-flex justify-content-between">
+					<div>
+						<button type="button" class="btn btn-default border rounded" data-bs-dismiss="modal">Cerrar</button>
+					</div>
+					<div>
+						<button type="submit" class="btn btn-default backColor rounded">Guardar Cambios</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+

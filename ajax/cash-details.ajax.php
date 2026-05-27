@@ -124,12 +124,28 @@ if ($officeId > 0) {
             }
 
             // Productos de la orden
-            $salesUrl  = "relations?rel=sales,products&type=sale,product&linkTo=id_order_sale&equalTo=" . (int)$o["id_order"] . "&select=qty_sale,subtotal_sale,discount_sale,title_product,unit_product";
+            $salesUrl  = "relations?rel=sales,products&type=sale,product&linkTo=id_order_sale&equalTo=" . (int)$o["id_order"] . "&select=qty_sale,subtotal_sale,discount_sale,title_product,unit_product,id_sale,applied_price_type,original_price_sale";
             $salesResp = apiRequest($salesUrl);
             $o["sales"] = [];
             if (isset($salesResp->status) && $salesResp->status == 200 && !empty($salesResp->results)) {
                 foreach ($salesResp->results as $sale) {
-                    $o["sales"][] = (array) $sale;
+                    $s = (array) $sale;
+                    if(isset($s["applied_price_type"]) && $s["applied_price_type"] === "manual" && isset($s["id_sale"])){
+                        $overrideUrl = "price_overrides?linkTo=id_sale_override&equalTo=".(int)$s["id_sale"]."&select=reason_override,id_admin_override,original_price,override_price";
+                        $overrideResp = apiRequest($overrideUrl);
+                        if (isset($overrideResp->status) && $overrideResp->status == 200 && !empty($overrideResp->results)) {
+                            $s["override"] = (array)$overrideResp->results[0];
+                            
+                            $adminUrl = "admins?linkTo=id_admin&equalTo=".(int)$s["override"]["id_admin_override"]."&select=name_admin";
+                            $adminResp = apiRequest($adminUrl);
+                            if(isset($adminResp->status) && $adminResp->status == 200 && !empty($adminResp->results)){
+                                $s["override"]["name_admin"] = $adminResp->results[0]->name_admin;
+                            }else{
+                                $s["override"]["name_admin"] = "Admin";
+                            }
+                        }
+                    }
+                    $o["sales"][] = $s;
                 }
             }
 

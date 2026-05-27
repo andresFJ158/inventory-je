@@ -25,6 +25,9 @@ if ($isPermitsAdmin) {
 			$allModules[] = array("title" => $mod->url_page, "alias" => $mod->title_page);
 		}
 	}
+	
+	// Permisos adicionales (no basados en páginas/módulos)
+	$allModules[] = array("title" => "pos_override_price", "alias" => "Cambio Precio POS");
 
 	if (!empty($currentPermits)) {
 		$obj2 = array();

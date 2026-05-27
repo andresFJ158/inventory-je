@@ -606,10 +606,38 @@ function changeQuantity(key) {
 	/*=============================================
 	Actualizamos subtotal
 	=============================================*/
+	var qty = Number($(".showQuantity_" + key).val());
+	var elemPrice = $(".pricePurchase_" + key);
+	var basePrice = Number(elemPrice.attr("basePrice"));
+	var wholesalePrice = Number(elemPrice.attr("wholesalePrice"));
+	var wholesaleQty = Number(elemPrice.attr("wholesaleQty"));
+	var appliedPriceType = elemPrice.attr("appliedPriceType");
 
-	var pricePurchase = Number($(".pricePurchase_" + key).attr("originalPricePurchase")) * $(".showQuantity_" + key).val();
-	$(".pricePurchase_" + key).attr("pricePurchase", pricePurchase);
-	$(".pricePurchase_" + key).html(money(pricePurchase.toFixed(2)));
+	var unitPrice = basePrice;
+
+	if(appliedPriceType == "manual"){
+		// Mantener precio sobrescrito manualmente
+		unitPrice = Number(elemPrice.attr("originalPricePurchase"));
+	} else {
+		// Cálculo automático mayoreo
+		var isWholesaleSwitch = $("#wholesaleSwitch").is(":checked") ? 1 : 0;
+		if ((isWholesaleSwitch == 1 || (wholesaleQty > 0 && qty >= wholesaleQty)) && wholesalePrice > 0 && discount <= 0) {
+			unitPrice = wholesalePrice;
+		}
+		
+		// Aplicar descuento del producto si existe y no se aplicó mayoreo
+		// (La regla actual dice que descuento y mayoreo no se mezclan, o se aplica al base)
+		if(discount > 0){
+			unitPrice = unitPrice - (unitPrice * (discount / 100));
+		}
+		
+		// Actualizar el atributo para mantener consistencia
+		elemPrice.attr("originalPricePurchase", unitPrice);
+	}
+
+	var pricePurchase = unitPrice * qty;
+	elemPrice.attr("pricePurchase", pricePurchase);
+	elemPrice.html(money(pricePurchase.toFixed(2)));
 
 	/*=============================================
 	Actualizamos cantidad y subtotal en base de datos
@@ -1302,3 +1330,74 @@ if ($(".alertPos").length > 0) {
 
 	}, 10000)
 }
+/*=============================================
+MODIFICAR PRECIO MANUALMENTE
+=============================================*/
+$(document).on('click', '.editPriceSale', function(){
+	let idSale = $(this).attr('idSale');
+	let idProduct = $(this).attr('idProduct');
+	let currentPrice = $(this).attr('currentPrice');
+	
+	$('#overrideIdSale').val(idSale);
+	$('#overrideIdProduct').val(idProduct);
+	$('#overrideOriginalPrice').val(currentPrice);
+	$('#overrideNewPrice').val('');
+	$('#overrideReason').val('');
+	
+	$('#modalOverridePrice').modal('show');
+});
+
+$('#formOverridePrice').submit(function(e){
+	e.preventDefault();
+	
+	let idSale = $('#overrideIdSale').val();
+	let idProduct = $('#overrideIdProduct').val();
+	let originalPrice = $('#overrideOriginalPrice').val();
+	let newPrice = $('#overrideNewPrice').val();
+	let reason = $('#overrideReason').val();
+	
+	let data = new FormData();
+	data.append('overridePriceCart', 'yes');
+	data.append('idSaleOverride', idSale);
+	data.append('idProductOverride', idProduct);
+	data.append('idOrderOverride', $('#orderHeader').attr('idOrder'));
+	data.append('originalPriceOverride', originalPrice);
+	data.append('newPriceOverride', newPrice);
+	data.append('reasonOverride', reason);
+	data.append('token', localStorage.getItem('tokenAdmin'));
+	data.append('seller', $('#seller').attr('idAdmin'));
+	
+	fncSweetAlert('loading', 'Guardando cambios...', '');
+	
+	$.ajax({
+		url: '/ajax/pos.ajax.php',
+		method: 'POST',
+		data: data,
+		contentType: false,
+		cache: false,
+		processData: false,
+		success: function(response){
+			if(response == 'ok'){
+				$('#modalOverridePrice').modal('hide');
+				fncToastr('success', 'El precio se ha modificado correctamente');
+				
+				// Update the UI
+				let pricePurchaseElem = $('.pricePurchase_'+idProduct);
+				let qty = $('.showQuantity_'+idProduct).val();
+				let newSubtotal = Number(newPrice) * Number(qty);
+				
+				pricePurchaseElem.attr('originalPricePurchase', newPrice);
+				pricePurchaseElem.attr('pricePurchase', newSubtotal);
+				pricePurchaseElem.html(money(newSubtotal.toFixed(2)));
+				
+				calculateProducts();
+				fncSweetAlert('close', '', '');
+			} else if(response == 'logout'){
+				fncSweetAlert('error', 'Token vencido, debe iniciar sesión nuevamente', setTimeout(() => { window.location = '/logout'; }, 1250));
+			} else {
+				fncToastr('error', 'Ha ocurrido un error al modificar el precio');
+			}
+		}
+	});
+});
+

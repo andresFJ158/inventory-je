@@ -23,7 +23,7 @@ $isAutoAdmin = (($module->title_module === "cashs" && $titleCol === "id_admin_ca
 
 // Auto-asignar sucursal: para caja, gastos y ventas, los usuarios NO superadmin no pueden seleccionar otra sucursal
 $isAutoOffice = false;
-$autoOfficeTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client"];
+$autoOfficeTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "products" => "id_office_product", "purchases" => "id_office_purchase"];
 if (isset($autoOfficeTables[$module->title_module]) && $titleCol === $autoOfficeTables[$module->title_module]) {
 	$rolAdmin = isset($_SESSION['admin']->rol_admin) ? $_SESSION['admin']->rol_admin : '';
 	$isAutoOffice = ($rolAdmin !== 'superadmin');

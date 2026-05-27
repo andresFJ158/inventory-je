@@ -1,5 +1,6 @@
 <?php
 
+date_default_timezone_set('America/La_Paz');
 require_once "get.model.php";
 
 class Connection{

@@ -179,12 +179,16 @@ $(document).on("click", ".viewCashDetails", function () {
 
 				res.orders.forEach((o, idx) => {
 					const productsList = o.sales && o.sales.length > 0
-						? o.sales.map(s =>
-							`<span class="badge rounded-pill bg-light text-dark border me-1 mb-1">
+						? o.sales.map(s => {
+							let overrideHtml = "";
+							if(s.applied_price_type === 'manual' && s.override){
+								overrideHtml = `<div class="mt-1 pt-1 border-top border-light" style="font-size: 0.75rem;"><span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Precio Editado:</span> Bs ${s.override.override_price} (Orig: Bs ${s.override.original_price})<br><span class="text-muted"><i class="bi bi-person-fill"></i> ${s.override.name_admin}: <i>"${s.override.reason_override}"</i></span></div>`;
+							}
+							return `<div class="mb-2 p-2 bg-light rounded"><span class="badge rounded-pill bg-white text-dark border me-1 mb-1">
 								${decodeURIComponent((s.title_product || 'Producto').replace(/\+/g, ' '))}
 								<small class="text-muted">x${s.qty_sale}</small>
-							</span>`
-						).join('')
+							</span>${overrideHtml}</div>`
+						}).join('')
 						: '<span class="text-muted small">—</span>';
 
 					const methodIcon = o.method_order === 'efectivo'

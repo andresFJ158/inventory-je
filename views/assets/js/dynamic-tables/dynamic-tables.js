@@ -133,7 +133,7 @@ $(document).on("click", "#btnSearchItem", function () {
 	var limit = $("#limitTable").val();
 	var page = 1;
 	var filter = "search";
-	var search = $("#searchItem").val();
+	var search = fncSearchTable($("#searchItem").val().toLowerCase());
 	var between1 = $("#between1").val();
 	var between2 = $("#between2").val();
 
@@ -152,6 +152,27 @@ $(document).on("keyup", "#searchItem", function (e) {
 		$("#btnSearchItem").click();
 	}
 })
+
+/*=============================================
+función de búsqueda general
+=============================================*/
+
+function fncSearchTable(search){
+
+	search = search.replace(/[#\\;\\$\\&\\%\\=\\(\\)\\:\\,\\'\\"\\.\\¿\\¡\\!\\?\\]/g, "");
+	
+	search = search.replace(/[á]/g, "a");
+	search = search.replace(/[é]/g, "e");
+	search = search.replace(/[í]/g, "i");
+	search = search.replace(/[ó]/g, "o");
+	search = search.replace(/[ú]/g, "u");
+	search = search.replace(/[ñ]/g, "n");
+
+	search = search.replace(/[ ]/g, "_");
+
+	return search;
+	
+}
 
 /*=============================================
 Filtrar por fechas
