@@ -524,8 +524,8 @@ function loadProductsByOffice(officeSelect, productSelect) {
 
 // Función para aplicar filtro de productos por sucursal (genérica)
 function applyProductFilterForOffice() {
-	// Buscar todos los selects de sucursal que puedan estar relacionados con productos
-	$('select[data-matrix="offices"], select[name*="office"], select[id*="office"]').each(function () {
+	// Buscar todos los selects o inputs ocultos de sucursal que puedan estar relacionados con productos
+	$('select[data-matrix="offices"], select[name*="office"], select[id*="office"], input[type="hidden"][name*="office"], input[type="hidden"][id*="office"]').each(function () {
 		var officeSelect = $(this);
 		var officeName = officeSelect.attr('name') || officeSelect.attr('id') || '';
 

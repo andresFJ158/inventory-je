@@ -152,6 +152,8 @@ function loadMoreProducts(limit, startAt, category, search) {
 	data.append("search", search);
 	data.append("idOffice", $("#idOffice").val());
 	data.append("isWholesale", $("#wholesaleSwitch").is(":checked") ? 1 : 0);
+	data.append("sellerId", $("#sellerId").val());
+	data.append("sellerRole", $("#sellerRole").val());
 
 	$.ajax({
 

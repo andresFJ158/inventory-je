@@ -1,34 +1,85 @@
 <?php
+require_once "controllers/install.controller.php";
 
 $limit = 6;
-$url = "relations?rel=products,categories&type=product,category"
-     . "&linkTo=id_office_product,status_product"
-     . "&equalTo=".$_SESSION["admin"]->id_office_admin.",1"
-     . "&orderBy=stock_product&orderMode=DESC"
-     . "&startAt=0&endAt=".$limit;
+$role = $_SESSION["admin"]->rol_admin;
+$id_admin = $_SESSION["admin"]->id_admin;
+$id_office = $_SESSION["admin"]->id_office_admin;
 
-$method = "GET";
-$fields = array();
+if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+	try {
+		$db = InstallController::connect();
+		
+		// Calculate total products count for this office
+		$sqlCount = "
+			SELECT COUNT(*) as total
+			FROM products p
+			INNER JOIN categories c ON p.id_category_product = c.id_category
+			WHERE p.id_office_product = :office AND p.status_product = 1
+		";
+		$stmtCount = $db->prepare($sqlCount);
+		$stmtCount->execute([':office' => $id_office]);
+		$totalResult = $stmtCount->fetch(PDO::FETCH_OBJ);
+		$totalProducts = $totalResult ? (int)$totalResult->total : 0;
+		$totalPageProducts = ceil($totalProducts / $limit);
 
-$products = CurlController::request($url,$method,$fields);
+		// Fetch products with sub-warehouse stock
+		$sql = "
+			SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
+				   COALESCE(sub.stock, 0) as stock_product
+			FROM products p
+			INNER JOIN categories c ON p.id_category_product = c.id_category
+			LEFT JOIN (
+				SELECT wa.id_product_assignment,
+					   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
+						COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
+				FROM warehouse_assignments wa
+				JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+				WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+				GROUP BY wa.id_product_assignment
+			) sub ON p.id_product = sub.id_product_assignment
+			WHERE p.id_office_product = :office AND p.status_product = 1
+			ORDER BY p.id_product DESC
+			LIMIT 0, " . (int)$limit;
 
-if($products->status == 200){
+		$stmt = $db->prepare($sql);
+		$stmt->execute([':admin' => $id_admin, ':office' => $id_office]);
+		$products = $stmt->fetchAll(PDO::FETCH_CLASS);
+	} catch (Exception $e) {
+		$products = array();
+		$totalPageProducts = 0;
+	}
+} else {
+	// Original API request
+	$url = "relations?rel=products,categories&type=product,category"
+	     . "&linkTo=id_office_product,status_product"
+	     . "&equalTo=".$id_office.",1"
+	     . "&orderBy=stock_product&orderMode=DESC"
+	     . "&startAt=0&endAt=".$limit;
 
-	$products = $products->results;
+	$method = "GET";
+	$fields = array();
 
-	/*=============================================
-	Traer Total de productos
-	=============================================*/
+	$products = CurlController::request($url,$method,$fields);
 
-	$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$_SESSION["admin"]->id_office_admin.",1";
+	if($products->status == 200){
 
-	$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$limit);
+		$products = $products->results;
 
-}else{
+		/*=============================================
+		Traer Total de productos
+		=============================================*/
 
-	$products = array();
+		$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$id_office.",1";
+
+		$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$limit);
+
+	}else{
+
+		$products = array();
+		$totalPageProducts = 0;
+	}
 }
-
 ?>
 
 <?php if (!empty($products)): ?>
@@ -49,7 +100,13 @@ if($products->status == 200){
 					
 					<div class="position-absolute small bg-white p-1 shadow-sm rounded" style="top:4px; right:4px; font-size:10px"><?php echo $value->sku_product ?></div>
 
-					<img src="<?php echo urldecode($value->img_product) ?>" class="card-img-top px-5 py-3 mx-auto" style="width:180px !important">
+					<?php 
+						$imgSrc = TemplateController::fallbackProductImage($value->sku_product ?? '', $value->title_product ?? '', $value->img_product ?? '');
+						if (empty($imgSrc) || $imgSrc === 'NULL' || $imgSrc === 'null') {
+							$imgSrc = 'views/assets/img/multimedia.png';
+						}
+					?>
+					<img src="<?php echo urldecode($imgSrc) ?>" class="card-img-top px-5 py-3 mx-auto" style="width:180px !important">
 
 					<div class="card-body">
 						
@@ -142,6 +199,8 @@ if($products->status == 200){
 	<input type="hidden" id="limitProduct" value="<?php echo $limit ?>">
 	<input type="hidden" id="idOffice" value="<?php echo $_SESSION["admin"]->id_office_admin ?>">
 	<input type="hidden" id="filterByCategory" value="all">
+	<input type="hidden" id="sellerId" value="<?php echo $_SESSION['admin']->id_admin ?>">
+	<input type="hidden" id="sellerRole" value="<?php echo $_SESSION['admin']->rol_admin ?>">
 
 <?php else: ?>
 

@@ -73,13 +73,49 @@ if(!empty($order)){
 						$wholesalePrice = $reqPurch->results[0]->may_product;
 						$wholesaleQty = $reqPurch->results[0]->wholesale_quantity;
 					}
+
+					// Calcular el stock del sub-almacén o almacén general
+					require_once "controllers/install.controller.php";
+					$role = $_SESSION["admin"]->rol_admin;
+					$id_admin = $_SESSION["admin"]->id_admin;
+					$id_office = $_SESSION["admin"]->id_office_admin;
+					$stock = 0;
+
+					if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+						try {
+							$db = InstallController::connect();
+							$stmtStock = $db->prepare("
+								SELECT (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
+										COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
+								FROM warehouse_assignments wa
+								JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+								WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
+							");
+							$stmtStock->execute([
+								':admin' => $id_admin,
+								':office' => $id_office,
+								':product' => $value->id_product
+							]);
+							$stock = (int)($stmtStock->fetchColumn() ?: 0);
+						} catch (Exception $e) {
+							$stock = 0;
+						}
+					} else {
+						$stock = (int)$value->stock_product;
+					}
 				?>
 
 					<tr>
 				
 						<td>
+							<?php 
+								$imgSrcCartSaved = TemplateController::fallbackProductImage($value->sku_product ?? '', $value->title_product ?? '', $value->img_product ?? '');
+								if (empty($imgSrcCartSaved) || $imgSrcCartSaved === 'NULL' || $imgSrcCartSaved === 'null') {
+									$imgSrcCartSaved = 'views/assets/img/multimedia.png';
+								}
+							?>
 							<div>
-								<img src="<?php echo urldecode($value->img_product) ?>" class="me-auto rounded mt-2 float-start"style="width:60px !important; height:60px !important">
+								<img src="<?php echo urldecode($imgSrcCartSaved) ?>" class="me-auto rounded mt-2 float-start"style="width:60px !important; height:60px !important">
 
 								<div class="ms-2 float-start">
 									
@@ -116,13 +152,13 @@ if(!empty($order)){
 								
 								<div class="input-group mb-3 mt-2" style="width:160px">
 									
-									<span class="input-group-text rounded-start bg-light btnQty" type="btnMin" style="cursor:pointer" key="<?php echo $value->id_product ?>">
+									<span class="input-group-text rounded-start bg-light btnQty" type="btnMin" style="cursor:pointer" key="<?php echo $value->id_product ?>" stock="<?php echo $stock ?>">
 										<i class="bi bi-dash-lg"></i>
 									</span>
 
-									<input type="number" class="form-control text-center showQuantity showQuantity_<?php echo $value->id_product ?>" key="<?php echo $value->id_product ?>" value="<?php echo $value->qty_sale ?>" style="font-size:12px">
+									<input type="number" class="form-control text-center showQuantity showQuantity_<?php echo $value->id_product ?>" key="<?php echo $value->id_product ?>" value="<?php echo $value->qty_sale ?>" style="font-size:12px" stock="<?php echo $stock ?>">
 
-									<span class="input-group-text rounded-end bg-light btnQty" type="btnMax" style="cursor:pointer" key="<?php echo $value->id_product ?>">
+									<span class="input-group-text rounded-end bg-light btnQty" type="btnMax" style="cursor:pointer" key="<?php echo $value->id_product ?>" stock="<?php echo $stock ?>">
 										<i class="bi bi-plus-lg"></i>
 									</span>
 

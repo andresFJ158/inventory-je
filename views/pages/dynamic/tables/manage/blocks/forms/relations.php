@@ -152,6 +152,15 @@ if (isset($autoOfficeTables[$module->title_module]) && $titleCol === $autoOffice
 		$method = "GET";
 		$fields = [];
 
+		if ($matrix === "products") {
+			$adminOfficeId = isset($_SESSION['admin']->id_office_admin) ? (int)$_SESSION['admin']->id_office_admin : 0;
+			if ($adminOfficeId > 0) {
+				$url = "relations?rel=products,offices&type=product,office&linkTo=id_office_product&equalTo=" . $adminOfficeId;
+			} else {
+				$url = "relations?rel=products,offices&type=product,office";
+			}
+		}
+
 		$resp = CurlController::request($url, $method, $fields);
 		$rows = (!empty($resp) && isset($resp->status) && $resp->status == 200) ? ($resp->results ?? []) : [];
 
@@ -164,7 +173,12 @@ if (isset($autoOfficeTables[$module->title_module]) && $titleCol === $autoOffice
 			$textVal = (string)$arr[$keys[1]];
 
 			$safeId   = htmlspecialchars($idVal, ENT_QUOTES, 'UTF-8');
-			$safeText = htmlspecialchars(urldecode($textVal), ENT_QUOTES, 'UTF-8');
+			
+			$officeSuffix = "";
+			if ($matrix === "products" && isset($arr["title_office"])) {
+				$officeSuffix = " (" . urldecode($arr["title_office"]) . ")";
+			}
+			$safeText = htmlspecialchars(urldecode($textVal) . $officeSuffix, ENT_QUOTES, 'UTF-8');
 
 			// Si es sucursal y hay valor actual, marcar como seleccionada si coincide
 			// Si no es sucursal, marcar si coincide con el valor actual

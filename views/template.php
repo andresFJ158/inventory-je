@@ -338,7 +338,7 @@ if($adminTable->status == 404){
 						} else if ($role == "lab_worker") {
 							$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final"];
 							if (in_array($route, $lab_routes)) $allowed = true;
-						} else if ($role == "editor") {
+						} else if ($role == "editor" || $role == "despachador") {
 							$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
 							if (isset($perms[$route]) && $perms[$route] == "on") {
 								$allowed = true;
@@ -439,7 +439,7 @@ if($adminTable->status == 404){
 								Validar permisos para editores
 								===========================================-->
 
-								<?php if ($_SESSION["admin"]->rol_admin == "editor"): ?>
+								<?php if ($_SESSION["admin"]->rol_admin == "editor" || $_SESSION["admin"]->rol_admin == "despachador"): ?>
 
 									<?php
 

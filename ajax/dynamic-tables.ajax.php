@@ -507,8 +507,16 @@ class DynamicTablesController{
 
 								if($item->type_column == "image"){
 
-									$HTMLTable .= '<a href="'.urldecode($value[$item->title_column]).'" target="_blank">
-										<img src="'.urldecode($value[$item->title_column]).'" class="rounded" style="width:60px; height:60px; object-fit: cover; object-position:center;">
+									$imgSrc = $value[$item->title_column];
+									if ($module->title_module == "products" && $item->title_column == "img_product") {
+										$imgSrc = TemplateController::fallbackProductImage($value["sku_product"] ?? '', $value["title_product"] ?? '', $value["img_product"] ?? '');
+									}
+									if (empty($imgSrc) || $imgSrc === 'NULL' || $imgSrc === 'null') {
+										$imgSrc = '/views/assets/img/multimedia.png';
+									}
+
+									$HTMLTable .= '<a href="'.urldecode($imgSrc).'" target="_blank">
+										<img src="'.urldecode($imgSrc).'" class="rounded" style="width:60px; height:60px; object-fit: cover; object-position:center;">
 									</a>';
 
 								/*=============================================

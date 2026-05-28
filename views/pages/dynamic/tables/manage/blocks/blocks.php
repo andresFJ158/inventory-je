@@ -37,7 +37,7 @@ if ($isAutoAdminField):
 	
 	// Fallback a los roles quemados en caso de que la tabla 'roles' no exista
 	if (empty($allRoles)) {
-		$allRoles = array("superadmin", "admin", "editor", "lab_admin", "lab_worker");
+		$allRoles = array("superadmin", "admin", "editor", "despachador", "lab_admin", "lab_worker");
 	}
 ?>
 <div class="card rounded border-0 shadow mb-3 pb-3">

@@ -156,11 +156,28 @@ if($order->status == 200){
     $order = null;
 }
 
+$isPosPage = isset($routesArray[0]) && $routesArray[0] == "pos";
+$isCashOpen = true; // default to true
+
+if ($isPosPage) {
+    $cashOffice = isset($_SESSION["admin"]->id_office_admin) ? (int)$_SESSION["admin"]->id_office_admin : 0;
+    $urlCash = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".date("Y-m-d").",1,".$cashOffice."&select=id_cash";
+    $cashReq = CurlController::request($urlCash, "GET", array());
+    $isCashOpen = false;
+    if(isset($cashReq->status) && $cashReq->status == 200 && !empty($cashReq->results)){
+        $isCashOpen = true;
+    }
+}
 ?>
     
 <div class="container-fluid py-3 p-lg-4">
+
+    <?php if ($isPosPage && !$isCashOpen): ?>
+        <div class="position-relative w-100 h-100 tw-min-h-[500px]" style="min-height: 500px;">
+            <div style="filter: blur(8px) grayscale(100%); pointer-events: none; opacity: 0.65;">
+    <?php endif ?>
           
-    <div class="row">
+        <div class="row">
 
         <?php if (!empty($modules)): ?>
 
@@ -231,6 +248,26 @@ if($order->status == 200){
         <?php endif ?>
 
     </div>
+
+    <?php if ($isPosPage && !$isCashOpen): ?>
+            </div>
+            <!-- Centered button overlay -->
+            <div class="position-absolute d-flex flex-column justify-content-center align-items-center" style="top: 0; left: 0; right: 0; bottom: 0; z-index: 1050; background: rgba(0, 0, 0, 0.05);">
+                <div class="card p-5 text-center shadow-lg border-0 rounded-4" style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); max-width: 400px; width: 90%;">
+                    <div class="mb-4">
+                        <div class="mx-auto rounded-circle d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background-color: #ffebee;">
+                            <i class="bi bi-wallet2 text-danger" style="font-size: 40px;"></i>
+                        </div>
+                    </div>
+                    <h4 class="font-weight-bold mb-3 text-dark">Caja Cerrada</h4>
+                    <p class="text-muted mb-4" style="font-size: 14px; line-height: 1.6;">Para poder realizar ventas y utilizar el módulo POS, primero debe abrir la caja del día.</p>
+                    <button type="button" class="btn btn-lg btn-success w-100 openCash py-3 rounded-pill font-weight-bold shadow-sm" style="transition: all 0.2s ease;">
+                        <i class="bi bi-unlock-fill me-2"></i>Abrir Caja
+                    </button>
+                </div>
+            </div>
+        </div>
+    <?php endif ?>
 
 </div>
 

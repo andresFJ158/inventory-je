@@ -54,7 +54,7 @@ class DynamicController{
 							$normalizedValue = (string)$_SESSION["admin"]->id_admin;
 						}else if($value->title_column == "id_office_".$module->suffix_module && isset($_SESSION["admin"]->id_office_admin)){
 							$normalizedValue = (string)$_SESSION["admin"]->id_office_admin;
-						}else if(in_array($value->type_column, ["int","double","boolean"])){
+						}else if(in_array($value->type_column, ["int","double","boolean","number","money"])){
 							$normalizedValue = "0";
 						}
 					}
@@ -365,7 +365,7 @@ class DynamicController{
 							$normalizedValue = (string)$_SESSION["admin"]->id_admin;
 						}else if($value->title_column == "id_office_".$module->suffix_module && isset($_SESSION["admin"]->id_office_admin)){
 							$normalizedValue = (string)$_SESSION["admin"]->id_office_admin;
-						}else if(in_array($value->type_column, ["int","double","boolean"])){
+						}else if(in_array($value->type_column, ["int","double","boolean","number","money"])){
 							$normalizedValue = "0";
 						}
 					}

@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
+ini_set('display_errors', '0');
 
 require_once "../controllers/curl.controller.php";
 require_once "../controllers/template.controller.php";
@@ -30,14 +32,172 @@ class PosController{
 	public $category;
 	public $search;
 	public $idOffice;
-
 	public function loadProducts(){
+		$method = "GET";
+		$fields = array();
+		$role = $_POST["sellerRole"] ?? null;
+		$id_admin = $_POST["sellerId"] ?? null;
 
-		if($this->category == "all"){
+		if ($role !== null && $role != "superadmin" && $role != "admin" && $role != "despachador") {
+			$db = LocalConnection::connect();
+			
+			$categoryQuery = "";
+			$searchQuery = "";
+			$params = [':admin' => $id_admin, ':office' => $this->idOffice];
+			
+			if ($this->category != "all") {
+				$categoryQuery = " AND p.id_category_product = :category";
+				$params[':category'] = $this->category;
+			}
+			
+			if ($this->search != "") {
+				$searchQuery = " AND (p.title_product LIKE :search OR p.sku_product LIKE :search OR p.code_product LIKE :search)";
+				$params[':search'] = "%" . $this->search . "%";
+			}
+			
+			$sql = "
+				SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
+					   COALESCE(sub.stock, 0) as stock_product
+				FROM products p
+				INNER JOIN categories c ON p.id_category_product = c.id_category
+				LEFT JOIN (
+					SELECT wa.id_product_assignment,
+						   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
+							COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
+					FROM warehouse_assignments wa
+					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+					WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+					GROUP BY wa.id_product_assignment
+				) sub ON p.id_product = sub.id_product_assignment
+				WHERE p.id_office_product = :office AND p.status_product = 1
+				$categoryQuery
+				$searchQuery
+				ORDER BY p.id_product DESC
+			";
+			
+			$stmtAll = $db->prepare($sql);
+			$stmtAll->execute($params);
+			$allProducts = $stmtAll->fetchAll(PDO::FETCH_CLASS);
+			
+			$totalPageProducts = ceil(count($allProducts) / $this->limit);
+			
+			// Apply limit and offset
+			$sqlLimit = $sql . " LIMIT " . (int)$this->startAt . ", " . (int)$this->limit;
+			$stmtLimit = $db->prepare($sqlLimit);
+			$stmtLimit->execute($params);
+			$products = $stmtLimit->fetchAll(PDO::FETCH_CLASS);
+		} else {
+			if($this->category == "all"){
 
-			if($this->search == ""){
+				if($this->search == ""){
 
-				$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$this->idOffice.",1&orderBy=id_product&orderMode=DESC&startAt=".$this->startAt."&endAt=".$this->limit;
+					$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$this->idOffice.",1&orderBy=id_product&orderMode=DESC&startAt=".$this->startAt."&endAt=".$this->limit;
+					$method = "GET";
+					$fields = array();
+
+					$products = CurlController::request($url,$method,$fields);
+
+					if($products->status == 200){
+
+						$products = $products->results;	
+
+						/*=============================================
+						Traer Total de productos
+						=============================================*/
+
+						$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$this->idOffice.",1";
+
+						$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$this->limit);
+
+					}else{
+
+						$products = array();
+						$totalPageProducts = 0;
+					}
+
+				}else{
+
+					/*=============================================
+					Columnas de búsqueda - Buscar en todos los atributos del producto
+					Basado en la estructura real de la tabla: title_product, sku_product, code_product (Código de Barras), unit_product
+					=============================================*/
+
+					$linkTo = ["title_product","sku_product","code_product","unit_product"];
+
+					/*=============================================
+					Itineración de búsqueda - Buscar en todos los campos
+					=============================================*/
+
+					$allProducts = array();
+					$foundResults = false;
+
+					// Obtener más resultados de cada campo para asegurar suficientes resultados únicos
+					// Aumentar este valor si se necesitan más resultados por búsqueda
+					$maxResultsPerField = 500;
+
+					foreach ($linkTo as $key => $value) {
+						
+						try {
+							// Obtener resultados sin paginación inicial para combinar todos los campos
+							$url = "relations?rel=products,categories&type=product,category&linkTo=".$value.",id_office_product,status_product&search=".str_replace(" ", "_",$this->search).",".$this->idOffice.",1&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$maxResultsPerField;
+
+							$method = "GET";
+							$fields = array();
+
+							$products = CurlController::request($url,$method,$fields);
+
+							if($products->status == 200 && !empty($products->results)){
+
+								// Combinar resultados de todos los campos
+								foreach($products->results as $product){
+									// Evitar duplicados usando id_product como clave
+									if(isset($product->id_product)){
+										$allProducts[$product->id_product] = $product;
+									}
+								}
+								$foundResults = true;
+							}
+						} catch (Exception $e) {
+							// Si un campo no existe o hay error, continuar con el siguiente campo
+							continue;
+						}
+					}
+
+					/*=============================================
+					Si encontramos resultados, procesarlos
+					=============================================*/
+
+					if($foundResults && !empty($allProducts)){
+
+						// Convertir array asociativo a array indexado y ordenar por id_product DESC
+						$productsArray = array_values($allProducts);
+						
+						// Ordenar por id_product descendente
+						usort($productsArray, function($a, $b) {
+							return $b->id_product - $a->id_product;
+						});
+
+						// Aplicar paginación
+						$products = array_slice($productsArray, $this->startAt, $this->limit);
+
+						/*=============================================
+						Traer Total de productos (contar todos los resultados únicos)
+						=============================================*/
+
+						$totalPageProducts = ceil(count($allProducts)/$this->limit);
+
+					}else{
+
+						$products = array();
+						$totalPageProducts = 0;
+
+					}
+
+				}
+
+			}else{
+
+				$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product,id_category_product&equalTo=".$this->idOffice.",1,".$this->category."&orderBy=id_product&orderMode=DESC&startAt=".$this->startAt."&endAt=".$this->limit;
 				$method = "GET";
 				$fields = array();
 
@@ -51,7 +211,7 @@ class PosController{
 					Traer Total de productos
 					=============================================*/
 
-					$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$this->idOffice.",1";
+					$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product,id_category_product&equalTo=".$this->idOffice.",1,".$this->category;
 
 					$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$this->limit);
 
@@ -61,112 +221,7 @@ class PosController{
 					$totalPageProducts = 0;
 				}
 
-			}else{
-
-				/*=============================================
-				Columnas de búsqueda - Buscar en todos los atributos del producto
-				Basado en la estructura real de la tabla: title_product, sku_product, code_product (Código de Barras), unit_product
-				=============================================*/
-
-				$linkTo = ["title_product","sku_product","code_product","unit_product"];
-
-				/*=============================================
-				Itineración de búsqueda - Buscar en todos los campos
-				=============================================*/
-
-				$allProducts = array();
-				$foundResults = false;
-
-				// Obtener más resultados de cada campo para asegurar suficientes resultados únicos
-				// Aumentar este valor si se necesitan más resultados por búsqueda
-				$maxResultsPerField = 500;
-
-				foreach ($linkTo as $key => $value) {
-					
-					try {
-						// Obtener resultados sin paginación inicial para combinar todos los campos
-						$url = "relations?rel=products,categories&type=product,category&linkTo=".$value.",id_office_product,status_product&search=".str_replace(" ", "_",$this->search).",".$this->idOffice.",1&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$maxResultsPerField;
-
-						$method = "GET";
-						$fields = array();
-
-						$products = CurlController::request($url,$method,$fields);
-
-						if($products->status == 200 && !empty($products->results)){
-
-							// Combinar resultados de todos los campos
-							foreach($products->results as $product){
-								// Evitar duplicados usando id_product como clave
-								if(isset($product->id_product)){
-									$allProducts[$product->id_product] = $product;
-								}
-							}
-							$foundResults = true;
-						}
-					} catch (Exception $e) {
-						// Si un campo no existe o hay error, continuar con el siguiente campo
-						continue;
-					}
-				}
-
-				/*=============================================
-				Si encontramos resultados, procesarlos
-				=============================================*/
-
-				if($foundResults && !empty($allProducts)){
-
-					// Convertir array asociativo a array indexado y ordenar por id_product DESC
-					$productsArray = array_values($allProducts);
-					
-					// Ordenar por id_product descendente
-					usort($productsArray, function($a, $b) {
-						return $b->id_product - $a->id_product;
-					});
-
-					// Aplicar paginación
-					$products = array_slice($productsArray, $this->startAt, $this->limit);
-
-					/*=============================================
-					Traer Total de productos (contar todos los resultados únicos)
-					=============================================*/
-
-					$totalPageProducts = ceil(count($allProducts)/$this->limit);
-
-				}else{
-
-					$products = array();
-					$totalPageProducts = 0;
-
-				}
-
 			}
-
-		}else{
-
-			$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product,id_category_product&equalTo=".$this->idOffice.",1,".$this->category."&orderBy=id_product&orderMode=DESC&startAt=".$this->startAt."&endAt=".$this->limit;
-			$method = "GET";
-			$fields = array();
-
-			$products = CurlController::request($url,$method,$fields);
-
-			if($products->status == 200){
-
-				$products = $products->results;	
-
-				/*=============================================
-				Traer Total de productos
-				=============================================*/
-
-				$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product,id_category_product&equalTo=".$this->idOffice.",1,".$this->category;
-
-				$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$this->limit);
-
-			}else{
-
-				$products = array();
-				$totalPageProducts = 0;
-			}
-
 		}
 
 		$htmlProducts = "";
@@ -185,9 +240,14 @@ class PosController{
 							
 						}
 						
+						$imgSrc = TemplateController::fallbackProductImage($value->sku_product ?? '', $value->title_product ?? '', $value->img_product ?? '');
+						if (empty($imgSrc) || $imgSrc === 'NULL' || $imgSrc === 'null') {
+							$imgSrc = 'views/assets/img/multimedia.png';
+						}
+
 						$htmlProducts .= '<div class="position-absolute small bg-white p-1 shadow-sm rounded" style="top:4px; right:4px; font-size:10px">'.$value->sku_product.'</div>
 
-						<img src="'.urldecode($value->img_product).'" class="card-img-top px-5 py-3 mx-auto" style="width:200px !important">
+						<img src="'.urldecode($imgSrc).'" class="card-img-top px-5 py-3 mx-auto" style="width:200px !important">
 
 						<div class="card-body">
 							
@@ -474,7 +534,33 @@ class PosController{
 
 			$product = $getProduct->results[0];
 
-			if($product->stock_product == 0){
+			// Obtener el rol del vendedor y calcular el stock correspondiente
+			$db = LocalConnection::connect();
+			$stmtAdmin = $db->prepare("SELECT rol_admin FROM admins WHERE id_admin = :id LIMIT 1");
+			$stmtAdmin->execute([':id' => $this->seller]);
+			$role = $stmtAdmin->fetchColumn() ?: null;
+
+			$stock = 0;
+			if ($role !== null && $role != "superadmin" && $role != "admin" && $role != "despachador") {
+				// Consultar stock en sub-almacén
+				$stmtStock = $db->prepare("
+					SELECT (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
+							COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
+					FROM warehouse_assignments wa
+					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+					WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
+				");
+				$stmtStock->execute([
+					':admin' => $this->seller,
+					':office' => $this->idOffice,
+					':product' => $this->idProduct
+				]);
+				$stock = (int)($stmtStock->fetchColumn() ?: 0);
+			} else {
+				$stock = (int)$product->stock_product;
+			}
+
+			if($stock <= 0){
 
 				echo "error stock";
 
@@ -538,11 +624,16 @@ class PosController{
 					Devolver HTML
 					=============================================*/
 
+					$imgSrcCart = TemplateController::fallbackProductImage($product->sku_product ?? '', $product->title_product ?? '', $product->img_product ?? '');
+					if (empty($imgSrcCart) || $imgSrcCart === 'NULL' || $imgSrcCart === 'null') {
+						$imgSrcCart = 'views/assets/img/multimedia.png';
+					}
+
 					$html = '<tr>
 				
 								<td>
 									<div>
-										<img src="'.urldecode($product->img_product).'" class="me-auto rounded mt-2 float-start"style="width:60px !important; height:60px !important">
+										<img src="'.urldecode($imgSrcCart).'" class="me-auto rounded mt-2 float-start"style="width:60px !important; height:60px !important">
 
 										<div class="ms-2 float-start">
 											
@@ -571,13 +662,13 @@ class PosController{
 										
 										<div class="input-group mb-3 mt-2" style="width:160px">
 											
-											<span class="input-group-text rounded-start bg-light btnQty" type="btnMin" style="cursor:pointer" key="'.$product->id_product.'" stock="'.$product->stock_product.'">
+											<span class="input-group-text rounded-start bg-light btnQty" type="btnMin" style="cursor:pointer" key="'.$product->id_product.'" stock="'.$stock.'">
 												<i class="bi bi-dash-lg"></i>
 											</span>
 
-											<input type="number" class="form-control text-center showQuantity showQuantity_'.$product->id_product.'" value="1" key="'.$product->id_product.'" style="font-size:12px"stock="'.$product->stock_product.'">
+											<input type="number" class="form-control text-center showQuantity showQuantity_'.$product->id_product.'" value="1" key="'.$product->id_product.'" style="font-size:12px" stock="'.$stock.'">
 
-											<span class="input-group-text rounded-end bg-light btnQty" type="btnMax" style="cursor:pointer" key="'.$product->id_product.'"stock="'.$product->stock_product.'">
+											<span class="input-group-text rounded-end bg-light btnQty" type="btnMax" style="cursor:pointer" key="'.$product->id_product.'" stock="'.$stock.'">
 												<i class="bi bi-plus-lg"></i>
 											</span>
 
@@ -1821,4 +1912,427 @@ if(isset($_POST["getProductionLots"]) && $_POST["getProductionLots"] == "ok") {
     $stmt->execute([':id' => $id_packaged_product]);
     echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
     exit;
+}
+
+//=====================================
+// GET SUB WAREHOUSE STOCK
+//=====================================
+if (isset($_POST["getSubWarehouseStock"])) {
+	$id_admin = $_POST["id_admin"];
+	$id_office = $_POST["id_office"];
+	$role = $_POST["role"];
+	$db = LocalConnection::connect();
+
+	if ($role == 'despachador' || $role == 'admin' || $role == 'superadmin') {
+		// Return main warehouse stock (available stock = stock_product - total_assigned)
+		$stmt = $db->prepare("
+			SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
+				   (p.stock_product - COALESCE(sub.total_assigned, 0)) as stock
+			FROM products p
+			LEFT JOIN (
+				SELECT wa.id_product_assignment,
+					   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 
+								WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
+								ELSE 0 END) as total_assigned
+				FROM warehouse_assignments wa
+				JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+				WHERE sw.id_office_sub_warehouse = :office
+				GROUP BY wa.id_product_assignment
+			) sub ON p.id_product = sub.id_product_assignment
+			WHERE p.id_office_product = :office AND p.status_product = 1
+		");
+		$stmt->execute([':office' => $id_office]);
+		$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+	} else {
+		// Ensure sub-warehouse exists
+		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_admin_sub_warehouse = :admin AND id_office_sub_warehouse = :office LIMIT 1");
+		$stmtCheck->execute([':admin' => $id_admin, ':office' => $id_office]);
+		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+		if (!$sub) {
+			$stmtName = $db->prepare("SELECT name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
+			$stmtName->execute([':admin' => $id_admin]);
+			$admName = $stmtName->fetchColumn() ?: "Usuario";
+			$subName = "Sub-Almacén de " . $admName;
+			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (:admin, :office, :name, 1, CURDATE())");
+			$stmtIns->execute([':admin' => $id_admin, ':office' => $id_office, ':name' => $subName]);
+		}
+
+		// Return sub-warehouse stock
+		$stmt = $db->prepare("
+			SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
+				   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
+					COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
+			FROM warehouse_assignments wa
+			JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+			JOIN products p ON wa.id_product_assignment = p.id_product
+			WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+			GROUP BY wa.id_product_assignment
+		");
+		$stmt->execute([':admin' => $id_admin, ':office' => $id_office]);
+		$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+	}
+	echo json_encode($results);
+	exit;
+}
+
+//=====================================
+// GET MY WAREHOUSE MOVEMENTS
+//=====================================
+if (isset($_POST["getMyWarehouseMovements"])) {
+	$id_admin = $_POST["id_admin"];
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT wa.date_created_assignment, wa.type_assignment, p.title_product, wa.qty_assignment, wa.notes_assignment
+		FROM warehouse_assignments wa
+		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+		JOIN products p ON wa.id_product_assignment = p.id_product
+		WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+		ORDER BY wa.id_assignment DESC
+	");
+	$stmt->execute([':admin' => $id_admin, ':office' => $id_office]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// GET ASSIGNED BY OFFICE
+//=====================================
+if (isset($_POST["getAssignedByOffice"])) {
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT wa.id_product_assignment as id_product,
+			   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 
+						WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
+						ELSE 0 END) as total_assigned
+		FROM warehouse_assignments wa
+		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+		WHERE sw.id_office_sub_warehouse = :office
+		GROUP BY wa.id_product_assignment
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// GET SUB WAREHOUSES DETAIL
+//=====================================
+if (isset($_POST["getSubWarehousesDetail"])) {
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+	
+	$stmtSw = $db->prepare("
+		SELECT sw.id_sub_warehouse, sw.name_sub_warehouse, a.name_admin
+		FROM sub_warehouses sw
+		JOIN admins a ON sw.id_admin_sub_warehouse = a.id_admin
+		WHERE sw.id_office_sub_warehouse = :office
+	");
+	$stmtSw->execute([':office' => $id_office]);
+	$subs = $stmtSw->fetchAll(PDO::FETCH_ASSOC);
+	
+	$results = [];
+	foreach ($subs as $s) {
+		$stmtProd = $db->prepare("
+			SELECT p.title_product,
+				   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 
+							WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
+							ELSE 0 END) as stock
+			FROM warehouse_assignments wa
+			JOIN products p ON wa.id_product_assignment = p.id_product
+			WHERE wa.id_sub_warehouse_assignment = :id_sub
+			GROUP BY wa.id_product_assignment
+			HAVING stock > 0
+		");
+		$stmtProd->execute([':id_sub' => $s['id_sub_warehouse']]);
+		$s['products'] = $stmtProd->fetchAll(PDO::FETCH_ASSOC);
+		$results[] = $s;
+	}
+	echo json_encode($results);
+	exit;
+}
+
+//=====================================
+// GET WAREHOUSE MOVEMENTS
+//=====================================
+if (isset($_POST["getWarehouseMovements"])) {
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT wa.date_created_assignment, wa.type_assignment, p.title_product, wa.qty_assignment, wa.notes_assignment,
+			   dest_a.name_admin as name_admin,
+			   disp_a.name_admin as dispatcher_name
+		FROM warehouse_assignments wa
+		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+		JOIN products p ON wa.id_product_assignment = p.id_product
+		JOIN admins dest_a ON sw.id_admin_sub_warehouse = dest_a.id_admin
+		LEFT JOIN admins disp_a ON wa.id_dispatched_by = disp_a.id_admin
+		WHERE sw.id_office_sub_warehouse = :office
+		ORDER BY wa.id_assignment DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// ASSIGN TO SUB WAREHOUSE
+//=====================================
+if (isset($_POST["assignToSubWarehouse"])) {
+	$id_product = $_POST["id_product"];
+	$id_admin_dest = $_POST["id_admin_dest"];
+	$qty = $_POST["qty"];
+	$notes = $_POST["notes"];
+	$id_office = $_POST["id_office"];
+	$id_dispatched_by = $_POST["id_dispatched_by"];
+	$db = LocalConnection::connect();
+
+	try {
+		$db->beginTransaction();
+		
+		// Find or create sub-warehouse for dest admin
+		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_admin_sub_warehouse = :admin AND id_office_sub_warehouse = :office LIMIT 1");
+		$stmtCheck->execute([':admin' => $id_admin_dest, ':office' => $id_office]);
+		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+		
+		if (!$sub) {
+			$stmtName = $db->prepare("SELECT name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
+			$stmtName->execute([':admin' => $id_admin_dest]);
+			$admName = $stmtName->fetchColumn() ?: "Usuario";
+			$subName = "Sub-Almacén de " . $admName;
+			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (:admin, :office, :name, 1, CURDATE())");
+			$stmtIns->execute([':admin' => $id_admin_dest, ':office' => $id_office, ':name' => $subName]);
+			$id_sub = $db->lastInsertId();
+		} else {
+			$id_sub = $sub['id_sub_warehouse'];
+		}
+		
+		// Insert assignment
+		$stmtAssign = $db->prepare("
+			INSERT INTO warehouse_assignments (id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, type_assignment, notes_assignment, date_created_assignment)
+			VALUES (:id_sub, :id_prod, :qty, :disp, 'despacho', :notes, NOW())
+		");
+		$stmtAssign->execute([
+			':id_sub' => $id_sub,
+			':id_prod' => $id_product,
+			':qty' => $qty,
+			':disp' => $id_dispatched_by,
+			':notes' => $notes
+		]);
+		
+		$db->commit();
+		echo "ok";
+	} catch (Exception $e) {
+		$db->rollBack();
+		echo "error: " . $e->getMessage();
+	}
+	exit;
+}
+
+//=====================================
+// CREATE INVENTORY REQUEST
+//=====================================
+if (isset($_POST["createInventoryRequest"])) {
+	$id_product = $_POST["id_product"];
+	$qty = $_POST["qty"];
+	$notes = $_POST["notes"];
+	$id_admin = $_POST["id_admin"];
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+
+	$stmt = $db->prepare("
+		INSERT INTO inventory_requests (id_admin_request, id_office_request, id_product_request, qty_request, status_request, notes_request, date_created_request)
+		VALUES (:admin, :office, :id_prod, :qty, 'pendiente', :notes, NOW())
+	");
+	if ($stmt->execute([
+		':admin' => $id_admin,
+		':office' => $id_office,
+		':id_prod' => $id_product,
+		':qty' => $qty,
+		':notes' => $notes
+	])) {
+		echo "ok";
+	} else {
+		echo "error";
+	}
+	exit;
+}
+
+//=====================================
+// GET MY REQUESTS
+//=====================================
+if (isset($_POST["getMyRequests"])) {
+	$id_admin = $_POST["id_admin"];
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT ir.date_created_request, p.title_product, ir.qty_request, ir.qty_dispatched_request, ir.status_request, ir.notes_dispatcher_request, ir.notes_request
+		FROM inventory_requests ir
+		JOIN products p ON ir.id_product_request = p.id_product
+		WHERE ir.id_admin_request = :admin
+		ORDER BY ir.id_request DESC
+	");
+	$stmt->execute([':admin' => $id_admin]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// GET PENDING REQUESTS
+//=====================================
+if (isset($_POST["getPendingRequests"])) {
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT ir.id_request, ir.date_created_request, ir.qty_request, ir.notes_request,
+			   a.name_admin, p.title_product,
+			   (p.stock_product - COALESCE(sub.total_assigned, 0)) as available_stock
+		FROM inventory_requests ir
+		JOIN admins a ON ir.id_admin_request = a.id_admin
+		JOIN products p ON ir.id_product_request = p.id_product
+		LEFT JOIN (
+			SELECT wa.id_product_assignment,
+				   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 
+							WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
+							ELSE 0 END) as total_assigned
+			FROM warehouse_assignments wa
+			JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+			WHERE sw.id_office_sub_warehouse = :office
+			GROUP BY wa.id_product_assignment
+		) sub ON p.id_product = sub.id_product_assignment
+		WHERE ir.id_office_request = :office AND ir.status_request = 'pendiente'
+		ORDER BY ir.id_request DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// GET REQUEST HISTORY
+//=====================================
+if (isset($_POST["getRequestHistory"])) {
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT ir.date_created_request, ir.qty_request, ir.qty_dispatched_request, ir.status_request, ir.notes_dispatcher_request, ir.notes_request,
+			   a.name_admin, p.title_product
+		FROM inventory_requests ir
+		JOIN admins a ON ir.id_admin_request = a.id_admin
+		JOIN products p ON ir.id_product_request = p.id_product
+		WHERE ir.id_office_request = :office AND ir.status_request != 'pendiente'
+		ORDER BY ir.id_request DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// REJECT REQUEST
+//=====================================
+if (isset($_POST["rejectRequest"])) {
+	$id_request = $_POST["id_request"];
+	$notes_dispatcher = $_POST["notes_dispatcher"];
+	$id_dispatched_by = $_POST["id_dispatched_by"];
+	$db = LocalConnection::connect();
+
+	$stmt = $db->prepare("
+		UPDATE inventory_requests
+		SET status_request = 'rechazada',
+			notes_dispatcher_request = :notes,
+			id_dispatched_by_request = :dispatcher
+		WHERE id_request = :id
+	");
+	if ($stmt->execute([
+		':notes' => $notes_dispatcher,
+		':dispatcher' => $id_dispatched_by,
+		':id' => $id_request
+	])) {
+		echo "ok";
+	} else {
+		echo "error";
+	}
+	exit;
+}
+
+//=====================================
+// DISPATCH REQUEST
+//=====================================
+if (isset($_POST["dispatchRequest"])) {
+	$id_request = $_POST["id_request"];
+	$qty_dispatch = $_POST["qty_dispatch"];
+	$notes_dispatcher = $_POST["notes_dispatcher"];
+	$id_dispatched_by = $_POST["id_dispatched_by"];
+	$id_office = $_POST["id_office"];
+	$db = LocalConnection::connect();
+
+	try {
+		$db->beginTransaction();
+		
+		// Get request details
+		$stmtReq = $db->prepare("SELECT id_admin_request, id_product_request FROM inventory_requests WHERE id_request = :id LIMIT 1");
+		$stmtReq->execute([':id' => $id_request]);
+		$req = $stmtReq->fetch(PDO::FETCH_ASSOC);
+		if (!$req) {
+			throw new Exception("Solicitud no encontrada");
+		}
+		
+		$id_admin_dest = $req['id_admin_request'];
+		$id_product = $req['id_product_request'];
+		
+		// Find or create sub-warehouse for dest admin
+		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_admin_sub_warehouse = :admin AND id_office_sub_warehouse = :office LIMIT 1");
+		$stmtCheck->execute([':admin' => $id_admin_dest, ':office' => $id_office]);
+		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+		
+		if (!$sub) {
+			$stmtName = $db->prepare("SELECT name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
+			$stmtName->execute([':admin' => $id_admin_dest]);
+			$admName = $stmtName->fetchColumn() ?: "Usuario";
+			$subName = "Sub-Almacén de " . $admName;
+			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (:admin, :office, :name, 1, CURDATE())");
+			$stmtIns->execute([':admin' => $id_admin_dest, ':office' => $id_office, ':name' => $subName]);
+			$id_sub = $db->lastInsertId();
+		} else {
+			$id_sub = $sub['id_sub_warehouse'];
+		}
+		
+		// Update request status
+		$stmtUpd = $db->prepare("
+			UPDATE inventory_requests
+			SET status_request = 'despachada',
+				qty_dispatched_request = :qty,
+				notes_dispatcher_request = :notes,
+				id_dispatched_by_request = :dispatcher
+			WHERE id_request = :id
+		");
+		$stmtUpd->execute([
+			':qty' => $qty_dispatch,
+			':notes' => $notes_dispatcher,
+			':dispatcher' => $id_dispatched_by,
+			':id' => $id_request
+		]);
+		
+		// Insert assignment
+		$stmtAssign = $db->prepare("
+			INSERT INTO warehouse_assignments (id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, id_request_assignment, type_assignment, notes_assignment, date_created_assignment)
+			VALUES (:id_sub, :id_prod, :qty, :disp, :id_req, 'despacho', :notes, NOW())
+		");
+		$stmtAssign->execute([
+			':id_sub' => $id_sub,
+			':id_prod' => $id_product,
+			':qty' => $qty_dispatch,
+			':disp' => $id_dispatched_by,
+			':id_req' => $id_request,
+			':notes' => $notes_dispatcher
+		]);
+		
+		$db->commit();
+		echo "ok";
+	} catch (Exception $e) {
+		$db->rollBack();
+		echo "error: " . $e->getMessage();
+	}
+	exit;
 }

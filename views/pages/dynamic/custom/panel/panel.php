@@ -50,22 +50,12 @@ Custom
 
 	<div class="card-header backColor rounded-top" id="orderHeader" mode="on" idOrder="<?php echo $order->id_order ?>">
   		<h6 class="card-title mt-2 float-start">Orden # <?php echo $order->transaction_order ?></h6>
-		<?php if($isCashOpen): ?>
-            <button type="button" class="btn btn-sm btn-danger float-end closeCash" idItem="<?php echo $idCashOpen ?>" table="cashs" suffix="cash" column="status_cash" diffCash="<?php echo htmlspecialchars($diffCashOpen, ENT_QUOTES, 'UTF-8') ?>">Cerrar caja</button>
-        <?php else: ?>
-            <button type="button" class="btn btn-sm btn-success float-end openCash">Abrir caja</button>
-        <?php endif ?>
   	</div>
 
   	<?php else: ?>
 
 	<div class="card-header bg-light rounded-top" id="orderHeader" mode="off" idOrder>
   		<h6 class="card-title mt-2 float-start">Orden # 0000000000</h6>
-		<?php if($isCashOpen): ?>
-            <button type="button" class="btn btn-sm btn-danger float-end closeCash" idItem="<?php echo $idCashOpen ?>" table="cashs" suffix="cash" column="status_cash" diffCash="<?php echo htmlspecialchars($diffCashOpen, ENT_QUOTES, 'UTF-8') ?>">Cerrar caja</button>
-        <?php else: ?>
-            <button type="button" class="btn btn-sm btn-success float-end openCash">Abrir caja</button>
-        <?php endif ?>
   	</div>
   		
   	<?php endif ?>

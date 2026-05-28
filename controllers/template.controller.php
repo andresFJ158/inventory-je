@@ -453,6 +453,45 @@ class TemplateController{
 		return "orders?linkTo=date_order&between1=".rawurlencode($sessionStart)."&between2=".rawurlencode($sessionEnd)."&filterTo=id_office_order&inTo=".(int) $officeId."&select=total_order,date_order,method_order,status_order,id_office_order";
 	}
 
+	static public function fallbackProductImage($sku, $title, $currentImg){
+		$img = trim((string)$currentImg);
+		if (!empty($img) && $img !== 'NULL' && $img !== 'null') {
+			return $img;
+		}
+
+		try {
+			$host = getenv("DB_HOST") ?: "127.0.0.1";
+			$db = getenv("DB_NAME") ?: "u228744577_pos";
+			$user = getenv("DB_USER") ?: "root";
+			$pass = getenv("DB_PASS") ?: "";
+			$port = getenv("DB_PORT") ?: "3306";
+			$link = new PDO("mysql:host=$host;port=$port;dbname=$db", $user, $pass);
+			$link->exec("set names utf8");
+			
+			$stmtImg = $link->prepare("
+				SELECT img_product 
+				FROM products 
+				WHERE (sku_product = :sku AND :sku IS NOT NULL AND :sku != '') 
+				   OR title_product = :title 
+				   OR title_product = :title_encoded 
+				ORDER BY (CASE WHEN img_product IS NOT NULL AND img_product != '' AND img_product != 'NULL' AND img_product != 'null' THEN 1 ELSE 2 END), id_product DESC 
+				LIMIT 1
+			");
+			$stmtImg->execute([
+				':sku' => trim((string)$sku),
+				':title' => trim((string)$title),
+				':title_encoded' => urlencode(trim((string)$title))
+			]);
+			$fallbackImg = $stmtImg->fetchColumn();
+			if (!empty($fallbackImg) && $fallbackImg !== 'NULL' && $fallbackImg !== 'null') {
+				return $fallbackImg;
+			}
+		} catch (Exception $e) {
+		}
+
+		return "";
+	}
+
 }
 
 ?>

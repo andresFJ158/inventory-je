@@ -104,7 +104,7 @@ Custom
       						
       						<div class="flex-fill w-100 text-center">
       							
-      							<img src="<?php echo urldecode($listProducts->img_product) ?>" class="img-fluid" style="width:50px">
+      							<img src="<?php echo urldecode(TemplateController::fallbackProductImage($listProducts->sku_product ?? '', $listProducts->title_product ?? '', $listProducts->img_product ?? '')) ?>" class="img-fluid" style="width:50px">
 
       						</div>
 
