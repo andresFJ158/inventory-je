@@ -406,142 +406,172 @@ class DynamicController{
 
 					// Seguridad: para caja, gastos y ventas, el campo de sucursal siempre viene del usuario si no es superadmin
 					$rolAdminSave = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
-					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "products" => "id_office_product", "purchases" => "id_office_purchase"];
+					// Nota: 'products' se excluye porque ahora es catálogo global (sin id_office_product)
+					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "purchases" => "id_office_purchase"];
 					if(isset($officeForceTables[$module->title_module]) && $rolAdminSave !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
 						$forceOfficeField = $officeForceTables[$module->title_module];
 						$fields[$forceOfficeField] = (int)$_SESSION["admin"]->id_office_admin;
+					}
+					// Para productos: forzar id_office_product = 0 (catálogo global)
+					if($isProduct){
+						$fields["id_office_product"] = 0;
 					}
 
 						/*=============================================
 						Crear producto en múltiples sucursales si está configurado
 						=============================================*/
 						
-						if($useMultipleOffices && !empty($multipleOffices)){
-							
-							$successCount = 0;
-							$errorCount = 0;
-							
-							foreach ($multipleOffices as $officeId) {
-								
-								// Crear una copia de los campos y asignar la sucursal
-								$officeFields = $fields;
-								$officeFields[$officeField] = $officeId;
-								
-								$save = CurlController::request($url,$method,$officeFields);
-								
-								if(isset($save->status) && $save->status == 200){
-									$successCount++;
-								}else{
-									$errorCount++;
+						/*=============================================
+						Si es un producto: crear una sola fila global en products
+						y luego crear filas en product_inventory por sucursal
+						=============================================*/
+						if($isProduct){
+
+							// Determinar sucursales destino
+							if($useMultipleOffices && !empty($multipleOffices)){
+								$targetOffices = $multipleOffices;
+							}else{
+								$singleOffice = isset($_POST[$officeField]) ? (int)trim($_POST[$officeField]) : 0;
+								if($singleOffice <= 0 && isset($_SESSION["admin"]->id_office_admin)){
+									$singleOffice = (int)$_SESSION["admin"]->id_office_admin;
 								}
-								
+								$targetOffices = $singleOffice > 0 ? [$singleOffice] : [];
 							}
-							
-							if($successCount > 0){
-								
-								$message = "✅ Producto creado exitosamente en ".$successCount." sucursal".($successCount > 1 ? "es" : "");
-								if($errorCount > 0){
-									$message .= "\n⚠️ Hubo ".$errorCount." error".($errorCount > 1 ? "es" : "")." al guardar en algunas sucursales.";
-								}else{
-									$message .= "\n✨ El producto está disponible en todas las sucursales seleccionadas.";
+
+							// Crear el producto global en products (id_office_product = 0)
+							$save = CurlController::request($url,"POST",$fields);
+
+							if(isset($save->status) && $save->status == 200){
+
+								$newProductId = $save->results->lastId;
+								$invSuccessCount = 0;
+								$invErrorCount = 0;
+
+								// Crear filas en product_inventory para cada sucursal
+								foreach($targetOffices as $offId){
+									$urlInv = "product_inventory?token=".$_SESSION["admin"]->token_admin."&table=admins&suffix=admin";
+									$invFields = array(
+										"id_product_inventory" => (int)$newProductId,
+										"id_office_inventory"  => (int)$offId,
+										"stock_inventory"      => 0,
+										"status_inventory"     => 1,
+										"date_created_inventory" => date("Y-m-d")
+									);
+									$saveInv = CurlController::request($urlInv, "POST", $invFields);
+									if(isset($saveInv->status) && $saveInv->status == 200){
+										$invSuccessCount++;
+									}else{
+										$invErrorCount++;
+									}
 								}
-								
+
+								$sucursalesCount = count($targetOffices);
+								$message = "✅ Producto creado exitosamente";
+								if($sucursalesCount > 0){
+									$message .= " en ".$invSuccessCount." sucursal".($invSuccessCount > 1 ? "es" : "");
+									if($invErrorCount > 0){
+										$message .= "\n⚠️ Hubo ".$invErrorCount." error(es) al asignar a algunas sucursales.";
+									}
+								}
+
 								$messageEscaped = json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 								$urlEscaped = json_encode("/".$module->url_page, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-								
+
 								echo '
-
 									<script>
-
 										fncMatPreloader("off");
 										fncFormatInputs();
 										fncSweetAlert("success",'.$messageEscaped.', "");
 										setTimeout(function(){ window.location='.$urlEscaped.'; }, 1500);
-										
-
 									</script>
-
 								';
-								
-							}else{
-								
-								echo '
 
-									<script>
-
-										fncMatPreloader("off");
-										fncFormatInputs();
-									    fncSweetAlert("error","Error al guardar el producto en las sucursales", "");
-										
-
-									</script>
-
-								';
-								
-							}
-							
-						}else{
-							
-							// Crear registro normal (una sola sucursal)
-							$save = CurlController::request($url,$method,$fields);
-
-							if(isset($save->status) && $save->status == 200){
-
-								if($isBill){
-									$officeSync = (int)$billOffice;
-									if($officeSync > 0 && isset($_SESSION["admin"]->token_admin)){
-										self::syncOpenCashTotalsForOffice($_SESSION["admin"]->token_admin, $officeSync);
-									}
-								}
-
-								$urlEscaped = json_encode("/".$module->url_page, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-								
-								echo '
-
-									<script>
-
-										fncMatPreloader("off");
-										fncFormatInputs();
-										fncSweetAlert("success","El registro ha sido guardado con éxito", "");
-										setTimeout(function(){ window.location='.$urlEscaped.'; }, 1000);
-										
-
-									</script>
-
-								';
-								
 							}else{
 
 								$errorData = json_encode([
-									'status' => isset($save->status) ? $save->status : 'unknown',
+									'status'  => isset($save->status)  ? $save->status  : 'unknown',
 									'comment' => isset($save->comment) ? $save->comment : '',
 									'results' => isset($save->results) ? $save->results : null
 								], JSON_UNESCAPED_UNICODE);
-
 								echo '
-
 									<script>
-
 										fncMatPreloader("off");
 										fncFormatInputs();
-										fncSweetAlert("error","Error al guardar el registro", "");
-										var apiError = ' . $errorData . ';
+										fncSweetAlert("error","Error al guardar el producto", "");
+										var apiError = '.$errorData.';
 										console.error("Error en la petición API:", apiError);
-
 									</script>
+								';
+							}
 
+						}else{
+							// Crear registro normal para otras tablas (no productos)
+							if($useMultipleOffices && !empty($multipleOffices)){
+								$successCount = 0;
+								$errorCount = 0;
+								foreach ($multipleOffices as $officeId) {
+									$officeFields = $fields;
+									$officeFields[$officeField] = $officeId;
+									$save = CurlController::request($url,$method,$officeFields);
+									if(isset($save->status) && $save->status == 200){ $successCount++; }else{ $errorCount++; }
+								}
+								$message = $successCount > 0 ? "✅ Registros creados en ".$successCount." sucursal(es)" : "";
+								if($successCount > 0){
+									$messageEscaped = json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+									$urlEscaped = json_encode("/".$module->url_page, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+									echo '<script>fncMatPreloader("off");fncFormatInputs();fncSweetAlert("success",'.$messageEscaped.',"");setTimeout(function(){ window.location='.$urlEscaped.'; },1500);</script>';
+								}else{
+									echo '<script>fncMatPreloader("off");fncFormatInputs();fncSweetAlert("error","Error al guardar en las sucursales","");</script>';
+								}
+							}else{
+								// Una sola sucursal - tablas normales (no productos)
+								$save = CurlController::request($url,$method,$fields);
+
+								if(isset($save->status) && $save->status == 200){
+
+									if($isBill){
+										$officeSync = (int)$billOffice;
+										if($officeSync > 0 && isset($_SESSION["admin"]->token_admin)){
+											self::syncOpenCashTotalsForOffice($_SESSION["admin"]->token_admin, $officeSync);
+										}
+									}
+
+									$urlEscaped = json_encode("/".$module->url_page, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+									echo '
+										<script>
+											fncMatPreloader("off");
+											fncFormatInputs();
+											fncSweetAlert("success","El registro ha sido guardado con éxito", "");
+											setTimeout(function(){ window.location='.$urlEscaped.'; }, 1000);
+										</script>
 									';
 
-						}
+								}else{
+
+									$errorData = json_encode([
+										'status'  => isset($save->status)  ? $save->status  : 'unknown',
+										'comment' => isset($save->comment) ? $save->comment : '',
+										'results' => isset($save->results) ? $save->results : null
+									], JSON_UNESCAPED_UNICODE);
+									echo '
+										<script>
+											fncMatPreloader("off");
+											fncFormatInputs();
+											fncSweetAlert("error","Error al guardar el registro", "");
+											var apiError = '.$errorData.';
+											console.error("Error en la petición API:", apiError);
+										</script>
+									';
+								}
+							} // fin else: una sola sucursal tablas normales
+						} // fin else: tabla no es producto
 					}
-				
 				}
+
 
 			}
 
 		}
-
-	}
 
 	}
 

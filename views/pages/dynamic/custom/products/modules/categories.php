@@ -43,18 +43,26 @@ JD SLIDER
 						<?php 
 
 						if ($_SESSION["admin"]->id_office_admin > 0) {
-							
-							$url = "products?linkTo=status_product,id_office_product&equalTo=1,".$_SESSION["admin"]->id_office_admin."&select=id_product";
-
-							$totalProducts = CurlController::request($url,$method,$fields);
-
-							if($totalProducts->status == 200){
-
-								$totalProducts = $totalProducts->total;
-							
-							}else{
-
-								$totalProducts = 0;
+							$role = $_SESSION["admin"]->rol_admin;
+							if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+								require_once "controllers/install.controller.php";
+								$db = InstallController::connect();
+								$stmtTot = $db->prepare("
+									SELECT COUNT(DISTINCT wa.id_product_assignment)
+									FROM warehouse_assignments wa
+									JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+									WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+								");
+								$stmtTot->execute([':admin' => $_SESSION["admin"]->id_admin, ':office' => $_SESSION["admin"]->id_office_admin]);
+								$totalProducts = (int)$stmtTot->fetchColumn();
+							} else {
+								$url = "product_inventory?linkTo=id_office_inventory,status_inventory&equalTo=".$_SESSION["admin"]->id_office_admin.",1&select=id_inventory";
+								$totalProducts = CurlController::request($url,$method,$fields);
+								if($totalProducts->status == 200){
+									$totalProducts = $totalProducts->total;
+								}else{
+									$totalProducts = 0;
+								}
 							}
 						
 						}else{
@@ -83,18 +91,36 @@ JD SLIDER
 							<?php 
 
 								if ($_SESSION["admin"]->id_office_admin > 0) {
-
-									$url = "products?linkTo=id_category_product,status_product,id_office_product&equalTo=".$value->id_category.",1,".$_SESSION["admin"]->id_office_admin."&select=id_product";
-									
-									$totalProducts = CurlController::request($url,$method,$fields);
-
-									if($totalProducts->status == 200){
-
-										$totalProducts = $totalProducts->total;
-									
-									}else{
-										
-										$totalProducts = 0;
+									$role = $_SESSION["admin"]->rol_admin;
+									if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+										require_once "controllers/install.controller.php";
+										$db = InstallController::connect();
+										$stmtTot = $db->prepare("
+											SELECT COUNT(DISTINCT wa.id_product_assignment)
+											FROM warehouse_assignments wa
+											JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+											JOIN products p ON wa.id_product_assignment = p.id_product
+											WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND p.id_category_product = :category
+										");
+										$stmtTot->execute([':admin' => $_SESSION["admin"]->id_admin, ':office' => $_SESSION["admin"]->id_office_admin, ':category' => $value->id_category]);
+										$totalProducts = (int)$stmtTot->fetchColumn();
+									} else {
+										// Contar productos activos en esta categoría para esta sucursal
+										$url = "product_inventory?linkTo=id_office_inventory,status_inventory&equalTo=".$_SESSION["admin"]->id_office_admin.",1&select=id_product_inventory";
+										$allInv = CurlController::request($url,$method,$fields);
+										if(isset($allInv->status) && $allInv->status == 200 && !empty($allInv->results)){
+											$productIds = array_map(function($r){ return $r->id_product_inventory; }, $allInv->results);
+											$urlCat = "products?linkTo=id_category_product&equalTo=".$value->id_category."&select=id_product";
+											$catProds = CurlController::request($urlCat,$method,$fields);
+											if(isset($catProds->status) && $catProds->status == 200 && !empty($catProds->results)){
+												$catIds = array_map(function($r){ return $r->id_product; }, $catProds->results);
+												$totalProducts = count(array_intersect($productIds, $catIds));
+											}else{
+												$totalProducts = 0;
+											}
+										}else{
+											$totalProducts = 0;
+										}
 									}
 
 								}else{

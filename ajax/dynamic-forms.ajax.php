@@ -142,17 +142,31 @@ class DynamicFormsController{
 	public $id_office;
 
 	public function getProductsByOffice(){
+		try {
+			$host = getenv("DB_HOST") ?: "127.0.0.1";
+			$dbName = getenv("DB_NAME") ?: "u228744577_pos";
+			$user = getenv("DB_USER") ?: "root";
+			$pass = getenv("DB_PASS") ?: "";
+			$port = getenv("DB_PORT") ?: "3306";
+			$db = new PDO("mysql:host=$host;port=$port;dbname=$dbName", $user, $pass);
+			$db->exec("set names utf8");
+			$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-		$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product&equalTo=".$this->id_office."&select=id_product,title_product,sku_product";
-		$method = "GET";
-		$fields = array();
+			$stmt = $db->prepare("
+				SELECT p.id_product, p.title_product, p.sku_product 
+				FROM products p
+				ORDER BY p.title_product ASC
+			");
+			$stmt->execute();
+			$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-		$products = CurlController::request($url,$method,$fields);
-
-		if($products->status == 200){
-			echo urldecode(json_encode($products));
-		} else {
-			echo json_encode(array("status" => 404, "error" => "No products found"));
+			if(!empty($results)){
+				echo json_encode(array("status" => 200, "results" => $results));
+			} else {
+				echo json_encode(array("status" => 404, "error" => "No products found"));
+			}
+		} catch (Exception $e) {
+			echo json_encode(array("status" => 500, "error" => $e->getMessage()));
 		}
 	}
 

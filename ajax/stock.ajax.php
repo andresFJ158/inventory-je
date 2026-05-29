@@ -10,28 +10,29 @@ class StockAjax{
 	public function updateStock(){
 
 	    /*=============================================
-	    Traer los productos de la sucursal (solo IDs)
+	    Traer los registros de product_inventory para la sucursal
 	    =============================================*/
-	    $url = "products?linkTo=id_office_product&equalTo=".$this->id_office_admin."&select=id_product";
+	    $url = "product_inventory?linkTo=id_office_inventory&equalTo=".$this->id_office_admin."&select=id_inventory,id_product_inventory";
 	    $method = "GET";
 	    $fields = array();
 
-    	$productsStock = CurlController::request($url,$method,$fields);
+    	$inventoryRows = CurlController::request($url,$method,$fields);
     
-    	if(isset($productsStock->status) && $productsStock->status == 200 && !empty($productsStock->results)){
+    	if(isset($inventoryRows->status) && $inventoryRows->status == 200 && !empty($inventoryRows->results)){
 
         	$countStockProducts = 0;
         	$countTotalStock    = 0;
-        	$arrayStock         = []; // id_product => ['stock' => X, 'status' => 0/1]
+        	$arrayStock         = []; // id_inventory => ['id_product' => X, 'stock' => X, 'status' => 0/1]
 
-        	foreach ($productsStock->results as $key => $prod) {
+        	foreach ($inventoryRows->results as $key => $inv) {
 
-	            $idProduct = (int)$prod->id_product;
+	            $idProduct   = (int)$inv->id_product_inventory;
+	            $idInventory = (int)$inv->id_inventory;
 
 	            /*=============================================
-	            Traer total de compras
+	            Traer total de compras de ese producto en esa sucursal
 	            =============================================*/
-	            $url = "purchases?linkTo=id_product_purchase&equalTo=".$idProduct."&select=qty_purchase";
+	            $url = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$idProduct.",".$this->id_office_admin."&select=qty_purchase";
 	            $purchases = CurlController::request($url,$method,$fields);
 	            
 	            $totalPurchaseProduct = 0;
@@ -42,9 +43,9 @@ class StockAjax{
 	            }
 
 	            /*=============================================
-	            Traer total de ventas
+	            Traer total de ventas completadas de ese producto en esa sucursal
 	            =============================================*/
-	            $url = "sales?linkTo=id_product_sale&equalTo=".$idProduct."&select=qty_sale";
+	            $url = "sales?linkTo=id_product_sale,id_office_sale,status_sale&equalTo=".$idProduct.",".$this->id_office_admin.",Completada&select=qty_sale";
 	            $sales = CurlController::request($url,$method,$fields);
 
              	$totalSaleProduct = 0;
@@ -59,12 +60,13 @@ class StockAjax{
 	            =============================================*/
             	$stockCalc = (int)($totalPurchaseProduct - $totalSaleProduct);
 
-            	// status_product: >0 activo (1), <=0 inactivo (0)
+            	// status_inventory: >0 activo (1), <=0 inactivo (0)
             	$statusCalc = ($stockCalc > 0) ? 1 : 0;
 
-            	$arrayStock[$idProduct] = [
-            		'stock'  => $stockCalc,
-            		'status' => $statusCalc
+            	$arrayStock[$idInventory] = [
+            		'id_product' => $idProduct,
+            		'stock'      => $stockCalc,
+            		'status'     => $statusCalc
             	];
 
             	$countStockProducts++;
@@ -72,25 +74,38 @@ class StockAjax{
             	/*=============================================
             	Cuando termine el recorrido, actualiza en BD
             	==============================================*/
-            	if($countStockProducts == count($productsStock->results)){
+            	if($countStockProducts == count($inventoryRows->results)){
 
-	                foreach ($arrayStock as $id => $vals) {
+	                foreach ($arrayStock as $idInv => $vals) {
 
-	                    $url    = "products?id=".$id."&nameId=id_product&token=".$this->token_admin."&table=admins&suffix=admin";
+	                    // Actualizar product_inventory (fuente principal)
+	                    $url    = "product_inventory?id=".$idInv."&nameId=id_inventory&token=".$this->token_admin."&table=admins&suffix=admin";
 	                    $method = "PUT";
 	                    $fields = array(
-	                        "stock_product"  => $vals['stock'],
-	                        "status_product" => $vals['status']
-	                        // opcional: "date_updated_product" => date("Y-m-d H:i:s")
+	                        "stock_inventory"  => $vals['stock'],
+	                        "status_inventory" => $vals['status']
 	                    );
-
 	                    $fields = http_build_query($fields);
-	                    $update = CurlController::request($url,$method,$fields);
+	                    CurlController::request($url,$method,$fields);
 
-	                    if(isset($update->status) && $update->status == 200){
+	                    // Actualizar products.stock_product como suma global (compatibilidad)
+	                    $method = "GET";
+	                    $fields = array();
+	                    $urlTotalStock = "product_inventory?linkTo=id_product_inventory&equalTo=".$vals['id_product']."&select=stock_inventory";
+	                    $allOfficeStocks = CurlController::request($urlTotalStock,$method,$fields);
+	                    $globalStock = 0;
+	                    if(isset($allOfficeStocks->status) && $allOfficeStocks->status == 200){
+	                        foreach($allOfficeStocks->results as $s){
+	                            $globalStock += (float)$s->stock_inventory;
+	                        }
+	                    }
+	                    $urlProd    = "products?id=".$vals['id_product']."&nameId=id_product&token=".$this->token_admin."&table=admins&suffix=admin";
+	                    $method     = "PUT";
+	                    $fieldsProd = "stock_product=".rawurlencode($globalStock);
+	                    $updProd    = CurlController::request($urlProd,$method,$fieldsProd);
+
+	                    if(isset($updProd->status) && $updProd->status == 200){
 	                    	$countTotalStock++;
-	                    } else {
-	                    	// Si alguna actualización falla, puedes manejar el error aquí si deseas
 	                    }
                 	}
 

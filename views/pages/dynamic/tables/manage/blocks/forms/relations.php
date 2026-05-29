@@ -148,21 +148,34 @@ if (isset($autoOfficeTables[$module->title_module]) && $titleCol === $autoOffice
 
 		<?php
 		// Obtener registros de la tabla relacionada
-		$url    = $matrix;
-		$method = "GET";
-		$fields = [];
-
 		if ($matrix === "products") {
-			$adminOfficeId = isset($_SESSION['admin']->id_office_admin) ? (int)$_SESSION['admin']->id_office_admin : 0;
-			if ($adminOfficeId > 0) {
-				$url = "relations?rel=products,offices&type=product,office&linkTo=id_office_product&equalTo=" . $adminOfficeId;
-			} else {
-				$url = "relations?rel=products,offices&type=product,office";
-			}
-		}
+			try {
+				$host = getenv("DB_HOST") ?: "127.0.0.1";
+				$dbName = getenv("DB_NAME") ?: "u228744577_pos";
+				$user = getenv("DB_USER") ?: "root";
+				$pass = getenv("DB_PASS") ?: "";
+				$port = getenv("DB_PORT") ?: "3306";
+				$db = new PDO("mysql:host=$host;port=$port;dbname=$dbName", $user, $pass);
+				$db->exec("set names utf8");
+				$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-		$resp = CurlController::request($url, $method, $fields);
-		$rows = (!empty($resp) && isset($resp->status) && $resp->status == 200) ? ($resp->results ?? []) : [];
+				$stmt = $db->prepare("
+					SELECT id_product, title_product 
+					FROM products 
+					ORDER BY title_product ASC
+				");
+				$stmt->execute();
+				$rows = $stmt->fetchAll(PDO::FETCH_CLASS);
+			} catch (Exception $e) {
+				$rows = [];
+			}
+		} else {
+			$url    = $matrix;
+			$method = "GET";
+			$fields = [];
+			$resp = CurlController::request($url, $method, $fields);
+			$rows = (!empty($resp) && isset($resp->status) && $resp->status == 200) ? ($resp->results ?? []) : [];
+		}
 
 		foreach ($rows as $row) {
 			$arr = (array)$row;

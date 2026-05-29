@@ -2,12 +2,29 @@
 $id_office = $_SESSION["admin"]->id_office_admin;
 $id_admin = $_SESSION["admin"]->id_admin;
 
-// Fetch products for this office (active, with stock)
-$url = "products?linkTo=id_office_product,status_product&equalTo=".$id_office.",1";
-$method = "GET";
-$fields = array();
-$productsRes = CurlController::request($url, $method, $fields);
-$products = ($productsRes->status == 200) ? $productsRes->results : array();
+// Fetch products for this office via product_inventory JOIN products
+try {
+    $host = getenv("DB_HOST") ?: "127.0.0.1";
+    $dbName = getenv("DB_NAME") ?: "u228744577_pos";
+    $user = getenv("DB_USER") ?: "root";
+    $pass = getenv("DB_PASS") ?: "";
+    $port = getenv("DB_PORT") ?: "3306";
+    $db = new PDO("mysql:host=$host;port=$port;dbname=$dbName", $user, $pass);
+    $db->exec("set names utf8");
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    $stmt = $db->prepare("
+        SELECT p.*, pi.stock_inventory as stock_product
+        FROM products p
+        INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product
+        WHERE pi.id_office_inventory = :office AND pi.status_inventory = 1 AND p.status_product = 1
+        ORDER BY p.id_product DESC
+    ");
+    $stmt->execute([':office' => $id_office]);
+    $products = $stmt->fetchAll(PDO::FETCH_CLASS);
+} catch (Exception $e) {
+    $products = array();
+}
 ?>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">

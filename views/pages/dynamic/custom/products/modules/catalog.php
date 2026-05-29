@@ -6,30 +6,59 @@ $role = $_SESSION["admin"]->rol_admin;
 $id_admin = $_SESSION["admin"]->id_admin;
 $id_office = $_SESSION["admin"]->id_office_admin;
 
-if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
-	try {
-		$db = InstallController::connect();
-		
-		// Calculate total products count for this office
+try {
+	$db = InstallController::connect();
+
+	if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+		$sqlCount = "
+			SELECT COUNT(*) as total
+			FROM (
+				SELECT p.id_product
+				FROM products p
+				INNER JOIN categories c ON p.id_category_product = c.id_category
+				INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
+				INNER JOIN (
+					SELECT wa.id_product_assignment,
+						   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
+							COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
+					FROM warehouse_assignments wa
+					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+					WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+					GROUP BY wa.id_product_assignment
+					HAVING stock > 0
+				) sub ON p.id_product = sub.id_product_assignment
+				WHERE p.status_product = 1
+			) t
+		";
+		$stmtCount = $db->prepare($sqlCount);
+		$stmtCount->execute([':admin' => $id_admin, ':office' => $id_office]);
+	} else {
 		$sqlCount = "
 			SELECT COUNT(*) as total
 			FROM products p
 			INNER JOIN categories c ON p.id_category_product = c.id_category
-			WHERE p.id_office_product = :office AND p.status_product = 1
+			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product
+			WHERE pi.id_office_inventory = :office AND pi.status_inventory = 1 AND p.status_product = 1
 		";
 		$stmtCount = $db->prepare($sqlCount);
 		$stmtCount->execute([':office' => $id_office]);
-		$totalResult = $stmtCount->fetch(PDO::FETCH_OBJ);
-		$totalProducts = $totalResult ? (int)$totalResult->total : 0;
-		$totalPageProducts = ceil($totalProducts / $limit);
+	}
+	$totalResult = $stmtCount->fetch(PDO::FETCH_OBJ);
+	$totalProducts = $totalResult ? (int)$totalResult->total : 0;
+	$totalPageProducts = ceil($totalProducts / $limit);
 
-		// Fetch products with sub-warehouse stock
+	/*=============================================
+	Query de productos: JOIN con product_inventory para stock y estado por sucursal.
+	Para vendedores (sub-almacén), el stock viene de warehouse_assignments.
+	=============================================*/
+	if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
 		$sql = "
 			SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
-				   COALESCE(sub.stock, 0) as stock_product
+				   sub.stock as stock_product
 			FROM products p
 			INNER JOIN categories c ON p.id_category_product = c.id_category
-			LEFT JOIN (
+			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
+			INNER JOIN (
 				SELECT wa.id_product_assignment,
 					   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
 						COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
@@ -37,49 +66,34 @@ if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
 				JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
 				WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
 				GROUP BY wa.id_product_assignment
+				HAVING stock > 0
 			) sub ON p.id_product = sub.id_product_assignment
-			WHERE p.id_office_product = :office AND p.status_product = 1
+			WHERE p.status_product = 1
 			ORDER BY p.id_product DESC
 			LIMIT 0, " . (int)$limit;
-
-		$stmt = $db->prepare($sql);
-		$stmt->execute([':admin' => $id_admin, ':office' => $id_office]);
-		$products = $stmt->fetchAll(PDO::FETCH_CLASS);
-	} catch (Exception $e) {
-		$products = array();
-		$totalPageProducts = 0;
+		$params = [':admin' => $id_admin, ':office' => $id_office];
+	} else {
+		$sql = "
+			SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
+				   COALESCE(pi.stock_inventory, 0) as stock_product
+			FROM products p
+			INNER JOIN categories c ON p.id_category_product = c.id_category
+			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office
+			WHERE pi.status_inventory = 1 AND p.status_product = 1
+			ORDER BY pi.stock_inventory DESC
+			LIMIT 0, " . (int)$limit;
+		$params = [':office' => $id_office];
 	}
-} else {
-	// Original API request
-	$url = "relations?rel=products,categories&type=product,category"
-	     . "&linkTo=id_office_product,status_product"
-	     . "&equalTo=".$id_office.",1"
-	     . "&orderBy=stock_product&orderMode=DESC"
-	     . "&startAt=0&endAt=".$limit;
 
-	$method = "GET";
-	$fields = array();
-
-	$products = CurlController::request($url,$method,$fields);
-
-	if($products->status == 200){
-
-		$products = $products->results;
-
-		/*=============================================
-		Traer Total de productos
-		=============================================*/
-
-		$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$id_office.",1";
-
-		$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$limit);
-
-	}else{
-
-		$products = array();
-		$totalPageProducts = 0;
-	}
+	$stmt = $db->prepare($sql);
+	$stmt->execute($params);
+	$products = $stmt->fetchAll(PDO::FETCH_CLASS);
+} catch (Exception $e) {
+	$products = array();
+	$totalPageProducts = 0;
 }
+$method = "GET";
+$fields = array();
 ?>
 
 <?php if (!empty($products)): ?>

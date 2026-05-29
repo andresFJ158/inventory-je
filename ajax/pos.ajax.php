@@ -33,34 +33,37 @@ class PosController{
 	public $search;
 	public $idOffice;
 	public function loadProducts(){
-		$method = "GET";
-		$fields = array();
 		$role = $_POST["sellerRole"] ?? null;
 		$id_admin = $_POST["sellerId"] ?? null;
 
+		$method = "GET";
+		$fields = array();
+
+		$db = LocalConnection::connect();
+		
+		$categoryQuery = "";
+		$searchQuery = "";
+		$params = [':office' => $this->idOffice];
+		
+		if ($this->category != "all") {
+			$categoryQuery = " AND p.id_category_product = :category";
+			$params[':category'] = $this->category;
+		}
+		
+		if ($this->search != "") {
+			$searchQuery = " AND (p.title_product LIKE :search OR p.sku_product LIKE :search OR p.code_product LIKE :search OR p.unit_product LIKE :search)";
+			$params[':search'] = "%" . $this->search . "%";
+		}
+		
 		if ($role !== null && $role != "superadmin" && $role != "admin" && $role != "despachador") {
-			$db = LocalConnection::connect();
-			
-			$categoryQuery = "";
-			$searchQuery = "";
-			$params = [':admin' => $id_admin, ':office' => $this->idOffice];
-			
-			if ($this->category != "all") {
-				$categoryQuery = " AND p.id_category_product = :category";
-				$params[':category'] = $this->category;
-			}
-			
-			if ($this->search != "") {
-				$searchQuery = " AND (p.title_product LIKE :search OR p.sku_product LIKE :search OR p.code_product LIKE :search)";
-				$params[':search'] = "%" . $this->search . "%";
-			}
-			
+			$params[':admin'] = $id_admin;
 			$sql = "
 				SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
-					   COALESCE(sub.stock, 0) as stock_product
+					   sub.stock as stock_product
 				FROM products p
 				INNER JOIN categories c ON p.id_category_product = c.id_category
-				LEFT JOIN (
+				INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
+				INNER JOIN (
 					SELECT wa.id_product_assignment,
 						   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
 							COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
@@ -68,161 +71,38 @@ class PosController{
 					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
 					WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
 					GROUP BY wa.id_product_assignment
+					HAVING stock > 0
 				) sub ON p.id_product = sub.id_product_assignment
-				WHERE p.id_office_product = :office AND p.status_product = 1
+				WHERE p.status_product = 1
 				$categoryQuery
 				$searchQuery
 				ORDER BY p.id_product DESC
 			";
-			
-			$stmtAll = $db->prepare($sql);
-			$stmtAll->execute($params);
-			$allProducts = $stmtAll->fetchAll(PDO::FETCH_CLASS);
-			
-			$totalPageProducts = ceil(count($allProducts) / $this->limit);
-			
-			// Apply limit and offset
-			$sqlLimit = $sql . " LIMIT " . (int)$this->startAt . ", " . (int)$this->limit;
-			$stmtLimit = $db->prepare($sqlLimit);
-			$stmtLimit->execute($params);
-			$products = $stmtLimit->fetchAll(PDO::FETCH_CLASS);
 		} else {
-			if($this->category == "all"){
-
-				if($this->search == ""){
-
-					$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$this->idOffice.",1&orderBy=id_product&orderMode=DESC&startAt=".$this->startAt."&endAt=".$this->limit;
-					$method = "GET";
-					$fields = array();
-
-					$products = CurlController::request($url,$method,$fields);
-
-					if($products->status == 200){
-
-						$products = $products->results;	
-
-						/*=============================================
-						Traer Total de productos
-						=============================================*/
-
-						$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product&equalTo=".$this->idOffice.",1";
-
-						$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$this->limit);
-
-					}else{
-
-						$products = array();
-						$totalPageProducts = 0;
-					}
-
-				}else{
-
-					/*=============================================
-					Columnas de búsqueda - Buscar en todos los atributos del producto
-					Basado en la estructura real de la tabla: title_product, sku_product, code_product (Código de Barras), unit_product
-					=============================================*/
-
-					$linkTo = ["title_product","sku_product","code_product","unit_product"];
-
-					/*=============================================
-					Itineración de búsqueda - Buscar en todos los campos
-					=============================================*/
-
-					$allProducts = array();
-					$foundResults = false;
-
-					// Obtener más resultados de cada campo para asegurar suficientes resultados únicos
-					// Aumentar este valor si se necesitan más resultados por búsqueda
-					$maxResultsPerField = 500;
-
-					foreach ($linkTo as $key => $value) {
-						
-						try {
-							// Obtener resultados sin paginación inicial para combinar todos los campos
-							$url = "relations?rel=products,categories&type=product,category&linkTo=".$value.",id_office_product,status_product&search=".str_replace(" ", "_",$this->search).",".$this->idOffice.",1&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$maxResultsPerField;
-
-							$method = "GET";
-							$fields = array();
-
-							$products = CurlController::request($url,$method,$fields);
-
-							if($products->status == 200 && !empty($products->results)){
-
-								// Combinar resultados de todos los campos
-								foreach($products->results as $product){
-									// Evitar duplicados usando id_product como clave
-									if(isset($product->id_product)){
-										$allProducts[$product->id_product] = $product;
-									}
-								}
-								$foundResults = true;
-							}
-						} catch (Exception $e) {
-							// Si un campo no existe o hay error, continuar con el siguiente campo
-							continue;
-						}
-					}
-
-					/*=============================================
-					Si encontramos resultados, procesarlos
-					=============================================*/
-
-					if($foundResults && !empty($allProducts)){
-
-						// Convertir array asociativo a array indexado y ordenar por id_product DESC
-						$productsArray = array_values($allProducts);
-						
-						// Ordenar por id_product descendente
-						usort($productsArray, function($a, $b) {
-							return $b->id_product - $a->id_product;
-						});
-
-						// Aplicar paginación
-						$products = array_slice($productsArray, $this->startAt, $this->limit);
-
-						/*=============================================
-						Traer Total de productos (contar todos los resultados únicos)
-						=============================================*/
-
-						$totalPageProducts = ceil(count($allProducts)/$this->limit);
-
-					}else{
-
-						$products = array();
-						$totalPageProducts = 0;
-
-					}
-
-				}
-
-			}else{
-
-				$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product,id_category_product&equalTo=".$this->idOffice.",1,".$this->category."&orderBy=id_product&orderMode=DESC&startAt=".$this->startAt."&endAt=".$this->limit;
-				$method = "GET";
-				$fields = array();
-
-				$products = CurlController::request($url,$method,$fields);
-
-				if($products->status == 200){
-
-					$products = $products->results;	
-
-					/*=============================================
-					Traer Total de productos
-					=============================================*/
-
-					$url = "relations?rel=products,categories&type=product,category&linkTo=id_office_product,status_product,id_category_product&equalTo=".$this->idOffice.",1,".$this->category;
-
-					$totalPageProducts = ceil(CurlController::request($url,$method,$fields)->total/$this->limit);
-
-				}else{
-
-					$products = array();
-					$totalPageProducts = 0;
-				}
-
-			}
+			$sql = "
+				SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
+					   COALESCE(pi.stock_inventory, 0) as stock_product
+				FROM products p
+				INNER JOIN categories c ON p.id_category_product = c.id_category
+				INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
+				WHERE p.status_product = 1
+				$categoryQuery
+				$searchQuery
+				ORDER BY p.id_product DESC
+			";
 		}
+		
+		$stmtAll = $db->prepare($sql);
+		$stmtAll->execute($params);
+		$allProducts = $stmtAll->fetchAll(PDO::FETCH_CLASS);
+		
+		$totalPageProducts = ceil(count($allProducts) / $this->limit);
+		
+		// Apply limit and offset
+		$sqlLimit = $sql . " LIMIT " . (int)$this->startAt . ", " . (int)$this->limit;
+		$stmtLimit = $db->prepare($sqlLimit);
+		$stmtLimit->execute($params);
+		$products = $stmtLimit->fetchAll(PDO::FETCH_CLASS);
 
 		$htmlProducts = "";
 
@@ -557,7 +437,17 @@ class PosController{
 				]);
 				$stock = (int)($stmtStock->fetchColumn() ?: 0);
 			} else {
-				$stock = (int)$product->stock_product;
+				// Consultar stock en product_inventory para la oficina actual
+				$stmtStock = $db->prepare("
+					SELECT COALESCE(stock_inventory, 0) as stock
+					FROM product_inventory
+					WHERE id_product_inventory = :product AND id_office_inventory = :office LIMIT 1
+				");
+				$stmtStock->execute([
+					':product' => $this->idProduct,
+					':office' => $this->idOffice
+				]);
+				$stock = (int)($stmtStock->fetchColumn() ?: 0);
 			}
 
 			if($stock <= 0){
@@ -1393,13 +1283,19 @@ if(isset($_POST["saveRecipe"])){
 		$id_admin = $_POST['id_admin'];
 
 		// 1. Crear producto (a granel, is_compound_product=1)
-		$stmtProd = $db->prepare("INSERT INTO products (title_product, unit_product, id_office_product, is_compound_product, status_product, stock_product, rte_product) VALUES (:name, :unit, :office, 1, 1, '0', '0')");
+		$stmtProd = $db->prepare("INSERT INTO products (title_product, unit_product, id_office_product, is_compound_product, status_product, stock_product, rte_product) VALUES (:name, :unit, 0, 1, 1, '0', '0')");
 		$stmtProd->execute([
 			':name' => $name_product,
-			':unit' => $unit_batch,
-			':office' => $id_office
+			':unit' => $unit_batch
 		]);
 		$id_product = $db->lastInsertId();
+
+		// Crear registro en product_inventory para esta oficina
+		$stmtInv = $db->prepare("INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory) VALUES (:product, :office, 0, 1, NOW()) ON DUPLICATE KEY UPDATE status_inventory = 1");
+		$stmtInv->execute([
+			':product' => $id_product,
+			':office' => $id_office
+		]);
 
 		// 2. Insertar Receta
 		$stmtRec = $db->prepare("INSERT INTO recipes (id_product_recipe, batch_size_recipe, unit_batch_recipe, id_office_recipe, id_admin_recipe, date_created_recipe) VALUES (:id_prod, :batch, :unit, :office, :admin, NOW())");
@@ -1596,34 +1492,55 @@ if(isset($_POST["completeProduction"])){
 
 		// 5. Inventario de Productos Finales (is_compound_product = 1)
 		if($pkg_final_name && $pkg_final_qty > 0) {
-			// Buscar si existe el producto por nombre en esa sucursal
-			$stmtFind = $db->prepare("SELECT id_product, stock_product, rte_product FROM products WHERE title_product = :name AND id_office_product = :office LIMIT 1");
-			$stmtFind->execute([':name' => $pkg_final_name, ':office' => $id_office]);
+			// Buscar si existe el producto por nombre en catálogo global
+			$stmtFind = $db->prepare("SELECT id_product, rte_product FROM products WHERE title_product = :name LIMIT 1");
+			$stmtFind->execute([':name' => $pkg_final_name]);
 			$existing_product = $stmtFind->fetch(PDO::FETCH_ASSOC);
 
 			if($existing_product) {
-				// Actualizar stock y recalcular precio promedio ponderado
-				$old_stock = (float)$existing_product['stock_product'];
+				$prod_id = $existing_product['id_product'];
+
+				// Obtener el stock actual de product_inventory para esa oficina
+				$stmtStock = $db->prepare("SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = :product AND id_office_inventory = :office LIMIT 1");
+				$stmtStock->execute([':product' => $prod_id, ':office' => $id_office]);
+				$old_stock = (float)($stmtStock->fetchColumn() ?: 0);
+
 				$old_rte = (float)$existing_product['rte_product'];
 				$new_stock = $old_stock + $pkg_final_qty;
 				$new_rte = (($old_stock * $old_rte) + ($pkg_final_qty * $unit_cost_final)) / $new_stock;
 
-				$stmtUpdProd = $db->prepare("UPDATE products SET stock_product = :stock, rte_product = :rte, unit_product = :unit WHERE id_product = :id");
-				$stmtUpdProd->execute([':stock' => $new_stock, ':rte' => $new_rte, ':unit' => $pkg_envase_type, ':id' => $existing_product['id_product']]);
+				// Actualizar rte_product en products (catálogo global)
+				$stmtUpdProd = $db->prepare("UPDATE products SET rte_product = :rte, unit_product = :unit WHERE id_product = :id");
+				$stmtUpdProd->execute([':rte' => $new_rte, ':unit' => $pkg_envase_type, ':id' => $prod_id]);
+
+				// Actualizar o crear fila en product_inventory para esa oficina
+				$stmtUpdInv = $db->prepare("
+					INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
+					VALUES (:product, :office, :stock, 1, NOW())
+					ON DUPLICATE KEY UPDATE stock_inventory = :stock, status_inventory = 1
+				");
+				$stmtUpdInv->execute([':product' => $prod_id, ':office' => $id_office, ':stock' => $new_stock]);
 			} else {
-				// Insertar nuevo producto final
-				$stmtInsProd = $db->prepare("INSERT INTO products (title_product, unit_product, stock_product, rte_product, is_compound_product, id_office_product, status_product) VALUES (:name, 'und', :stock, :rte, 1, :office, 1)");
+				// Insertar nuevo producto final en catálogo global
+				$stmtInsProd = $db->prepare("INSERT INTO products (title_product, unit_product, stock_product, rte_product, is_compound_product, id_office_product, status_product) VALUES (:name, :unit, '0', :rte, 1, 0, 1)");
 				$stmtInsProd->execute([
 					':name' => $pkg_final_name,
 					':unit' => $pkg_envase_type,
-					':stock' => $pkg_final_qty,
-					':rte' => $unit_cost_final,
-					':office' => $id_office
+					':rte' => $unit_cost_final
+				]);
+				$prod_id = $db->lastInsertId();
+
+				// Insertar en product_inventory
+				$stmtInsInv = $db->prepare("INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory) VALUES (:product, :office, :stock, 1, NOW())");
+				$stmtInsInv->execute([
+					':product' => $prod_id,
+					':office' => $id_office,
+					':stock' => $pkg_final_qty
 				]);
 			}
 		}
 
-		// 5. Incrementar stock del producto final
+		// 5. Incrementar stock del producto final (el producto a granel original)
 		// Determinar cuantas unidades rinde la receta
 		$stmtRend = $db->prepare("SELECT batch_size_recipe FROM recipes WHERE id_recipe = :id_recipe");
 		$stmtRend->execute([':id_recipe' => $id_recipe]);
@@ -1633,8 +1550,17 @@ if(isset($_POST["completeProduction"])){
 		// Y el precio de costo del producto en el catálogo puede actualizarse
 		$unit_cost_final = $total_production_cost / $unidades_finales;
 
-		$stmtUpdProd = $db->prepare("UPDATE products SET stock_product = stock_product + :qty, rte_product = :cost WHERE id_product = :id_product");
-		$stmtUpdProd->execute([':qty' => $unidades_finales, ':cost' => $unit_cost_final, ':id_product' => $id_product]);
+		// Actualizar precio de costo global en products
+		$stmtUpdProdCost = $db->prepare("UPDATE products SET rte_product = :cost WHERE id_product = :id_product");
+		$stmtUpdProdCost->execute([':cost' => $unit_cost_final, ':id_product' => $id_product]);
+
+		// Actualizar stock de product_inventory para la oficina actual
+		$stmtUpdInvGranel = $db->prepare("
+			INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
+			VALUES (:product, :office, :qty, 1, NOW())
+			ON DUPLICATE KEY UPDATE stock_inventory = stock_inventory + :qty, status_inventory = 1
+		");
+		$stmtUpdInvGranel->execute([':qty' => $unidades_finales, ':product' => $id_product, ':office' => $id_office]);
 
 		$db->commit();
 		echo "ok";
@@ -1927,8 +1853,9 @@ if (isset($_POST["getSubWarehouseStock"])) {
 		// Return main warehouse stock (available stock = stock_product - total_assigned)
 		$stmt = $db->prepare("
 			SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
-				   (p.stock_product - COALESCE(sub.total_assigned, 0)) as stock
+				   (pi.stock_inventory - COALESCE(sub.total_assigned, 0)) as stock
 			FROM products p
+			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
 			LEFT JOIN (
 				SELECT wa.id_product_assignment,
 					   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 
@@ -1939,7 +1866,7 @@ if (isset($_POST["getSubWarehouseStock"])) {
 				WHERE sw.id_office_sub_warehouse = :office
 				GROUP BY wa.id_product_assignment
 			) sub ON p.id_product = sub.id_product_assignment
-			WHERE p.id_office_product = :office AND p.status_product = 1
+			WHERE p.status_product = 1
 		");
 		$stmt->execute([':office' => $id_office]);
 		$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -2186,10 +2113,11 @@ if (isset($_POST["getPendingRequests"])) {
 	$stmt = $db->prepare("
 		SELECT ir.id_request, ir.date_created_request, ir.qty_request, ir.notes_request,
 			   a.name_admin, p.title_product,
-			   (p.stock_product - COALESCE(sub.total_assigned, 0)) as available_stock
+			   (pi.stock_inventory - COALESCE(sub.total_assigned, 0)) as available_stock
 		FROM inventory_requests ir
 		JOIN admins a ON ir.id_admin_request = a.id_admin
 		JOIN products p ON ir.id_product_request = p.id_product
+		INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
 		LEFT JOIN (
 			SELECT wa.id_product_assignment,
 				   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 

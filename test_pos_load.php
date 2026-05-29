@@ -25,9 +25,11 @@ $_SESSION["admin"] = $adminObj;
 $pos = new PosController();
 $pos->limit = 10;
 $pos->startAt = 0;
-$pos->category = "0";
+$pos->category = "all";
 $pos->search = "";
 $pos->idOffice = 7;
+$_POST["sellerRole"] = "editor";
+$_POST["sellerId"] = 22;
 $_POST["isWholesale"] = 0;
 
 $pos->loadProducts();

@@ -33,16 +33,45 @@ $limit = 10;
 $totalPages = 0;
 $totalData = 0;
 
-if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+if ($module->title_module == "products" && $_SESSION["admin"]->id_office_admin > 0) {
+	require_once "controllers/install.controller.php";
+	$db = InstallController::connect();
+	$role = $_SESSION["admin"]->rol_admin;
+	$id_admin = $_SESSION["admin"]->id_admin;
+	$id_office = $_SESSION["admin"]->id_office_admin;
+	
+	if ($role == "superadmin" || $role == "admin" || $role == "despachador") {
+		$stmtP = $db->prepare("SELECT id_product_inventory FROM product_inventory WHERE id_office_inventory = :office AND status_inventory = 1");
+		$stmtP->execute([':office' => $id_office]);
+		$productIds = $stmtP->fetchAll(PDO::FETCH_COLUMN) ?: [];
+	} else {
+		$stmtP = $db->prepare("
+			SELECT DISTINCT wa.id_product_assignment 
+			FROM warehouse_assignments wa
+			JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+			WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+		");
+		$stmtP->execute([':admin' => $id_admin, ':office' => $id_office]);
+		$productIds = $stmtP->fetchAll(PDO::FETCH_COLUMN) ?: [];
+	}
+	
+	if (empty($productIds)) {
+		$url = "products?linkTo=id_product&equalTo=0&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$limit;
+	} else {
+		$inIds = implode("_", $productIds);
+		$url = "products?linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&filterTo=id_product&inTo=".$inIds."&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$limit;
+	}
+} else {
+	if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 
-	$url = $module->title_module."?orderBy=id_".$module->suffix_module."&orderMode=DESC&startAt=0&endAt=".$limit;
+		$url = $module->title_module."?orderBy=id_".$module->suffix_module."&orderMode=DESC&startAt=0&endAt=".$limit;
 
-}else{
+	}else{
 
-	$url = $module->title_module."?orderBy=id_".$module->suffix_module."&orderMode=DESC&startAt=0&endAt=".$limit."&linkTo=id_office_".$module->suffix_module."&equalTo=".$_SESSION["admin"]->id_office_admin;
+		$url = $module->title_module."?orderBy=id_".$module->suffix_module."&orderMode=DESC&startAt=0&endAt=".$limit."&linkTo=id_office_".$module->suffix_module."&equalTo=".$_SESSION["admin"]->id_office_admin;
 
+	}
 }
-
 
 $method = "GET";
 $fields = array();
@@ -57,13 +86,22 @@ if($table->status == 200){
 	Traemos contenido total de la tabla
 	=============================================*/
 
-	if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+	if ($module->title_module == "products" && $_SESSION["admin"]->id_office_admin > 0) {
+		if (empty($productIds)) {
+			$url = "products?select=id_product&linkTo=id_product&equalTo=0";
+		} else {
+			$inIds = implode("_", $productIds);
+			$url = "products?select=id_product&linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&filterTo=id_product&inTo=".$inIds;
+		}
+	} else {
+		if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 
-		$url = $module->title_module."?select=id_".$module->suffix_module;
+			$url = $module->title_module."?select=id_".$module->suffix_module;
 
-	}else{
+		}else{
 
-		$url = $module->title_module."?select=id_".$module->suffix_module."&linkTo=id_office_".$module->suffix_module."&equalTo=".$_SESSION["admin"]->id_office_admin;
+			$url = $module->title_module."?select=id_".$module->suffix_module."&linkTo=id_office_".$module->suffix_module."&equalTo=".$_SESSION["admin"]->id_office_admin;
+		}
 	}
 		
 	$totalData = CurlController::request($url,$method,$fields)->total;
@@ -579,22 +617,44 @@ Cargamos el módulo tabla
 
 										}else if($item->type_column == "stock"){
 
-											if($value[$item->title_column] < 50){
+											$stockVal = $value[$item->title_column];
+											if ($module->title_module == "products" && $item->title_column == "stock_product" && $_SESSION["admin"]->id_office_admin > 0) {
+												$role = $_SESSION["admin"]->rol_admin;
+												if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+													require_once "controllers/install.controller.php";
+													$db = InstallController::connect();
+													$stmtStock = $db->prepare("
+														SELECT (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
+																COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
+														FROM warehouse_assignments wa
+														JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+														WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
+													");
+													$stmtStock->execute([
+														':admin' => $_SESSION["admin"]->id_admin,
+														':office' => $_SESSION["admin"]->id_office_admin,
+														':product' => $value["id_product"]
+													]);
+													$stockVal = (int)($stmtStock->fetchColumn() ?: 0);
+												}
+											}
+
+											if($stockVal < 50){
 
 												$colorStock = "bg-maroon";
 											}
 
-												if($value[$item->title_column] >= 50 && $value[$item->title_column] < 100){
+												if($stockVal >= 50 && $stockVal < 100){
 
 												$colorStock = "bg-indigo";
 											}
 
-											if($value[$item->title_column] >= 100){
+											if($stockVal >= 100){
 
 												$colorStock = "bg-teal";
 											}
 
-											echo '<span class="badge badge-sm badge-default '.$colorStock.' rounded py-1 px-3 mx-1 mt-1 text-uppercase small">'.$value[$item->title_column].'</span>';
+											echo '<span class="badge badge-sm badge-default '.$colorStock.' rounded py-1 px-3 mx-1 mt-1 text-uppercase small">'.$stockVal.'</span>';
 
 										}else{
 

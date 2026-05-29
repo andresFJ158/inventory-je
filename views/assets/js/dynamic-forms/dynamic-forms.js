@@ -473,26 +473,21 @@ function loadProductsByOffice(officeSelect, productSelect) {
 
 				// Agregar cada producto al select
 				response.results.forEach(function (product) {
-					var arr = typeof product === 'object' ? Object.values(product) : [];
-					if (arr.length >= 3) {
-						var idProduct = arr[0]; // id_product
-						var titleProduct = arr[1] || ''; // title_product (sin decodificar aún)
-						var skuProduct = arr[2] || ''; // sku_product
+					if (product && (product.id_product !== undefined || product[0] !== undefined)) {
+						var idProduct = product.id_product !== undefined ? product.id_product : product[0];
+						var titleProduct = product.title_product !== undefined ? product.title_product : (product[1] || '');
+						var skuProduct = product.sku_product !== undefined ? product.sku_product : (product[2] || '');
 
 						// Decodificar el título y reemplazar + con espacios
 						var decodedTitle = '';
 						try {
-							// Primero reemplazar + con espacios antes de decodificar
-							var titleWithSpaces = titleProduct.replace(/\+/g, ' ');
-							// Luego decodificar URI
+							var titleWithSpaces = String(titleProduct).replace(/\+/g, ' ');
 							decodedTitle = decodeURIComponent(titleWithSpaces);
 						} catch (e) {
-							// Si falla la decodificación, usar el título con + reemplazados
-							decodedTitle = titleProduct.replace(/\+/g, ' ');
+							decodedTitle = String(titleProduct).replace(/\+/g, ' ');
 						}
 
 						var selected = (currentValue && String(currentValue) === String(idProduct)) ? ' selected' : '';
-						// Mostrar solo el título del producto
 						var optionText = decodedTitle;
 
 						productSelect.append('<option value="' + idProduct + '"' + selected + '>' + optionText + '</option>');
@@ -621,7 +616,16 @@ $(document).ready(function () {
 })
 
 // También ejecutar cuando select2 se inicializa (si está disponible)
-$(document).on('select2:open', function () {
+$(document).on('select2:open', function (e) {
+	// No aplicar el filtro si el select que se está abriendo es el de productos,
+	// para evitar que se reconstruya y se cierre automáticamente al hacer clic en él.
+	var target = $(e.target);
+	var targetName = target.attr('name') || '';
+	var targetId = target.attr('id') || '';
+	var targetMatrix = target.attr('data-matrix') || '';
+	if (targetMatrix === 'products' || targetName.includes('product') || targetId.includes('product')) {
+		return;
+	}
 	setTimeout(function () {
 		applyProductFilterForOffice();
 	}, 100);
