@@ -24,6 +24,19 @@ try {
 } catch (Exception $e) {
     $products = array();
 }
+
+// Obtener IDs de productos envasados que pasaron QC
+$urlProd = "productions?select=id_packaged_product&linkTo=status_production,id_office_production&equalTo=completado,".$_SESSION["admin"]->id_office_admin;
+$prodRes = CurlController::request($urlProd, "GET", array());
+$packagedIds = array();
+if ($prodRes->status == 200) {
+    foreach($prodRes->results as $p) {
+        if (!empty($p->id_packaged_product)) {
+            $packagedIds[] = $p->id_packaged_product;
+        }
+    }
+}
+$packagedIds = array_unique($packagedIds);
 ?>
 
 <div class="container-fluid py-3 p-lg-4">
@@ -31,7 +44,7 @@ try {
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-box-open"></i> Inventario de Productos Finales</div>
+                <div class="text-capitalize h5 ps-2"><i class="fas fa-box-open text-success me-2"></i> Inventario de Productos Finales</div>
             </div>
         </div>
 
@@ -40,10 +53,10 @@ try {
                 <div class="card-body">
                     <p class="text-muted">Aquí se muestran los productos que han salido de producción (empacados o a granel) listos para la venta o distribución.</p>
                     <div class="table-responsive">
-                        <table class="table table-bordered table-striped" id="finalInventoryTable">
+                        <table class="table table-bordered table-striped align-middle" id="finalInventoryTable">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th>ID</th>
                                     <th>Resumen de Inventario</th>
                                     <th class="text-end">Costo Unitario</th>
                                     <th class="text-end">Valor Total del Lote</th>
@@ -55,8 +68,9 @@ try {
                                 $count = 0;
                                 foreach($products as $prod): 
                                     if ($prod->stock_product <= 0) continue;
-                                    // Ignorar productos a granel usando sus unidades base
-                                    if (in_array(strtolower($prod->unit_product), ['l', 'ml', 'kg', 'g'])) continue;
+                                    
+                                    // BUG-04 Fix: Filtrar por productos que realmente provienen de envasado
+                                    if (!in_array($prod->id_product, $packagedIds)) continue;
                                     
                                     $estimatedValue = $prod->stock_product * $prod->rte_product;
                                     $count++;
@@ -78,8 +92,8 @@ try {
                                     <td class="align-middle text-end">Bs <?php echo number_format($prod->rte_product, 2) ?></td>
                                     <td class="align-middle text-end fw-bold text-success">Bs <?php echo number_format($estimatedValue, 2) ?></td>
                                     <td class="align-middle text-center">
-                                        <button class="btn btn-sm btn-info text-white" onclick="viewLots(<?php echo $prod->id_product ?>, '<?php echo addslashes($prod->title_product) ?>')" title="Ver Lotes">
-                                            <i class="fas fa-eye"></i> Lotes
+                                        <button class="btn btn-sm btn-info text-white px-3 rounded" onclick="viewLots(<?php echo $prod->id_product ?>, '<?php echo addslashes($prod->title_product) ?>')" title="Ver Lotes">
+                                            <i class="fas fa-eye me-1"></i> Lotes
                                         </button>
                                     </td>
                                 </tr>
@@ -96,8 +110,32 @@ try {
 <script>
 $(document).ready(function() {
     $('#finalInventoryTable').DataTable({
-        "language": { "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json" },
-        "order": [[2, "desc"]] // Ordenar por stock por defecto
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json",
+            "sProcessing":     "Procesando...",
+            "sLengthMenu":     "Mostrar _MENU_ registros",
+            "sZeroRecords":    "No se encontraron resultados",
+            "sEmptyTable":     "Ningún dato disponible en esta tabla",
+            "sInfo":           "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
+            "sInfoEmpty":      "Mostrando registros del 0 al 0 de un total de 0 registros",
+            "sInfoFiltered":   "(filtrado de un total de _MAX_ registros)",
+            "sInfoPostFix":    "",
+            "sSearch":         "Buscar:",
+            "sUrl":            "",
+            "sInfoThousands":  ",",
+            "sLoadingRecords": "Cargando...",
+            "oPaginate": {
+                "sFirst":    "Primero",
+                "sLast":     "Último",
+                "sNext":     "Siguiente",
+                "sPrevious": "Anterior"
+            },
+            "oAria": {
+                "sSortAscending":  ": Activar para ordenar la columna de manera ascendente",
+                "sSortDescending": ": Activar para ordenar la columna de manera descendente"
+            }
+        },
+        "order": [[0, "asc"]] // Ordenar por ID por defecto
     });
 });
 </script>
@@ -105,8 +143,8 @@ $(document).ready(function() {
 <!-- Modal Historial de Lotes -->
 <div class="modal fade" id="modalLots" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header backColor">
+    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+      <div class="modal-header backColor" style="border-radius: 1rem 1rem 0 0;">
         <h5 class="modal-title text-white">Historial de Producción: <span id="lots_product_name"></span></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -169,3 +207,4 @@ function viewLots(id_product, product_name) {
     });
 }
 </script>
+

@@ -131,7 +131,7 @@ LOGIN PAGE - Premium Glassmorphism
 BORDER RADIUS UTILITIES
 =============================================*/
 
-.rounded, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
+.card.rounded, .btn.rounded, .badge.rounded, .select2-selection, .bootstrap-tagsinput, .bootstrap-tagsinput > .badge {
   border-radius: 14px !important;
 }
 
@@ -154,6 +154,7 @@ BORDER RADIUS UTILITIES
   border-bottom-left-radius: 14px !important;
   border-bottom-right-radius: 14px !important;
 }
+
 
 /*=============================================
 FORM ELEMENTS
@@ -257,6 +258,45 @@ ACTION BUTTONS
   box-shadow: 0 8px 24px rgba(46, 125, 50, 0.4) !important;
   transform: translateY(-2px);
 }
+
+.btn-default {
+  background-color: #ffffff !important;
+  color: #1c2b1e !important;
+  border: 1.5px solid #ecf3ec !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important;
+}
+
+.btn-default:hover {
+  background-color: #f4f7f4 !important;
+  color: #2e7d32 !important;
+  border-color: #2e7d32 !important;
+}
+
+.btn-default.backColor {
+  background: linear-gradient(135deg, #2e7d32 0%, #00897b 100%) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+
+/* Force Modal and Forms Backgrounds to prevent transparency */
+.modal-content, .modal-header, .modal-body, .modal-footer {
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.modal-backdrop {
+  opacity: 0.5 !important;
+  background-color: #000000 !important;
+}
+
+/* Ensure button visibility */
+.modal-footer .btn {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-block !important;
+}
+
+
 
 /*=============================================
 BREADCRUMB IMPROVEMENTS
@@ -377,4 +417,69 @@ EMPTY STATE
   font-size: 0.9rem;
   font-weight: 500;
 }
+
+/* Premium table row hover effect */
+.table tbody tr:hover {
+  background-color: rgba(46, 125, 50, 0.04) !important;
+  transition: background-color 0.15s ease-in-out;
+}
+
+/* Premium Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 3rem;
+  color: #a0aec0;
+  margin-bottom: 16px;
+  opacity: 0.65;
+}
+
+.empty-state-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 8px;
+}
+
+.empty-state-description {
+  font-size: 0.875rem;
+  color: #718096;
+  max-width: 360px;
+  margin-bottom: 16px;
+}
+
+/* Premium KPI Cards */
+.kpi-card {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left: 4px solid #2e7d32 !important;
+}
+
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.kpi-card.kpi-warning {
+  border-left-color: #ffb300 !important;
+}
+
+.kpi-card.kpi-info {
+  border-left-color: #00acc1 !important;
+}
+
+.kpi-card.kpi-danger {
+  border-left-color: #e53935 !important;
+}
+
+.kpi-card.kpi-success {
+  border-left-color: #43a047 !important;
+}
+
 

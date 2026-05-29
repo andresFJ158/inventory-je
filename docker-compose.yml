@@ -56,6 +56,11 @@ services:
       - "8080:80"
     volumes:
       - ./views/assets/files:/var/www/html/views/assets/files
+      - ./views:/var/www/html/views
+      - ./controllers:/var/www/html/controllers
+      - ./models:/var/www/html/models
+      - ./ajax:/var/www/html/ajax
+      - ./index.php:/var/www/html/index.php
 
 volumes:
   db_data:

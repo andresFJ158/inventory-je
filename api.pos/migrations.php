@@ -133,7 +133,18 @@ $queries = [
       qty_used_mat_cost             DOUBLE NOT NULL,
       unit_price_at_production      DOUBLE NOT NULL,
       total_cost_mat_cost           DOUBLE NOT NULL
-    )"
+    )",
+    "ALTER TABLE productions ADD COLUMN id_packaged_product INT DEFAULT 0",
+    "ALTER TABLE productions ADD COLUMN pkg_labor_cost DOUBLE DEFAULT 0",
+    "ALTER TABLE productions ADD COLUMN pkg_indirect_cost DOUBLE DEFAULT 0",
+    "ALTER TABLE productions ADD COLUMN real_bulk_qty DOUBLE DEFAULT NULL",
+    "ALTER TABLE productions ADD COLUMN yield_variance DOUBLE DEFAULT NULL",
+    "ALTER TABLE productions ADD COLUMN yield_variance_pct DOUBLE DEFAULT NULL",
+    "ALTER TABLE productions ADD COLUMN qty_packaged_production DOUBLE DEFAULT NULL",
+    "ALTER TABLE productions ADD COLUMN qty_approved_production DOUBLE DEFAULT NULL",
+    "ALTER TABLE productions ADD COLUMN qty_rejected_production DOUBLE DEFAULT NULL",
+    "ALTER TABLE productions ADD COLUMN result_qc_production VARCHAR(30) DEFAULT NULL",
+    "ALTER TABLE productions ADD COLUMN notes_qc_production TEXT DEFAULT NULL"
 ];
 
 $success = true;

@@ -1,73 +1,98 @@
 <?php
 // Get all recipes
-$urlRecipes = "relations?rel=recipes,products,admins&type=recipe,product,admin&linkTo=id_office_recipe&equalTo=".$_SESSION["admin"]->id_office_admin;
+$urlRecipes = "relations?rel=recipes,products,admins&type=recipe,product,admin&linkTo=id_office_recipe&equalTo=".$_SESSION["admin"]->id_office_admin."&orderBy=id_recipe&orderMode=ASC";
 $recRes = CurlController::request($urlRecipes, "GET", array());
 $recipes = ($recRes->status == 200) ? $recRes->results : array();
 
-// No more product list needed, as we will type the name of the new product
 // Get raw materials with their latest prices for real-time calculation
 $urlMP = "raw_materials?linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin;
 $mpRes = CurlController::request($urlMP, "GET", array());
 $materials = ($mpRes->status == 200) ? $mpRes->results : array();
 $materialsData = [];
 foreach($materials as $mp) {
+    // Get the latest approved entry unit price for pricing
+    $urlEntry = "raw_material_entries?linkTo=id_raw_material_entry,status_entry&equalTo=".$mp->id_raw_material.",aprobado&orderBy=id_entry&orderMode=DESC&startAt=0&endAt=1";
+    $entryRes = CurlController::request($urlEntry, "GET", array());
+    $price = ($entryRes->status == 200 && !empty($entryRes->results)) ? $entryRes->results[0]->unit_price_entry : 0;
+
     $materialsData[$mp->id_raw_material] = [
         'name' => $mp->name_raw_material,
         'unit' => $mp->unit_raw_material,
-        'type' => isset($mp->measure_type) ? $mp->measure_type : 'unit'
+        'type' => isset($mp->measure_type) ? $mp->measure_type : 'unit',
+        'price' => $price
     ];
 }
-
-// CIFs moved to production
 ?>
 
 <div class="container-fluid py-3 p-lg-4" id="recipesList">
     <div class="row">
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-scroll"></i> Recetas de Laboratorio</div>
+                <div class="text-capitalize h5 ps-2"><i class="fas fa-scroll text-success me-2"></i> Recetas de Laboratorio</div>
             </div>
         </div>
 
         <div class="col-12 mb-3">
-            <div class="card rounded p-3">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
-                    <button class="btn btn-primary btn-sm px-3 rounded backColor" onclick="showRecipeForm()">Crear Nueva Receta</button>
-                    <?php else: ?>
-                    <span class="text-muted small">Solo vista (Permisos limitados)</span>
-                    <?php endif; ?>
+            <div class="card rounded p-3 border-0 shadow-sm">
+                <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3 py-3 border-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold text-secondary fs-5">Recetas registradas (<?php echo count($recipes); ?>)</span>
+                        <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
+                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="showRecipeForm()"><i class="fas fa-plus me-1"></i> Crear Nueva Receta</button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 ms-auto flex-wrap">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap" style="max-width: 250px;">
+                            <span class="input-group-text bg-white border-end-0 text-muted" style="border-top-left-radius: 50rem; border-bottom-left-radius: 50rem;"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control border-start-0 shadow-none" id="searchItem" style="border-top-right-radius: 50rem; border-bottom-right-radius: 50rem;" placeholder="Buscar receta...">
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-striped">
+                        <table class="table table-bordered table-striped align-middle" id="recipesTable">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th>ID</th>
                                     <th>Producto</th>
-                                    <th>Cantidad Base</th>
+                                    <th>Cantidad Base Lote</th>
                                     <th>Unidad</th>
                                     <th>Creado por</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach($recipes as $index => $recipe): ?>
-                                <tr>
-                                    <td><?php echo $index + 1 ?></td>
-                                    <td><?php echo $recipe->title_product ?></td>
-                                    <td><?php echo $recipe->batch_size_recipe ?></td>
-                                    <td><?php echo $recipe->unit_batch_recipe ?></td>
-                                    <td><?php echo $recipe->name_admin ?></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-info text-white" onclick="viewRecipe(<?php echo $recipe->id_recipe ?>)" title="Ver"><i class="fas fa-eye"></i></button>
-                                        <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
-                                        <button class="btn btn-sm btn-warning text-dark" onclick="editRecipe(<?php echo $recipe->id_recipe ?>)" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                                        <button class="btn btn-sm btn-danger text-white" onclick="deleteRecipe(<?php echo $recipe->id_recipe ?>)" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
+                                <?php if(empty($recipes)): ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center p-0">
+                                            <div class="empty-state">
+                                                <i class="fas fa-scroll empty-state-icon"></i>
+                                                <div class="empty-state-title">No hay recetas registradas</div>
+                                                <div class="empty-state-description">Aún no has registrado ninguna fórmula o receta en este laboratorio.</div>
+                                                <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
+                                                    <button class="btn btn-primary btn-sm rounded backColor px-4" onclick="showRecipeForm()">Crear Nueva Receta</button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach($recipes as $index => $recipe): ?>
+                                    <tr>
+                                        <td><?php echo $index + 1 ?></td>
+                                        <td class="text-uppercase fw-bold"><?php echo $recipe->title_product ?></td>
+                                        <td><?php echo $recipe->batch_size_recipe ?></td>
+                                        <td><span class="badge bg-secondary"><?php echo $recipe->unit_batch_recipe ?></span></td>
+                                        <td><?php echo $recipe->name_admin ?></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info text-white px-3 rounded" onclick="viewRecipe(<?php echo $recipe->id_recipe ?>)" title="Ver"><i class="fas fa-eye me-1"></i> Ver</button>
+                                            <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
+                                            <button class="btn btn-sm btn-warning text-dark px-3 rounded ms-1" onclick="editRecipe(<?php echo $recipe->id_recipe ?>)" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                                            <button class="btn btn-sm btn-danger text-white px-3 rounded ms-1" onclick="deleteRecipe(<?php echo $recipe->id_recipe ?>)" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -96,16 +121,16 @@ foreach($materials as $mp) {
                         <div class="col-md-6 mb-3">
                             <input type="hidden" id="edit_id_recipe" value="">
                             <label>Producto a Producir (Nombre Nuevo)</label>
-                            <input type="text" class="form-control" id="name_product_recipe" placeholder="Ej: Vinagre de Manzana 1L">
+                            <input type="text" class="form-control rounded-3" id="name_product_recipe" placeholder="Ej: Vinagre de Manzana 1L">
                         </div>
                         <div class="col-md-3 mb-3">
                             <label>Cantidad base de la receta</label>
-                            <input type="number" step="0.01" class="form-control" id="batch_size_recipe" value="1">
+                            <input type="number" step="0.01" class="form-control rounded-3" id="batch_size_recipe" value="1">
                             <small class="text-muted d-block mt-1">Cuánto estimado de producto a granel te dará como resultado esta receta.</small>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label>Unidad de medida (a granel)</label>
-                            <input type="text" class="form-control" id="unit_batch_recipe" placeholder="Ej: unidades">
+                            <input type="text" class="form-control rounded-3" id="unit_batch_recipe" placeholder="Ej: unidades">
                         </div>
                     </div>
                 </div>
@@ -194,7 +219,9 @@ function editRecipe(id) {
                 data.ingredients.forEach(i => {
                     addIngredient();
                     let lastRow = $('#ingredientsTable tbody tr').last();
-                    lastRow.find('.ing-id').val(i.id_raw_material_ingredient).trigger('change');
+                    let selectEl = lastRow.find('.ing-id');
+                    selectEl.val(i.id_raw_material_ingredient);
+                    ingChange(selectEl[0]);
                     lastRow.find('.ing-qty').val(parseFloat(i.qty_ingredient));
                 });
             }
@@ -321,7 +348,6 @@ function saveRecipe() {
     });
 
     let recipeData = {
-        saveRecipe: "ok",
         name_product: name_product,
         batch_size: batch_size,
         unit_batch: unit_batch,
@@ -331,6 +357,14 @@ function saveRecipe() {
         labor: JSON.stringify(labors),
         token: localStorage.getItem("tokenAdmin")
     };
+
+    let edit_id = $('#edit_id_recipe').val();
+    if (edit_id) {
+        recipeData.editRecipe = "ok";
+        recipeData.id_recipe = edit_id;
+    } else {
+        recipeData.saveRecipe = "ok";
+    }
 
     fncSweetAlert("loading", "Guardando Receta...", "");
 
@@ -360,28 +394,30 @@ function saveRecipe() {
 <!-- Modal Detalles de Receta -->
 <div class="modal fade" id="modalRecipeDetails" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header backColor">
+    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+      <div class="modal-header backColor" style="border-radius: 1rem 1rem 0 0;">
         <h5 class="modal-title text-white">Detalles de Receta #<span id="view_id_recipe"></span></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <div class="row mb-3">
             <div class="col-sm-6">
-                <strong>Producto Final:</strong> <span id="view_name_product"></span>
+                <strong>Producto Final:</strong> <span id="view_name_product" class="text-primary fw-bold"></span>
             </div>
             <div class="col-sm-6 text-end">
-                <strong>Rinde:</strong> <span id="view_batch_size"></span> <span id="view_unit_batch"></span>
+                <strong>Rinde (Lote base):</strong> <span id="view_batch_size" class="fw-bold"></span> <span id="view_unit_batch" class="text-muted small"></span>
             </div>
         </div>
 
-        <h6 class="border-bottom pb-2">Insumos (Fórmula Base)</h6>
+        <h6 class="border-bottom pb-2 text-secondary"><i class="fas fa-dolly-flatbed me-1"></i> Insumos (Fórmula Base)</h6>
         <div class="table-responsive mb-3">
             <table class="table table-sm table-striped border">
                 <thead class="table-light">
                     <tr>
                         <th>Materia Prima</th>
                         <th class="text-end">Cantidad</th>
+                        <th class="text-end">Costo Ref.</th>
+                        <th class="text-end">Subtotal Est.</th>
                     </tr>
                 </thead>
                 <tbody id="view_ingredients_tbody">
@@ -389,13 +425,13 @@ function saveRecipe() {
             </table>
         </div>
 
-        <h6 class="border-bottom pb-2">Mano de Obra Requerida</h6>
+        <h6 class="border-bottom pb-2 text-secondary"><i class="fas fa-users me-1"></i> Mano de Obra Requerida</h6>
         <div class="table-responsive mb-3">
             <table class="table table-sm table-striped border">
                 <thead class="table-light">
                     <tr>
                         <th>Descripción</th>
-                        <th class="text-end">Tipo</th>
+                        <th class="text-end">Tipo de Asignación</th>
                     </tr>
                 </thead>
                 <tbody id="view_labor_tbody">
@@ -423,18 +459,30 @@ function viewRecipe(id) {
             $('#view_unit_batch').text(data.recipe.unit_batch_recipe);
             
             let tbodyIng = '';
+            let totalCost = 0;
             if(data.ingredients && data.ingredients.length > 0) {
-                // To get the name and unit, we need to lookup from materialsData!
                 data.ingredients.forEach(i => {
-                    let mpName = materialsData[i.id_raw_material_ingredient] ? materialsData[i.id_raw_material_ingredient].name : 'Desconocido';
-                    let mpUnit = materialsData[i.id_raw_material_ingredient] ? materialsData[i.id_raw_material_ingredient].unit : '';
+                    let mp = materialsData[i.id_raw_material_ingredient];
+                    let mpName = mp ? mp.name : 'Desconocido';
+                    let mpUnit = mp ? mp.unit : '';
+                    let mpPrice = mp ? parseFloat(mp.price) : 0;
+                    let qty = parseFloat(i.qty_ingredient);
+                    let subtotal = qty * mpPrice;
+                    totalCost += subtotal;
+
                     tbodyIng += `<tr>
                         <td>${mpName}</td>
-                        <td class="text-end">${parseFloat(i.qty_ingredient)} <span class="text-muted small">${mpUnit}</span></td>
+                        <td class="text-end">${qty} <span class="text-muted small">${mpUnit}</span></td>
+                        <td class="text-end text-secondary">Bs ${mpPrice.toFixed(2)}</td>
+                        <td class="text-end fw-bold text-success">Bs ${subtotal.toFixed(2)}</td>
                     </tr>`;
                 });
+                tbodyIng += `<tr class="table-light fw-bold border-top">
+                    <td colspan="3" class="text-secondary">Costo de Insumos Total Estimado:</td>
+                    <td class="text-end text-success">Bs ${totalCost.toFixed(2)}</td>
+                </tr>`;
             } else {
-                tbodyIng = '<tr><td colspan="2" class="text-center text-muted">No tiene insumos registrados</td></tr>';
+                tbodyIng = '<tr><td colspan="4" class="text-center text-muted">No tiene insumos registrados</td></tr>';
             }
             $('#view_ingredients_tbody').html(tbodyIng);
 
@@ -458,4 +506,15 @@ function viewRecipe(id) {
         }
     });
 }
+
+// Search Filter Logic for Table
+$('#searchItem').on('keyup', function() {
+    var value = $(this).val().toLowerCase();
+    $("#recipesTable tbody tr").filter(function() {
+        if (!$(this).find('.empty-state').length) {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        }
+    });
+});
 </script>
+

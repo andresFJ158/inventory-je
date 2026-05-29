@@ -42,12 +42,15 @@ if($pages->status == 200){
 				if ($role == "superadmin" || $role == "admin") {
 					$allowed_menu = true;
 				} else if ($role == "lab_admin") {
-					$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final"];
+					$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final", "lab_calidad"];
 					if (in_array($page_url, $lab_routes)) $allowed_menu = true;
 				} else if ($role == "lab_worker") {
 					$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final"];
 					if (in_array($page_url, $lab_routes)) $allowed_menu = true;
-				} else if ($role == "cajero" || $role == "despachador") {
+				} else if ($role == "qc_inspector") {
+					$qc_routes = ["lab_calidad"];
+					if (in_array($page_url, $qc_routes)) $allowed_menu = true;
+				} else if ($role == "cajero" || $role == "despachador" || $role == "editor") {
 					$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
 					if (isset($perms[$page_url]) && $perms[$page_url] == "on") {
 						$allowed_menu = true;

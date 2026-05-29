@@ -1,4 +1,4 @@
-<!-- =============================================
+﻿<!-- =============================================
 Modal: Ver Detalles de Caja
 ============================================= -->
 <div class="modal fade" id="modalCashDetails" tabindex="-1" aria-labelledby="modalCashDetailsLabel" aria-hidden="true">
@@ -106,9 +106,9 @@ $(document).on("click", ".viewCashDetails", function () {
 			}
 
 			// Período
-			const start = res.sessionStart ? res.sessionStart.substring(0, 16) : "—";
-			const end   = res.sessionEnd   ? res.sessionEnd.substring(0, 16)   : "—";
-			$("#cashDetailsPeriod").text(`Período: ${start} → ${end}`);
+			const start = res.sessionStart ? res.sessionStart.substring(0, 16) : "â€”";
+			const end   = res.sessionEnd   ? res.sessionEnd.substring(0, 16)   : "â€”";
+			$("#cashDetailsPeriod").text(`Período: ${start} â†’ ${end}`);
 
 			// Totales resumen
 			const totalSales = parseFloat(res.totalSales || 0).toFixed(2);
@@ -153,7 +153,7 @@ $(document).on("click", ".viewCashDetails", function () {
 			</div>
 			`;
 
-			// ── Ventas ──────────────────────────────────────────
+			// â”€â”€ Ventas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 			html += `<div class="mb-4">
 				<div class="section-title mb-2">
 					<i class="bi bi-cart-check-fill text-success me-1"></i> Ventas / Órdenes
@@ -167,7 +167,7 @@ $(document).on("click", ".viewCashDetails", function () {
 					<table class="table table-hover align-middle mb-0">
 						<thead class="table-light">
 							<tr>
-								<th>#</th>
+								<th>ID</th>
 								<th>Transacción</th>
 								<th>Productos</th>
 								<th>Método</th>
@@ -203,9 +203,9 @@ $(document).on("click", ".viewCashDetails", function () {
 
 					html += `<tr>
 						<td class="text-muted">${idx + 1}</td>
-						<td><code class="small">${o.transaction_order || '—'}</code></td>
+						<td><code class="small">${o.transaction_order || 'â€”'}</code></td>
 						<td style="max-width:280px;">${productsList}</td>
-						<td>${methodIcon} <span class="small text-capitalize">${o.method_order || '—'}</span></td>
+						<td>${methodIcon} <span class="small text-capitalize">${o.method_order || 'â€”'}</span></td>
 						<td>${statusBadge}</td>
 						<td class="text-end fw-semibold">Bs ${parseFloat(o.total_order || 0).toLocaleString('es-BO', {minimumFractionDigits:2})}</td>
 					</tr>`;
@@ -222,7 +222,7 @@ $(document).on("click", ".viewCashDetails", function () {
 			}
 			html += `</div>`;
 
-			// ── Gastos ──────────────────────────────────────────
+			// â”€â”€ Gastos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 			html += `<div class="mb-2">
 				<div class="section-title mb-2">
 					<i class="fas fa-money-bill-wave text-danger me-1"></i> Gastos registrados
@@ -236,7 +236,7 @@ $(document).on("click", ".viewCashDetails", function () {
 					<table class="table table-hover align-middle mb-0">
 						<thead class="table-light">
 							<tr>
-								<th>#</th>
+								<th>ID</th>
 								<th>Concepto</th>
 								<th>Fecha</th>
 								<th class="text-end">Costo</th>
@@ -245,10 +245,10 @@ $(document).on("click", ".viewCashDetails", function () {
 						<tbody>`;
 
 				res.bills.forEach((b, idx) => {
-					const dateStr = b.date_bill ? b.date_bill.substring(0, 16) : '—';
+					const dateStr = b.date_bill ? b.date_bill.substring(0, 16) : 'â€”';
 					html += `<tr>
 						<td class="text-muted">${idx + 1}</td>
-						<td>${b.concept_bill || '—'}</td>
+						<td>${b.concept_bill || 'â€”'}</td>
 						<td class="small text-muted">${dateStr}</td>
 						<td class="text-end fw-semibold text-danger">Bs ${parseFloat(b.cost_bill || 0).toLocaleString('es-BO', {minimumFractionDigits:2})}</td>
 					</tr>`;
@@ -273,3 +273,4 @@ $(document).on("click", ".viewCashDetails", function () {
 	});
 });
 </script>
+
