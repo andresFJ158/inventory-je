@@ -1226,16 +1226,8 @@ if(isset($_POST["completeProduction"])){
 			$id_raw = $ing['id_raw_material_ingredient'];
 			$qty_needed = $ing['qty_ingredient'] * $batches;
 
-			// Verificar stock y nombre para error
-			$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
-			$stmtCheck->execute([':id' => $id_raw]);
-			$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-
-			if($mp_info['stock_raw_material'] < $qty_needed) {
-				echo "stock_insuficiente|" . $mp_info['name_raw_material'];
-				$db->rollBack();
-				exit;
-			}
+			// BUG-02 Fix: Stock ya fue descontado en startProduction. 
+			// Solo obtenemos el precio actual de la última entrada aprobada.
 
 			// Obtener precio actual de la última entrada aprobada
 			$stmtPrice = $db->prepare("SELECT id_entry, unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
@@ -1255,10 +1247,6 @@ if(isset($_POST["completeProduction"])){
 				'price' => $unit_price,
 				'subtotal' => $subtotal
 			];
-
-			// Descontar stock
-			$stmtUpdMP = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
-			$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_raw]);
 		}
 
 		// 1.5. Procesar Materiales Extra de Envasado
@@ -1337,6 +1325,7 @@ if(isset($_POST["completeProduction"])){
 			':real_bulk_qty' => $real_bulk_qty,
 			':yield_variance' => $yield_variance,
 			':yield_variance_pct' => $yield_variance_pct,
+			':qty_packaged' => $pkg_final_qty,
 			':id' => $id_production
 		];
 		$id_packaged_product = 0;
@@ -1378,6 +1367,7 @@ if(isset($_POST["completeProduction"])){
 			real_bulk_qty = :real_bulk_qty,
 			yield_variance = :yield_variance,
 			yield_variance_pct = :yield_variance_pct,
+			qty_packaged_production = :qty_packaged,
 			date_updated_production = NOW() 
 		WHERE id_production = :id");
 		$updateProdData[':id_pkg'] = $id_packaged_product;
@@ -1463,41 +1453,56 @@ if(isset($_POST["startProduction"])){
 	$db = LocalConnection::connect();
 	$id = $_POST['id_production'];
 
-	$stmtCheckStatus = $db->prepare("SELECT status_production, id_recipe_production, batches_production FROM productions WHERE id_production = :id");
-	$stmtCheckStatus->execute([':id' => $id]);
-	$prod = $stmtCheckStatus->fetch(PDO::FETCH_ASSOC);
-	if(!$prod || $prod['status_production'] !== 'pendiente') {
-		echo "error";
-		exit;
-	}
+	try {
+		$db->beginTransaction();
 
-	$id_recipe = $prod['id_recipe_production'];
-	$batches = (float)$prod['batches_production'];
-
-	// Verificar stock de ingredientes antes de iniciar
-	$stmtIng = $db->prepare("SELECT id_raw_material_ingredient, qty_ingredient FROM recipe_ingredients WHERE id_recipe_ingredient = :id_recipe");
-	$stmtIng->execute([':id_recipe' => $id_recipe]);
-	$ingredients = $stmtIng->fetchAll(PDO::FETCH_ASSOC);
-
-	foreach($ingredients as $ing) {
-		$id_raw = $ing['id_raw_material_ingredient'];
-		$qty_needed = $ing['qty_ingredient'] * $batches;
-
-		$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
-		$stmtCheck->execute([':id' => $id_raw]);
-		$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-
-		if($mp_info && $mp_info['stock_raw_material'] < $qty_needed) {
-			echo "stock_insuficiente|" . $mp_info['name_raw_material'];
+		$stmtCheckStatus = $db->prepare("SELECT status_production, id_recipe_production, batches_production FROM productions WHERE id_production = :id");
+		$stmtCheckStatus->execute([':id' => $id]);
+		$prod = $stmtCheckStatus->fetch(PDO::FETCH_ASSOC);
+		if(!$prod || $prod['status_production'] !== 'pendiente') {
+			echo "error|La producción no está pendiente.";
+			$db->rollBack();
 			exit;
 		}
-	}
 
-	$stmt = $db->prepare("UPDATE productions SET status_production = 'en_proceso', start_date_production = NOW() WHERE id_production = :id");
-	if($stmt->execute([':id' => $id])){
-		echo "ok";
-	}else{
-		echo "error";
+		$id_recipe = $prod['id_recipe_production'];
+		$batches = (float)$prod['batches_production'];
+
+		// Verificar y descontar stock de ingredientes al iniciar
+		$stmtIng = $db->prepare("SELECT id_raw_material_ingredient, qty_ingredient FROM recipe_ingredients WHERE id_recipe_ingredient = :id_recipe");
+		$stmtIng->execute([':id_recipe' => $id_recipe]);
+		$ingredients = $stmtIng->fetchAll(PDO::FETCH_ASSOC);
+
+		foreach($ingredients as $ing) {
+			$id_raw = $ing['id_raw_material_ingredient'];
+			$qty_needed = $ing['qty_ingredient'] * $batches;
+
+			$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
+			$stmtCheck->execute([':id' => $id_raw]);
+			$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+			if($mp_info && $mp_info['stock_raw_material'] < $qty_needed) {
+				echo "stock_insuficiente|" . $mp_info['name_raw_material'];
+				$db->rollBack();
+				exit;
+			}
+			
+			// Descontar stock
+			$stmtUpdMP = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
+			$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_raw]);
+		}
+
+		$stmt = $db->prepare("UPDATE productions SET status_production = 'en_proceso', start_date_production = NOW() WHERE id_production = :id");
+		if($stmt->execute([':id' => $id])){
+			$db->commit();
+			echo "ok";
+		}else{
+			$db->rollBack();
+			echo "error|Error al actualizar el estado.";
+		}
+	} catch (Exception $e) {
+		$db->rollBack();
+		echo "error|" . $e->getMessage();
 	}
 	exit;
 }
@@ -1510,10 +1515,14 @@ if(isset($_POST["getProductionDetails"])){
 	$db = LocalConnection::connect();
 	
 	// Datos generales
-	$stmtProd = $db->prepare("SELECT p.*, prod.title_product, prod.unit_product 
+	$stmtProd = $db->prepare("SELECT p.*, prod.title_product, prod.unit_product,
+			   qc.qty_approved_qc, qc.qty_rejected_qc, qc.result_qc, qc.notes_qc AS qc_notes,
+			   qc.date_created_qc, a.name_admin AS qc_inspector_name
 		FROM productions p 
 		JOIN products prod ON p.id_product_production = prod.id_product 
-		WHERE id_production = :id");
+		LEFT JOIN quality_checks qc ON qc.id_production_qc = p.id_production
+		LEFT JOIN admins a ON qc.id_admin_qc = a.id_admin
+		WHERE p.id_production = :id");
 	$stmtProd->execute([':id' => $id_production]);
 	$production = $stmtProd->fetch(PDO::FETCH_ASSOC);
 
@@ -1630,7 +1639,7 @@ if(isset($_POST["editRecipe"])){
 			foreach($ingredients as $ing) {
 				$stmtIng->execute([
 					':id_rec' => $id_recipe,
-					':id_raw' => $ing['id'],
+					':id_raw' => $ing['id_raw'],
 					':qty' => $ing['qty']
 				]);
 			}
@@ -1719,12 +1728,13 @@ if(isset($_POST["getPendingQC"]) && $_POST["getPendingQC"] == "ok") {
 	$stmt = $db->prepare("
 		SELECT p.id_production, p.total_qty_production, p.date_updated_production,
 			   p.real_total_cost, p.real_unit_cost, p.id_packaged_product,
-			   r.name_recipe, pr.title_product, pr.unit_product
+			   p.qty_packaged_production,
+			   pr.title_product AS name_recipe, pkg.title_product, pkg.unit_product
 		FROM productions p
-		JOIN recipes r ON p.id_recipe_production = r.id_recipe
 		JOIN products pr ON p.id_product_production = pr.id_product
+		LEFT JOIN products pkg ON p.id_packaged_product = pkg.id_product
 		WHERE p.id_office_production = :office AND p.status_production = 'pendiente_qc'
-		ORDER BY p.date_updated_production DESC
+		ORDER BY p.date_updated_production ASC
 	");
 	$stmt->execute([':office' => $id_office]);
 	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -1774,8 +1784,21 @@ if(isset($_POST["submitQualityCheck"]) && $_POST["submitQualityCheck"] == "ok") 
 		]);
 
 		$new_status = ($result === 'rechazado') ? 'rechazado' : 'completado';
-		$stmtProd = $db->prepare("UPDATE productions SET status_production = :status WHERE id_production = :id");
-		$stmtProd->execute([':status' => $new_status, ':id' => $id_production]);
+		$stmtProd = $db->prepare("UPDATE productions SET 
+			status_production = :status,
+			qty_approved_production = :approved,
+			qty_rejected_production = :rejected,
+			result_qc_production = :result_qc,
+			notes_qc_production = :notes
+		WHERE id_production = :id");
+		$stmtProd->execute([
+			':status' => $new_status, 
+			':approved' => $qty_approved,
+			':rejected' => $qty_rejected,
+			':result_qc' => $result,
+			':notes' => $notes,
+			':id' => $id_production
+		]);
 
 		// Solo ingresamos inventario de venta SI pasa el QC (aprobado o aprobado_con_obs)
 		if ($qty_approved > 0 && $prod['id_packaged_product'] && $new_status === 'completado') {
@@ -1787,6 +1810,18 @@ if(isset($_POST["submitQualityCheck"]) && $_POST["submitQualityCheck"] == "ok") 
             $old_rte = (float)$pData['rte_product'];
             $unit_cost = (float)$prod['real_unit_cost'];
             
+            // Recalculate unit cost based on approved quantity to account for rejected units (merma)
+            $stmtCost = $db->prepare("SELECT real_total_cost FROM productions WHERE id_production = :id");
+            $stmtCost->execute([':id' => $id_production]);
+            $real_total_cost = (float)$stmtCost->fetchColumn();
+            
+            if ($qty_approved > 0) {
+                $unit_cost = $real_total_cost / $qty_approved;
+                // Update production with the real unit cost after QC
+                $stmtUpdCost = $db->prepare("UPDATE productions SET real_unit_cost = :uc WHERE id_production = :id");
+                $stmtUpdCost->execute([':uc' => $unit_cost, ':id' => $id_production]);
+            }
+
             $new_stock = $old_stock + $qty_approved;
             $new_rte = (($old_stock * $old_rte) + ($qty_approved * $unit_cost)) / $new_stock;
 
@@ -1814,13 +1849,14 @@ if(isset($_POST["getQCHistory"]) && $_POST["getQCHistory"] == "ok") {
 			   qc.qty_approved_qc, qc.qty_rejected_qc, qc.notes_qc,
 			   qc.date_created_qc,
 			   a.name_admin AS inspector_name,
-			   pr.title_product, pr.unit_product
+			   pr.title_product, pr.unit_product,
+			   p.qty_packaged_production, p.total_qty_production
 		FROM quality_checks qc
 		JOIN admins a ON qc.id_admin_qc = a.id_admin
 		JOIN productions p ON qc.id_production_qc = p.id_production
 		JOIN products pr ON p.id_product_production = pr.id_product
 		WHERE qc.id_office_qc = :office
-		ORDER BY qc.date_created_qc DESC
+		ORDER BY qc.date_created_qc ASC
 	");
 	$stmt->execute([':office' => $id_office]);
 	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));

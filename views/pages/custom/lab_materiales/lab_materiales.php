@@ -1,5 +1,7 @@
 <?php
-$url = "raw_materials?linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin;
+$role = $_SESSION["admin"]->rol_admin;
+
+$url = "raw_materials?linkTo=id_office_raw_material&equalTo=".$_SESSION["admin"]->id_office_admin."&orderBy=id_raw_material&orderMode=ASC";
 $method = "GET";
 $fields = array();
 $materials = CurlController::request($url, $method, $fields);
@@ -8,6 +10,16 @@ if ($materials->status == 200) {
 } else {
     $materials = array();
 }
+
+// Calculate KPIs
+$totalMaterials = count($materials);
+$withStock = 0;
+$withoutStock = 0;
+foreach($materials as $m) {
+    $st = isset($m->stock_raw_material) ? floatval($m->stock_raw_material) : 0;
+    if($st > 0) $withStock++;
+    else $withoutStock++;
+}
 ?>
 
 <div class="container-fluid py-3 p-lg-4">
@@ -15,58 +27,133 @@ if ($materials->status == 200) {
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-flask"></i> Catálogo de Materia Prima</div>
+                <div class="text-capitalize h5 ps-2"><i class="fas fa-flask text-success me-2"></i> Catálogo de Materia Prima</div>
+            </div>
+        </div>
+
+        <!-- KPI Metric Cards -->
+        <div class="col-12 mb-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card rounded p-3 border-0 shadow-sm kpi-card kpi-info bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">Registrados</span>
+                                <h3 class="fw-bold mb-0 text-info mt-1"><?php echo $totalMaterials; ?></h3>
+                            </div>
+                            <div class="p-3 rounded-circle text-info fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(0, 172, 193, 0.1);">
+                                <i class="fas fa-flask"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card rounded p-3 border-0 shadow-sm kpi-card kpi-success bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">Con Stock</span>
+                                <h3 class="fw-bold mb-0 text-success mt-1"><?php echo $withStock; ?></h3>
+                            </div>
+                            <div class="p-3 rounded-circle text-success fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(67, 160, 71, 0.1);">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card rounded p-3 border-0 shadow-sm kpi-card kpi-danger bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small text-uppercase fw-bold">Sin Stock</span>
+                                <h3 class="fw-bold mb-0 text-danger mt-1"><?php echo $withoutStock; ?></h3>
+                            </div>
+                            <div class="p-3 rounded-circle text-danger fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(229, 57, 53, 0.1);">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="col-12 mb-3">
-            <div class="card rounded p-3">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <button class="btn btn-primary btn-sm px-3 rounded backColor" onclick="openMaterialModal()">Agregar Materia Prima</button>
+            <div class="card rounded p-3 border-0 shadow-sm">
+                <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-3 py-3 border-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold text-secondary fs-5">Insumos en Catálogo (<?php echo count($materials); ?>)</span>
+                        <?php if ($role != 'lab_worker'): ?>
+                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="openMaterialModal()"><i class="fas fa-plus me-1"></i> Agregar Materia Prima</button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 ms-auto flex-wrap">
+                        <div class="input-group input-group-sm shadow-sm flex-nowrap" style="max-width: 250px;">
+                            <span class="input-group-text bg-white border-end-0 text-muted" style="border-top-left-radius: 50rem; border-bottom-left-radius: 50rem;"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control border-start-0 shadow-none" id="searchItem" style="border-top-right-radius: 50rem; border-bottom-right-radius: 50rem;" placeholder="Buscar materia prima...">
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-striped" id="materialsTable">
+                        <table class="table table-bordered table-striped align-middle" id="materialsTable">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Nombre</th>
                                     <th>Tipo</th>
+                                    <th>Stock Actual</th>
                                     <th>Unidad</th>
                                     <th>Descripción</th>
-                                    <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
+                                    <?php if ($role != 'lab_worker'): ?>
                                         <th class="text-center">Acciones</th>
                                     <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach($materials as $index => $material): 
-                                    $badgeClass = 'bg-secondary';
-                                    $tipoLabel = 'Desconocido';
-                                    if(isset($material->measure_type)) {
-                                        if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = 'ðŸŸ  Peso'; }
-                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = 'ðŸ”µ Volumen'; }
-                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = 'ðŸŸ¢ Unidad'; }
-                                    }
-                                ?>
-                                <tr>
-                                    <td><?php echo $index + 1 ?></td>
-                                    <td class="text-uppercase"><?php echo $material->name_raw_material ?></td>
-                                    <td><span class="badge <?php echo $badgeClass ?>"><?php echo $tipoLabel ?></span></td>
-                                    <td><span class="badge bg-secondary"><?php echo $material->unit_raw_material ?></span></td>
-                                    <td><?php echo $material->description_raw_material ?></td>
-                                    <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
-                                    <td class="text-center">
-                                        <button class="btn btn-sm btn-warning rounded text-dark" onclick="editMaterial(<?php echo htmlspecialchars(json_encode($material)) ?>)" title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-danger rounded text-white" onclick="deleteMaterial(<?php echo $material->id_raw_material ?>, '<?php echo addslashes($material->name_raw_material) ?>')" title="Eliminar">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                    <?php endif; ?>
-                                </tr>
-                                <?php endforeach; ?>
+                                <?php if(empty($materials)): ?>
+                                    <tr>
+                                        <td colspan="7" class="text-center p-0">
+                                            <div class="empty-state">
+                                                <i class="fas fa-flask empty-state-icon"></i>
+                                                <div class="empty-state-title">No hay materias primas registradas</div>
+                                                <div class="empty-state-description">Aún no has registrado ninguna materia prima en tu catálogo.</div>
+                                                <?php if ($role != 'lab_worker'): ?>
+                                                    <button class="btn btn-primary btn-sm rounded backColor px-4" onclick="openMaterialModal()">Agregar Materia Prima</button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach($materials as $index => $material): 
+                                        $badgeClass = 'bg-secondary';
+                                        $tipoLabel = 'Desconocido';
+                                        if(isset($material->measure_type)) {
+                                            if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = '<i class="fas fa-weight-hanging me-1"></i> Peso'; }
+                                            else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '<i class="fas fa-flask me-1"></i> Volumen'; }
+                                            else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '<i class="fas fa-box me-1"></i> Unidad'; }
+                                        }
+                                        $st = isset($material->stock_raw_material) ? floatval($material->stock_raw_material) : 0;
+                                        $stockBadgeClass = $st > 0 ? 'badge bg-success' : 'badge bg-danger';
+                                    ?>
+                                    <tr>
+                                        <td><?php echo $index + 1 ?></td>
+                                        <td class="text-uppercase fw-bold"><?php echo $material->name_raw_material ?></td>
+                                        <td><span class="badge <?php echo $badgeClass ?>"><?php echo $tipoLabel ?></span></td>
+                                        <td><span class="<?php echo $stockBadgeClass ?>"><?php echo number_format($st, 2) ?></span></td>
+                                        <td><span class="badge bg-secondary"><?php echo $material->unit_raw_material ?></span></td>
+                                        <td><?php echo $material->description_raw_material ?></td>
+                                        <?php if ($role != 'lab_worker'): ?>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-warning rounded text-dark px-3" onclick="editMaterial(<?php echo htmlspecialchars(json_encode($material)) ?>)" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger rounded text-white px-3 ms-1" onclick="deleteMaterial(<?php echo $material->id_raw_material ?>, '<?php echo addslashes($material->name_raw_material) ?>')" title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                        <?php endif; ?>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -79,8 +166,8 @@ if ($materials->status == 200) {
 <!-- Modal for New/Edit Material -->
 <div class="modal fade" id="modalMaterial" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header backColor">
+    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+      <div class="modal-header backColor" style="border-radius: 1rem 1rem 0 0;">
         <h5 class="modal-title text-white" id="modalMaterialTitle">Registrar Materia Prima</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -91,33 +178,37 @@ if ($materials->status == 200) {
             <input type="hidden" id="id_admin_raw_material" value="<?php echo $_SESSION["admin"]->id_admin ?>">
             
             <div class="mb-3">
-                <label>Nombre de Materia Prima</label>
-                <input type="text" class="form-control" id="name_raw_material" placeholder="Ej: Jabón Base" required>
+                <label class="form-label fw-semibold text-secondary">Nombre de Materia Prima</label>
+                <input type="text" class="form-control rounded-3" id="name_raw_material" placeholder="Ej: Jabón Base" required>
             </div>
             
             <div class="mb-3">
-                <label>Tipo de Medida</label>
-                <div class="btn-group w-100" role="group" aria-label="Tipo de medida">
-                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_weight" value="weight" onchange="updateUnitSelect()">
-                    <label class="btn btn-outline-warning" for="type_weight">âš–ï¸ Peso</label>
-
-                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_volume" value="volume" onchange="updateUnitSelect()">
-                    <label class="btn btn-outline-info" for="type_volume">ðŸ§ª Volumen</label>
-
-                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_unit" value="unit" onchange="updateUnitSelect()" checked>
-                    <label class="btn btn-outline-success" for="type_unit">ðŸ“¦ Unidad</label>
+                <label class="form-label d-block fw-bold text-secondary">Tipo de Medida</label>
+                <div class="d-flex gap-3 mt-2">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input measure-type-radio" type="radio" name="measure_type" id="type_weight" value="weight" onchange="updateUnitSelect()">
+                        <label class="form-check-label" for="type_weight"><i class="fas fa-weight-hanging me-1 text-warning"></i> Peso</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input measure-type-radio" type="radio" name="measure_type" id="type_volume" value="volume" onchange="updateUnitSelect()">
+                        <label class="form-check-label" for="type_volume"><i class="fas fa-flask me-1 text-info"></i> Volumen</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input measure-type-radio" type="radio" name="measure_type" id="type_unit" value="unit" onchange="updateUnitSelect()" checked>
+                        <label class="form-check-label" for="type_unit"><i class="fas fa-box me-1 text-success"></i> Unidad</label>
+                    </div>
                 </div>
             </div>
 
             <div class="mb-3">
-                <label>Unidad de Medida</label>
-                <select class="form-select" id="unit_raw_material" required>
+                <label class="form-label fw-semibold text-secondary">Unidad de Medida</label>
+                <select class="form-select rounded-3" id="unit_raw_material" required>
                     <!-- Options populated by JS -->
                 </select>
             </div>
             <div class="mb-3">
-                <label>Descripción (Opcional)</label>
-                <textarea class="form-control" id="description_raw_material" rows="3"></textarea>
+                <label class="form-label fw-semibold text-secondary">Descripción (Opcional)</label>
+                <textarea class="form-control rounded-3" id="description_raw_material" rows="3"></textarea>
             </div>
         </form>
       </div>
@@ -281,5 +372,15 @@ function deleteMaterial(id, name) {
         }
     });
 }
+
+// Search Filter Logic for Table
+$('#searchItem').on('keyup', function() {
+    var value = $(this).val().toLowerCase();
+    $("#materialsTable tbody tr").filter(function() {
+        if (!$(this).find('.empty-state').length) {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        }
+    });
+});
 </script>
 

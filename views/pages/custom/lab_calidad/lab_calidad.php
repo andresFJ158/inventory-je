@@ -9,28 +9,28 @@ $adminId  = $_SESSION["admin"]->id_admin;
         <!-- Breadcrumb -->
         <div class="col-12 mb-3">
             <div class="d-lg-flex justify-content-lg-between mt-2 align-items-center">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-check-double"></i> Control de Calidad</div>
-                <span class="badge fs-6 px-3 py-2" id="pendingBadgeHeader" style="background:#6f42c1"></span>
+                <div class="text-capitalize h5 ps-2"><i class="fas fa-check-double text-success me-2"></i> Control de Calidad</div>
+                <span class="badge fs-6 px-3 py-2 backColor shadow-sm" id="pendingBadgeHeader"></span>
             </div>
         </div>
 
         <!-- Tabs -->
         <div class="col-12 mb-3">
-            <ul class="nav nav-tabs" id="qcTabs">
+            <ul class="nav nav-tabs border-bottom-0" id="qcTabs">
                 <li class="nav-item">
-                    <a class="nav-link active" id="tab-pending-link" data-bs-toggle="tab" href="#tab-pending">
-                        <i class="fas fa-clock me-1"></i> Pendientes
+                    <a class="nav-link active fw-bold text-secondary" id="tab-pending-link" data-bs-toggle="tab" href="#tab-pending" style="border-radius: 12px 12px 0 0;">
+                        <i class="fas fa-clock me-1 text-warning"></i> Pendientes
                         <span class="badge bg-warning text-dark ms-1" id="pendingCount">0</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" id="tab-history-link" data-bs-toggle="tab" href="#tab-history">
-                        <i class="fas fa-history me-1"></i> Historial
+                    <a class="nav-link fw-bold text-secondary" id="tab-history-link" data-bs-toggle="tab" href="#tab-history" style="border-radius: 12px 12px 0 0;">
+                        <i class="fas fa-history me-1 text-info"></i> Historial
                     </a>
                 </li>
             </ul>
 
-            <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white shadow-sm">
+            <div class="tab-content border-0 rounded-bottom p-4 bg-white shadow-sm">
 
                 <!-- ===== TAB PENDIENTES ===== -->
                 <div class="tab-pane fade show active" id="tab-pending">
@@ -48,7 +48,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
                             </thead>
                             <tbody id="pendingTbody">
                                 <tr><td colspan="6" class="text-center text-muted py-4">
-                                    <div class="spinner-border spinner-border-sm text-primary"></div> Cargando...
+                                    <div class="spinner-border spinner-border-sm text-success"></div> Cargando...
                                 </td></tr>
                             </tbody>
                         </table>
@@ -57,9 +57,9 @@ $adminId  = $_SESSION["admin"]->id_admin;
 
                 <!-- ===== TAB HISTORIAL ===== -->
                 <div class="tab-pane fade" id="tab-history">
-                    <div class="row mb-3 mt-2">
+                    <div class="row mb-4 mt-2 align-items-center">
                         <div class="col-md-3">
-                            <select class="form-select form-select-sm" id="filterResult">
+                            <select class="form-select form-select-sm rounded-pill px-3" id="filterResult">
                                 <option value="">Todos los resultados</option>
                                 <option value="aprobado">Aprobado</option>
                                 <option value="aprobado_con_obs">Aprobado con observaciones</option>
@@ -67,33 +67,39 @@ $adminId  = $_SESSION["admin"]->id_admin;
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory()"><i class="fas fa-sync-alt"></i> Actualizar</button>
+                            <button class="btn btn-sm btn-default px-3 rounded" onclick="loadHistory()"><i class="fas fa-sync-alt me-1"></i> Actualizar</button>
                         </div>
                     </div>
                     <!-- Stats cards -->
-                    <div class="row mb-3" id="statsRow">
-                        <div class="col-md-3">
-                            <div class="card border-0 shadow-sm text-center py-3">
-                                <div class="fs-3 fw-bold text-primary" id="stat-total">—</div>
-                                <small class="text-muted">Total evaluados</small>
+                    <div class="row g-3 mb-4" id="statsRow">
+                        <div class="col">
+                            <div class="card border-0 shadow-sm text-center py-3 kpi-card kpi-info bg-white h-100">
+                                <div class="fs-3 fw-bold text-info" id="stat-total">—</div>
+                                <small class="text-muted fw-semibold">Total Evaluados</small>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card border-0 shadow-sm text-center py-3">
+                        <div class="col">
+                            <div class="card border-0 shadow-sm text-center py-3 kpi-card kpi-success bg-white h-100">
                                 <div class="fs-3 fw-bold text-success" id="stat-approved">—</div>
-                                <small class="text-muted">Aprobados</small>
+                                <small class="text-muted fw-semibold">Aprobados</small>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card border-0 shadow-sm text-center py-3">
+                        <div class="col">
+                            <div class="card border-0 shadow-sm text-center py-3 kpi-card kpi-warning bg-white h-100">
                                 <div class="fs-3 fw-bold text-warning" id="stat-obs">—</div>
-                                <small class="text-muted">Con observaciones</small>
+                                <small class="text-muted fw-semibold">Con Observaciones</small>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="card border-0 shadow-sm text-center py-3">
+                        <div class="col">
+                            <div class="card border-0 shadow-sm text-center py-3 kpi-card kpi-danger bg-white h-100">
                                 <div class="fs-3 fw-bold text-danger" id="stat-rejected">—</div>
-                                <small class="text-muted">Rechazados</small>
+                                <small class="text-muted fw-semibold">Rechazados</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card border-0 shadow-sm text-center py-3 kpi-card bg-white h-100" style="border-left-color: #8e24aa !important;">
+                                <div class="fs-3 fw-bold" id="stat-avg-shrinkage" style="color: #8e24aa;">—</div>
+                                <small class="text-muted fw-semibold">Pérdida Promedio CC</small>
                             </div>
                         </div>
                     </div>
@@ -101,19 +107,21 @@ $adminId  = $_SESSION["admin"]->id_admin;
                         <table class="table table-bordered table-striped align-middle" id="historyTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th>ID QC</th>
+                                    <th>ID CC</th>
                                     <th>ID Orden</th>
                                     <th>Producto</th>
                                     <th>Inspector</th>
+                                    <th class="text-end">Envasadas</th>
                                     <th class="text-end">Aprobadas</th>
                                     <th class="text-end">Rechazadas</th>
+                                    <th class="text-end">% Pérdida</th>
                                     <th>Resultado</th>
                                     <th>Observaciones</th>
                                     <th>Fecha</th>
                                 </tr>
                             </thead>
                             <tbody id="historyTbody">
-                                <tr><td colspan="9" class="text-center text-muted py-4">Cargando historial...</td></tr>
+                                <tr><td colspan="11" class="text-center text-muted py-4">Cargando historial...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -127,8 +135,8 @@ $adminId  = $_SESSION["admin"]->id_admin;
 <!-- ===== MODAL DE EVALUACION DE CALIDAD ===== -->
 <div class="modal fade" id="modalQC" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header text-white" style="background:#6f42c1">
+    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+      <div class="modal-header text-white backColor" style="border-radius: 1rem 1rem 0 0;">
         <h5 class="modal-title"><i class="fas fa-check-double me-2"></i>Control de Calidad — Lote <span id="qc_order_id"></span></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
@@ -142,7 +150,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
                     <strong>Receta:</strong> <span id="qc_recipe_name"></span>
                 </div>
                 <div class="col-md-6">
-                    <strong>Cantidad total producida:</strong> <span id="qc_total_qty"></span> <span id="qc_unit"></span><br>
+                    <strong>Cantidad total envasada:</strong> <span id="qc_total_qty"></span> <span id="qc_unit"></span><br>
                     <strong>Fecha envasado:</strong> <span id="qc_date"></span>
                 </div>
             </div>
@@ -150,7 +158,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
 
         <!-- Resultado -->
         <div class="mb-3">
-            <label class="form-label fw-semibold">Resultado del Control</label>
+            <label class="form-label fw-semibold text-secondary">Resultado del Control</label>
             <div class="d-flex gap-3 flex-wrap">
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="result_qc" id="res_aprobado" value="aprobado" required>
@@ -172,24 +180,24 @@ $adminId  = $_SESSION["admin"]->id_admin;
             <div class="col-md-6">
                 <label class="form-label fw-semibold text-success">Cantidad Aprobada</label>
                 <div class="input-group">
-                    <input type="number" min="0" step="1" class="form-control" id="qc_qty_approved" oninput="syncQtyFields('approved')">
-                    <span class="input-group-text" id="qc_unit_label_a">und</span>
+                    <input type="number" min="0" step="1" class="form-control rounded-start-3" id="qc_qty_approved" oninput="syncQtyFields('approved')">
+                    <span class="input-group-text rounded-end-3" id="qc_unit_label_a">und</span>
                 </div>
             </div>
             <div class="col-md-6">
                 <label class="form-label fw-semibold text-danger">Cantidad Rechazada (merma)</label>
                 <div class="input-group">
-                    <input type="number" min="0" step="1" class="form-control" id="qc_qty_rejected" oninput="syncQtyFields('rejected')">
-                    <span class="input-group-text" id="qc_unit_label_r">und</span>
+                    <input type="number" min="0" step="1" class="form-control rounded-start-3" id="qc_qty_rejected" oninput="syncQtyFields('rejected')">
+                    <span class="input-group-text rounded-end-3" id="qc_unit_label_r">und</span>
                 </div>
-                <div class="form-text text-danger d-none" id="qty_error">La suma supera la cantidad total producida.</div>
+                <div class="form-text text-danger d-none" id="qty_error">La suma supera la cantidad total envasada.</div>
             </div>
         </div>
 
         <!-- Observaciones -->
         <div class="mb-3">
-            <label class="form-label fw-semibold">Observaciones / Detalle del problema <span class="text-muted fw-normal">(opcional si aprobado)</span></label>
-            <textarea class="form-control" id="qc_notes" rows="4" placeholder="Describa aqui cualquier problema, defecto o nota relevante del lote..."></textarea>
+            <label class="form-label fw-semibold text-secondary">Observaciones / Detalle del problema <span class="text-muted fw-normal">(Obligatorio si hay errores o mermas)</span></label>
+            <textarea class="form-control rounded-3" id="qc_notes" rows="4" placeholder="Describa aqui cualquier problema, defecto o nota relevante del lote..."></textarea>
         </div>
 
         <!-- Hidden fields -->
@@ -199,7 +207,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn text-white" style="background:#6f42c1" onclick="submitQC()">
+        <button type="button" class="btn text-white backColor" onclick="submitQC()">
             <i class="fas fa-check-double me-1"></i>Registrar Control de Calidad
         </button>
       </div>
@@ -210,8 +218,8 @@ $adminId  = $_SESSION["admin"]->id_admin;
 <!-- ===== MODAL DETALLE OBSERVACIONES ===== -->
 <div class="modal fade" id="modalNotes" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title"><i class="fas fa-sticky-note me-2"></i>Observaciones</h5>
+    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+      <div class="modal-header" style="border-radius: 1rem 1rem 0 0;"><h5 class="modal-title"><i class="fas fa-sticky-note me-2 text-warning"></i>Observaciones</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body"><p id="modal_notes_text" class="text-muted"></p></div>
@@ -243,15 +251,16 @@ function loadPending() {
                 data.forEach(function(p) {
                     let d = new Date(p.date_updated_production);
                     let fecha = d.toLocaleDateString('es-BO') + ' ' + d.toLocaleTimeString('es-BO', {hour:'2-digit', minute:'2-digit'});
+                    let qtyPackaged = p.qty_packaged_production ? parseFloat(p.qty_packaged_production) : parseFloat(p.total_qty_production);
                     html += `<tr>
                         <td><strong>#${p.id_production}</strong></td>
                         <td>${p.title_product}</td>
                         <td class="text-muted small">${p.name_recipe}</td>
-                        <td class="text-end fw-bold">${parseFloat(p.total_qty_production).toLocaleString()} <span class="text-muted">${p.unit_product}</span></td>
+                        <td class="text-end fw-bold">${qtyPackaged.toLocaleString()} <span class="text-muted">${p.unit_product}</span></td>
                         <td>${fecha}</td>
                         <td class="text-center">
-                            <button class="btn btn-sm text-white" style="background:#6f42c1"
-                                onclick="openQCModal(${p.id_production}, '${escapeJs(p.title_product)}', '${escapeJs(p.name_recipe)}', ${p.total_qty_production}, '${p.unit_product}', '${p.date_updated_production}')">
+                            <button class="btn btn-sm text-white backColor px-3"
+                                onclick="openQCModal(${p.id_production}, '${escapeJs(p.title_product)}', '${escapeJs(p.name_recipe)}', ${qtyPackaged}, '${p.unit_product}', '${p.date_updated_production}')">
                                 <i class="fas fa-clipboard-check me-1"></i>Evaluar
                             </button>
                         </td>
@@ -333,8 +342,8 @@ function submitQC() {
     if (approved + rejected > currentQCTotal + 0.01) {
         fncToastr("error", "La suma de cantidades supera el total producido."); return;
     }
-    if (result === 'rechazado' && !notes) {
-        fncToastr("warning", "Describí el problema en el campo de observaciones."); return;
+    if ((result === 'rechazado' || rejected > 0 || result === 'aprobado_con_obs') && !notes) {
+        fncToastr("warning", "Debes describir el problema en el campo de observaciones cuando hay errores o mermas."); return;
     }
 
     let resultLabel = result === 'aprobado' ? 'Aprobado' : (result === 'rechazado' ? 'Rechazado' : 'Aprobado con observaciones');
@@ -387,7 +396,7 @@ function submitQC() {
 // CARGAR HISTORIAL
 // ========================
 function loadHistory() {
-    $('#historyTbody').html('<tr><td colspan="9" class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm"></div> Cargando...</td></tr>');
+    $('#historyTbody').html('<tr><td colspan="11" class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm"></div> Cargando...</td></tr>');
     $.post("/ajax/pos.ajax.php", { getQCHistory: "ok", id_office: officeId }, function(res) {
         try {
             let data = JSON.parse(res);
@@ -399,14 +408,27 @@ function loadHistory() {
             let aprobados = data.filter(d => d.result_qc === 'aprobado').length;
             let obs = data.filter(d => d.result_qc === 'aprobado_con_obs').length;
             let rechazados = data.filter(d => d.result_qc === 'rechazado').length;
+            
+            // Calculate average QC loss percentage
+            let totalPackaged = 0;
+            let totalRejected = 0;
+            data.forEach(d => {
+                let pkg = parseFloat(d.qty_packaged_production) || parseFloat(d.total_qty_production) || 0;
+                let rej = parseFloat(d.qty_rejected_qc) || 0;
+                totalPackaged += pkg;
+                totalRejected += rej;
+            });
+            let avgShrinkage = totalPackaged > 0 ? ((totalRejected / totalPackaged) * 100).toFixed(1) : 0;
+
             $('#stat-total').text(total);
             $('#stat-approved').text(aprobados);
             $('#stat-obs').text(obs);
             $('#stat-rejected').text(rechazados);
+            $('#stat-avg-shrinkage').text(avgShrinkage + '%');
 
             let html = '';
             if (data.length === 0) {
-                html = '<tr><td colspan="9" class="text-center text-muted py-4">No hay registros de control de calidad aun.</td></tr>';
+                html = '<tr><td colspan="11" class="text-center text-muted py-4">No hay registros de control de calidad aun.</td></tr>';
             } else {
                 data.forEach(function(qc) {
                     let badge = '';
@@ -418,13 +440,20 @@ function loadHistory() {
                         ? `<button class="btn btn-link btn-sm p-0" onclick="showNotes('${escapeJs(qc.notes_qc)}')"><i class="fas fa-eye"></i> Ver</button>`
                         : '<span class="text-muted">—</span>';
 
+                    let qtyPackaged = parseFloat(qc.qty_packaged_production) || parseFloat(qc.total_qty_production) || 0;
+                    let qtyApproved = parseFloat(qc.qty_approved_qc) || 0;
+                    let qtyRejected = parseFloat(qc.qty_rejected_qc) || 0;
+                    let lossPct = qtyPackaged > 0 ? ((qtyRejected / qtyPackaged) * 100).toFixed(1) : 0;
+
                     html += `<tr>
                         <td>#${qc.id_qc}</td>
                         <td>#${qc.id_production_qc}</td>
                         <td>${qc.title_product}</td>
                         <td>${qc.inspector_name || '—'}</td>
-                        <td class="text-end text-success fw-bold">${parseFloat(qc.qty_approved_qc).toLocaleString()} <small>${qc.unit_product}</small></td>
-                        <td class="text-end text-danger">${parseFloat(qc.qty_rejected_qc).toLocaleString()} <small>${qc.unit_product}</small></td>
+                        <td class="text-end fw-semibold text-secondary">${qtyPackaged.toLocaleString()} <small>${qc.unit_product}</small></td>
+                        <td class="text-end text-success fw-bold">${qtyApproved.toLocaleString()} <small>${qc.unit_product}</small></td>
+                        <td class="text-end text-danger">${qtyRejected.toLocaleString()} <small>${qc.unit_product}</small></td>
+                        <td class="text-end text-danger fw-semibold">${lossPct}%</td>
                         <td>${badge}</td>
                         <td>${notesHtml}</td>
                         <td>${qc.date_created_qc}</td>
@@ -433,7 +462,7 @@ function loadHistory() {
             }
             $('#historyTbody').html(html);
         } catch(e) {
-            $('#historyTbody').html('<tr><td colspan="9" class="text-center text-danger">Error al cargar historial.</td></tr>');
+            $('#historyTbody').html('<tr><td colspan="11" class="text-center text-danger">Error al cargar historial.</td></tr>');
         }
     });
 }
