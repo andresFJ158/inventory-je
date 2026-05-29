@@ -65,13 +65,21 @@ if(!empty($order)){
 
 					$original_price = $value->subtotal_sale;
 
-					$urlPurch = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,may_product,wholesale_quantity";
+					$urlPurch = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$value->id_product.",".$id_office."&select=cost_purchase,may_product,wholesale_quantity&orderBy=date_created_purchase&orderMode=DESC";
 					$reqPurch = CurlController::request($urlPurch, "GET", array());
 					$basePrice = 0; $wholesalePrice = 0; $wholesaleQty = 0;
 					if(isset($reqPurch->status) && $reqPurch->status == 200 && !empty($reqPurch->results)){
 						$basePrice = $reqPurch->results[0]->cost_purchase;
 						$wholesalePrice = $reqPurch->results[0]->may_product;
 						$wholesaleQty = $reqPurch->results[0]->wholesale_quantity;
+					} else {
+						$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,may_product,wholesale_quantity&orderBy=date_created_purchase&orderMode=DESC";
+						$reqPurch = CurlController::request($urlFallback, "GET", array());
+						if(isset($reqPurch->status) && $reqPurch->status == 200 && !empty($reqPurch->results)){
+							$basePrice = $reqPurch->results[0]->cost_purchase;
+							$wholesalePrice = $reqPurch->results[0]->may_product;
+							$wholesaleQty = $reqPurch->results[0]->wholesale_quantity;
+						}
 					}
 
 					// Calcular el stock del sub-almacén o almacén general

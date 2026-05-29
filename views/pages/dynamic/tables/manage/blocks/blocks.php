@@ -37,7 +37,7 @@ if ($isAutoAdminField):
 	
 	// Fallback a los roles quemados en caso de que la tabla 'roles' no exista
 	if (empty($allRoles)) {
-		$allRoles = array("superadmin", "admin", "editor", "despachador", "lab_admin", "lab_worker");
+		$allRoles = array("superadmin", "admin", "cajero", "despachador", "lab_admin", "lab_worker");
 	}
 ?>
 <div class="card rounded border-0 shadow mb-3 pb-3">
@@ -76,6 +76,7 @@ if ($isAutoAdminField):
 
 		<script>
 		function selectRole(span) {
+			var role = span.getAttribute("data-role");
 			var allBadges = document.querySelectorAll('.role-badge');
 			allBadges.forEach(function(b) {
 				b.className = "badge rounded-pill px-3 py-2 role-badge bg-light text-dark border";
@@ -91,14 +92,65 @@ if ($isAutoAdminField):
 			span.childNodes.forEach(function(n){ if(n.nodeType === 3) activeTextNode += n.textContent.trim(); });
 			span.innerHTML = '<i class="bi bi-check-circle-fill me-1"><\/i>' + activeTextNode;
 
-			document.getElementById("rol_admin").value = span.getAttribute("data-role");
+			document.getElementById("rol_admin").value = role;
+			toggleRoleFields(role);
+
+			if (role === "cajero" || role === "despachador") {
+				var targetModules = [];
+				if (role === "cajero") {
+					targetModules = ["pos", "caja", "clientes", "productos", "ordenes", "ventas", "gastos", "reports", "solicitar_inventario", "mi_inventario"];
+				} else if (role === "despachador") {
+					targetModules = ["proveedores", "productos", "compras", "almacen", "despachos"];
+				}
+				
+				var permitsInput = document.getElementById("permissions_admin");
+				if (permitsInput) {
+					var currentObj = {};
+					targetModules.forEach(function(mod) {
+						currentObj[mod] = "on";
+					});
+					permitsInput.value = JSON.stringify(currentObj);
+
+					var permitBadges = document.querySelectorAll('.permit-badge');
+					permitBadges.forEach(function(pBadge) {
+						var m = pBadge.getAttribute("data-module");
+						var alias = pBadge.getAttribute("data-alias");
+						if (targetModules.indexOf(m) !== -1) {
+							pBadge.className = "badge rounded-pill px-3 py-2 permit-badge bg-success text-white";
+							pBadge.innerHTML = '<i class="bi bi-check-circle-fill me-1"><\/i>' + alias;
+						} else {
+							pBadge.className = "badge rounded-pill px-3 py-2 permit-badge bg-light text-dark border";
+							pBadge.innerHTML = '<i class="bi bi-circle me-1"><\/i>' + alias;
+						}
+					});
+				}
+			}
 		}
+
+		function toggleRoleFields(role) {
+			var sucursalCard = document.querySelector(".col-card-id_office_admin");
+			var almacenCard = document.querySelector(".col-card-id_warehouse_admin");
+			if (role === "despachador") {
+				if (sucursalCard) sucursalCard.style.display = "none";
+				if (almacenCard) almacenCard.style.display = "block";
+			} else {
+				if (sucursalCard) sucursalCard.style.display = "block";
+				if (almacenCard) almacenCard.style.display = "none";
+			}
+		}
+
+		window.addEventListener('load', function() {
+			var rolInput = document.getElementById("rol_admin");
+			if (rolInput) {
+				toggleRoleFields(rolInput.value);
+			}
+		});
 		</script>
 	</div>
 </div>
 
 <?php else: ?>
-<div class="card rounded border-0 shadow mb-3 pb-3">
+<div class="card rounded border-0 shadow mb-3 pb-3 col-card-<?php echo $module->columns[$i]->title_column ?>">
 	
 	<div class="card-body">
 

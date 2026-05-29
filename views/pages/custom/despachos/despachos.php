@@ -2,6 +2,26 @@
 $id_office = $_SESSION["admin"]->id_office_admin;
 $id_admin = $_SESSION["admin"]->id_admin;
 $role = $_SESSION["admin"]->rol_admin;
+
+if ($role == 'despachador' && isset($_SESSION["admin"]->id_warehouse_admin) && $_SESSION["admin"]->id_warehouse_admin > 0) {
+    try {
+        $host = getenv("DB_HOST") ?: "127.0.0.1";
+        $dbName = getenv("DB_NAME") ?: "u228744577_pos";
+        $user = getenv("DB_USER") ?: "root";
+        $pass = getenv("DB_PASS") ?: "";
+        $port = getenv("DB_PORT") ?: "3306";
+        $db = new PDO("mysql:host=$host;port=$port;dbname=$dbName", $user, $pass);
+        $db->exec("set names utf8");
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $stmtWh = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh LIMIT 1");
+        $stmtWh->execute([':wh' => $_SESSION["admin"]->id_warehouse_admin]);
+        $whOffice = $stmtWh->fetchColumn();
+        if ($whOffice) {
+            $id_office = (int)$whOffice;
+        }
+    } catch(Exception $e) {}
+}
 ?>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">

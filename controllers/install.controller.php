@@ -324,7 +324,7 @@ class InstallController{
 							"title_column" =>  "rol_admin",
 							"alias_column" => "rol",
 							"type_column" =>  "select",
-							"matrix_column"  => "superadmin,admin,editor",
+							"matrix_column"  => "superadmin,admin,cajero",
 							"visible_column" => 1,
 							"date_created_column" => date("Y-m-d")
 						],

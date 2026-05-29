@@ -156,9 +156,14 @@ $fields = array();
 
 							<?php 
 
-							$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
+							$url = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$value->id_product.",".$id_office."&select=cost_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
 
 							$price = CurlController::request($url,$method,$fields);
+
+							if($price->status != 200){
+								$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
+								$price = CurlController::request($urlFallback,$method,$fields);
+							}
 
 							if($price->status == 200){
 

@@ -17,7 +17,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Simulate session for Santiago
 $adminObj = new stdClass();
-$adminObj->rol_admin = "editor";
+$adminObj->rol_admin = "cajero";
 $adminObj->id_admin = 22;
 $adminObj->id_office_admin = 7;
 $_SESSION["admin"] = $adminObj;
@@ -28,7 +28,7 @@ $pos->startAt = 0;
 $pos->category = "all";
 $pos->search = "";
 $pos->idOffice = 7;
-$_POST["sellerRole"] = "editor";
+$_POST["sellerRole"] = "cajero";
 $_POST["sellerId"] = 22;
 $_POST["isWholesale"] = 0;
 

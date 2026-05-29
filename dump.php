@@ -2,7 +2,7 @@
 session_start();
 $_SESSION['admin'] = new stdClass();
 $_SESSION['admin']->id_admin = 21;
-$_SESSION['admin']->rol_admin = 'editor';
+$_SESSION['admin']->rol_admin = 'cajero';
 $_SESSION['admin']->id_office_admin = 7;
 $_SERVER['REQUEST_URI'] = '/pos';
 ob_start();

@@ -33,34 +33,8 @@ $limit = 10;
 $totalPages = 0;
 $totalData = 0;
 
-if ($module->title_module == "products" && $_SESSION["admin"]->id_office_admin > 0) {
-	require_once "controllers/install.controller.php";
-	$db = InstallController::connect();
-	$role = $_SESSION["admin"]->rol_admin;
-	$id_admin = $_SESSION["admin"]->id_admin;
-	$id_office = $_SESSION["admin"]->id_office_admin;
-	
-	if ($role == "superadmin" || $role == "admin" || $role == "despachador") {
-		$stmtP = $db->prepare("SELECT id_product_inventory FROM product_inventory WHERE id_office_inventory = :office AND status_inventory = 1");
-		$stmtP->execute([':office' => $id_office]);
-		$productIds = $stmtP->fetchAll(PDO::FETCH_COLUMN) ?: [];
-	} else {
-		$stmtP = $db->prepare("
-			SELECT DISTINCT wa.id_product_assignment 
-			FROM warehouse_assignments wa
-			JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-			WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
-		");
-		$stmtP->execute([':admin' => $id_admin, ':office' => $id_office]);
-		$productIds = $stmtP->fetchAll(PDO::FETCH_COLUMN) ?: [];
-	}
-	
-	if (empty($productIds)) {
-		$url = "products?linkTo=id_product&equalTo=0&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$limit;
-	} else {
-		$inIds = implode("_", $productIds);
-		$url = "products?linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&filterTo=id_product&inTo=".$inIds."&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$limit;
-	}
+if ($module->title_module == "products") {
+	$url = "products?linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$limit;
 } else {
 	if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 
@@ -86,13 +60,8 @@ if($table->status == 200){
 	Traemos contenido total de la tabla
 	=============================================*/
 
-	if ($module->title_module == "products" && $_SESSION["admin"]->id_office_admin > 0) {
-		if (empty($productIds)) {
-			$url = "products?select=id_product&linkTo=id_product&equalTo=0";
-		} else {
-			$inIds = implode("_", $productIds);
-			$url = "products?select=id_product&linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&filterTo=id_product&inTo=".$inIds;
-		}
+	if ($module->title_module == "products") {
+		$url = "products?select=id_product&linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01";
 	} else {
 		if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 
@@ -171,7 +140,13 @@ Cargamos el módulo tabla
 				
 				<div class="mb-3">
 
-					<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
+					<?php 
+					$_canEditModule = ($_SESSION["admin"]->rol_admin == "superadmin" || $_SESSION["admin"]->rol_admin == "admin" || $module->editable_module == 1);
+					$_isProductsModule = ($module->title_module == "products");
+					$_canManageProducts = ($_SESSION["admin"]->rol_admin == "superadmin" || $_SESSION["admin"]->rol_admin == "admin");
+					$_showActions = (!$_isProductsModule && ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1)) || ($_isProductsModule && $_canManageProducts);
+					?>
+					<?php if ($_showActions): ?>
 
 						<a href="/<?php echo $module->url_page ?>/manage" class="btn btn-default btn-sm rounded backColor px-3 py-2">Agregar registro
 						</a>
@@ -207,7 +182,7 @@ Cargamos el módulo tabla
 
 						</li>
 
-						<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
+						<?php if ($_showActions): ?>
 
 						<li class="nav-item p-0">
 
@@ -368,7 +343,7 @@ Cargamos el módulo tabla
 
 	        				<th class="position-relative"># <i class="bi bi-arrow-down-short position-absolute orderFilter" orderBy="id_<?php echo $module->suffix_module ?>" orderMode="ASC" style="cursor: pointer;"></i></th>
 					        
-	        				<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
+	        				<?php if ($_showActions): ?>
 					        <th>Sel.</th>  
 					        <?php endif ?>
 					       
@@ -403,7 +378,7 @@ Cargamos el módulo tabla
 					        	<?php endforeach ?>
 					        <?php endif ?>
 
-					        <?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
+					        <?php if ($_showActions): ?>
 
 					        	<th class="text-center">Acciones</th>
 
@@ -430,7 +405,7 @@ Cargamos el módulo tabla
 
         						<td><?php echo ($key+1) ?></td>
 
-        						<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
+        						<?php if ($_showActions): ?>
         						
         						<td>
 		        					<div class="form-check formCheck">
@@ -615,7 +590,7 @@ Cargamos el módulo tabla
 
 											echo '<a href="/pos?order='.urldecode($value[$item->title_column]).'" style="color:inherit">'.urldecode($value[$item->title_column]).'</a>';
 
-										}else if($item->type_column == "stock"){
+										}else if($item->type_column == "stock" || ($module->title_module == "products" && $item->title_column == "stock_product")){
 
 											$stockVal = $value[$item->title_column];
 											if ($module->title_module == "products" && $item->title_column == "stock_product" && $_SESSION["admin"]->id_office_admin > 0) {
@@ -656,6 +631,10 @@ Cargamos el módulo tabla
 
 											echo '<span class="badge badge-sm badge-default '.$colorStock.' rounded py-1 px-3 mx-1 mt-1 text-uppercase small">'.$stockVal.'</span>';
 
+											if ($module->title_module == "products" && $item->title_column == "stock_product") {
+												echo ' <button type="button" class="btn btn-xs btn-primary rounded px-2 py-0 border-0 ms-1 viewProductStock" idProduct="'.$value["id_product"].'" nameProduct="'.htmlspecialchars(urldecode($value["title_product"]), ENT_QUOTES, 'UTF-8').'" style="font-size: 10px; padding: 2px 5px;"><i class="bi bi-eye"></i> Ver</button>';
+											}
+
 										}else{
 
 											if($value[$item->title_column] != null){
@@ -678,7 +657,7 @@ Cargamos el módulo tabla
 						
 	        					<?php endforeach ?>
 
-	        				<?php if ($_SESSION["admin"]->rol_admin == "superadmin" || $module->editable_module == 1): ?>
+	        				<?php if ($_showActions): ?>
 
 	        					<td class="text-center">
 		        					<?php if ($module->title_module == "cashs"): ?>
@@ -789,5 +768,37 @@ Cargamos el módulo tabla
   }
 
 ?>
+
+<?php if ($module->title_module == "products"): ?>
+<!-- Modal para ver stock por sucursales -->
+<div class="modal fade" id="modalProductStock" tabindex="-1" aria-labelledby="modalProductStockLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow border-0 rounded">
+      <div class="modal-header bg-primary text-white py-2">
+        <h6 class="modal-title" id="modalProductStockLabel"><i class="bi bi-shop me-1"></i> Stock por Sucursales - <span id="modalStockProductName" class="font-weight-bold"></span></h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-3 py-2 text-muted small">Sucursal/Oficina</th>
+                <th class="text-center py-2 text-muted small">Stock Disponible</th>
+              </tr>
+            </thead>
+            <tbody id="modalProductStockBody" class="small">
+              <!-- Se cargará vía AJAX -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer py-1">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif ?>
 
 <?php endif ?>

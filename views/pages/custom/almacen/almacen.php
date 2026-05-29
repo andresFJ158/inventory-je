@@ -1,7 +1,6 @@
 <?php
 $id_office = $_SESSION["admin"]->id_office_admin;
 
-// Fetch products for this office via product_inventory JOIN products
 try {
     $host = getenv("DB_HOST") ?: "127.0.0.1";
     $dbName = getenv("DB_NAME") ?: "u228744577_pos";
@@ -11,6 +10,16 @@ try {
     $db = new PDO("mysql:host=$host;port=$port;dbname=$dbName", $user, $pass);
     $db->exec("set names utf8");
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // If despachador has an assigned warehouse, use its synced id_office_warehouse
+    if ($_SESSION["admin"]->rol_admin == 'despachador' && isset($_SESSION["admin"]->id_warehouse_admin) && $_SESSION["admin"]->id_warehouse_admin > 0) {
+        $stmtWh = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh LIMIT 1");
+        $stmtWh->execute([':wh' => $_SESSION["admin"]->id_warehouse_admin]);
+        $whOffice = $stmtWh->fetchColumn();
+        if ($whOffice) {
+            $id_office = (int)$whOffice;
+        }
+    }
 
     $stmt = $db->prepare("
         SELECT p.*, pi.stock_inventory as stock_product
@@ -25,12 +34,21 @@ try {
     $products = array();
 }
 
-// Fetch admins for this office (for sub-warehouse assignment)
-$url = "admins?linkTo=id_office_admin&equalTo=".$id_office;
+// Fetch all admins (for sub-warehouse assignment across all offices)
+$urlAdmins = "admins";
 $method = "GET";
 $fields = array();
-$adminsRes = CurlController::request($url, $method, $fields);
+$adminsRes = CurlController::request($urlAdmins, $method, $fields);
 $admins = ($adminsRes->status == 200) ? $adminsRes->results : array();
+
+// Fetch all offices for mapping office names
+$urlOffices = "offices";
+$officesRes = CurlController::request($urlOffices, "GET", array());
+$officesList = ($officesRes->status == 200) ? $officesRes->results : array();
+$officesMap = array();
+foreach($officesList as $off) {
+    $officesMap[$off->id_office] = urldecode($off->title_office);
+}
 ?>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
@@ -192,7 +210,8 @@ $admins = ($adminsRes->status == 200) ? $adminsRes->results : array();
                         <option value="">-- Seleccionar usuario --</option>
                         <?php foreach($admins as $adm): ?>
                             <?php if($adm->rol_admin != 'superadmin'): ?>
-                            <option value="<?php echo $adm->id_admin ?>"><?php echo urldecode($adm->name_admin) ?> (<?php echo $adm->rol_admin ?>)</option>
+                            <?php $officeName = isset($officesMap[$adm->id_office_admin]) ? $officesMap[$adm->id_office_admin] : "Sin Sucursal"; ?>
+                            <option value="<?php echo $adm->id_admin ?>"><?php echo urldecode($adm->name_admin) ?> (<?php echo $adm->rol_admin ?> - <?php echo htmlspecialchars($officeName, ENT_QUOTES, 'UTF-8') ?>)</option>
                             <?php endif; ?>
                         <?php endforeach; ?>
                     </select>
@@ -347,9 +366,10 @@ function loadSubWarehouses(){
             }
             var html = '';
             data.forEach(function(sw){
+                var officeName = sw.title_office ? decodeURIComponent(sw.title_office) : 'Sin Sucursal';
                 html += '<div class="card mb-3 border shadow-sm">';
                 html += '<div class="card-header d-flex justify-content-between align-items-center">';
-                html += '<strong><i class="fas fa-user"></i> ' + sw.name_admin + '</strong>';
+                html += '<strong><i class="fas fa-user"></i> ' + sw.name_admin + ' (' + officeName + ')</strong>';
                 html += '<span class="badge bg-success">' + sw.name_sub_warehouse + '</span>';
                 html += '</div>';
                 html += '<div class="card-body p-0">';
@@ -380,17 +400,19 @@ function loadMovements(){
                 $('#movementsList').html('<div class="text-center py-4 text-muted">No hay movimientos registrados</div>');
                 return;
             }
-            var html = '<table class="table table-sm table-striped"><thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Destino</th><th>Despachador</th><th>Notas</th></tr></thead><tbody>';
+            var html = '<table class="table table-sm table-striped"><thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Destino</th><th>Sucursal</th><th>Despachador</th><th>Notas</th></tr></thead><tbody>';
             data.forEach(function(m){
                 var typeBadge = m.type_assignment == 'despacho' ? '<span class="badge bg-primary">Despacho</span>' : 
                                m.type_assignment == 'devolucion' ? '<span class="badge bg-warning text-dark">Devolución</span>' : 
                                '<span class="badge bg-danger">Venta</span>';
+                var destOffice = m.office_name ? decodeURIComponent(m.office_name) : '-';
                 html += '<tr>';
                 html += '<td>' + m.date_created_assignment + '</td>';
                 html += '<td>' + typeBadge + '</td>';
                 html += '<td>' + m.title_product + '</td>';
                 html += '<td>' + m.qty_assignment + '</td>';
                 html += '<td>' + m.name_admin + '</td>';
+                html += '<td>' + destOffice + '</td>';
                 html += '<td>' + m.dispatcher_name + '</td>';
                 html += '<td>' + (m.notes_assignment || '-') + '</td>';
                 html += '</tr>';

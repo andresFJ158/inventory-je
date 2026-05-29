@@ -2,7 +2,7 @@
 session_start();
 $_SESSION['admin'] = new stdClass();
 $_SESSION['admin']->id_admin = 21; // Santiago Rivero
-$_SESSION['admin']->rol_admin = 'editor';
+$_SESSION['admin']->rol_admin = 'cajero';
 $_SESSION['admin']->id_office_admin = 7; // Ventura Mall
 
 $_POST['idOffice'] = 7;

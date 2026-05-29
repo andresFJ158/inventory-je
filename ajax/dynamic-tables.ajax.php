@@ -179,9 +179,26 @@ class DynamicTablesController{
 
     public function deleteItems(){
 
+    	/*=============================================
+		Verificar permisos: solo admin/superadmin pueden eliminar productos
+		=============================================*/
+		if($this->tableDelete == "products"){
+			$rolAdmin = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+			if($rolAdmin !== "superadmin" && $rolAdmin !== "admin"){
+				echo json_encode(array(
+					"status" => "error",
+					"errors" => array("No tiene permisos para eliminar productos. Solo administradores pueden realizar esta acción."),
+					"deleted" => 0,
+					"total" => 0
+				));
+				return;
+			}
+		}
+
     	$idItems = explode(",",$this->idItemDelete);
     	$countDelete = 0;
     	$errors = array();
+
 
     	foreach ($idItems as $key => $value) {
     		
@@ -280,27 +297,7 @@ class DynamicTablesController{
 			return;
 		}
 
-		$productIds = [];
-		if ($module->title_module == "products" && $this->idOffice > 0) {
-			$db = InstallController::connect();
-			$role = $_SESSION["admin"]->rol_admin;
-			$id_admin = $_SESSION["admin"]->id_admin;
-			
-			if ($role == "superadmin" || $role == "admin" || $role == "despachador") {
-				$stmtP = $db->prepare("SELECT id_product_inventory FROM product_inventory WHERE id_office_inventory = :office AND status_inventory = 1");
-				$stmtP->execute([':office' => $this->idOffice]);
-				$productIds = $stmtP->fetchAll(PDO::FETCH_COLUMN) ?: [];
-			} else {
-				$stmtP = $db->prepare("
-					SELECT DISTINCT wa.id_product_assignment 
-					FROM warehouse_assignments wa
-					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-					WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
-				");
-				$stmtP->execute([':admin' => $id_admin, ':office' => $this->idOffice]);
-				$productIds = $stmtP->fetchAll(PDO::FETCH_COLUMN) ?: [];
-			}
-		}
+
 
 		$startAt = ($this->page-1)*$this->limit;
 		$table = array(); 
@@ -398,13 +395,8 @@ class DynamicTablesController{
 
 				}else{
 
-					if ($module->title_module == "products" && $this->idOffice > 0) {
-						if (empty($productIds)) {
-							$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&filterTo=id_product&inTo=0&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
-						} else {
-							$inIds = implode("_", $productIds);
-							$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&filterTo=id_product&inTo=".$inIds."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
-						}
+					if ($module->title_module == "products") {
+						$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
 					} else {
 						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 							$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
@@ -430,13 +422,8 @@ class DynamicTablesController{
 							$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&filterTo=".$value.",id_office_".$module->suffix_module."&inTo=".$inIds.",".$this->idOffice."&select=id_".$module->suffix_module;
 						}
 					}else{
-						if ($module->title_module == "products" && $this->idOffice > 0) {
-							if (empty($productIds)) {
-								$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&filterTo=id_product&inTo=0&select=id_product";
-							} else {
-								$inIds = implode("_", $productIds);
-								$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&filterTo=id_product&inTo=".$inIds."&select=id_product";
-							}
+						if ($module->title_module == "products") {
+							$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&select=id_product";
 						} else {
 							if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 								$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&select=id_".$module->suffix_module;
@@ -461,13 +448,8 @@ class DynamicTablesController{
 			
 		}else{
 
-			if ($module->title_module == "products" && $this->idOffice > 0) {
-				if (empty($productIds)) {
-					$url = "products?linkTo=id_product&equalTo=0&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
-				} else {
-					$inIds = implode("_", $productIds);
-					$url = "products?linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&filterTo=id_product&inTo=".$inIds."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
-				}
+			if ($module->title_module == "products") {
+				$url = "products?linkTo=date_created_product&between1=".$this->between1."&between2=".$this->between2."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;	
 			} else {
 				if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 					$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;	
@@ -490,13 +472,8 @@ class DynamicTablesController{
 				=============================================*/
 
 
-				if ($module->title_module == "products" && $this->idOffice > 0) {
-					if (empty($productIds)) {
-						$url = "products?select=id_product&linkTo=id_product&equalTo=0";
-					} else {
-						$inIds = implode("_", $productIds);
-						$url = "products?select=id_product&linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&filterTo=id_product&inTo=".$inIds;
-					}
+				if ($module->title_module == "products") {
+					$url = "products?select=id_product&linkTo=date_created_product&between1=".$this->between1."&between2=".$this->between2;
 				} else {
 					if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
 						$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&select=id_".$module->suffix_module;
@@ -530,7 +507,10 @@ class DynamicTablesController{
 				$HTMLTable .= '<tr>
 						<td>'.($key+1+$startAt).'</td>';
 
-						if ($this->rolAdmin == "superadmin" || $module->editable_module == 1){
+						$_ajaxShowActions = ($this->rolAdmin == "superadmin" || $module->editable_module == 1)
+							|| ($module->title_module == "products" && ($this->rolAdmin == "superadmin" || $this->rolAdmin == "admin"));
+
+						if ($_ajaxShowActions){
 
 							$HTMLTable .= '<td>
 		    					<div class="form-check formCheck">
@@ -722,7 +702,7 @@ class DynamicTablesController{
 
 									$HTMLTable .= '<a href="/pos?order='.urldecode($value[$item->title_column]).'" style="color:inherit">'.urldecode($value[$item->title_column]).'</a>';
 
-								}else if($item->type_column == "stock"){
+								}else if($item->type_column == "stock" || ($module->title_module == "products" && $item->title_column == "stock_product")){
 
 									$stockVal = $value[$item->title_column];
 									if ($module->title_module == "products" && $item->title_column == "stock_product" && $this->idOffice > 0) {
@@ -763,6 +743,10 @@ class DynamicTablesController{
 
 									$HTMLTable .= '<span class="badge badge-sm badge-default '.$colorStock.' rounded py-1 px-3 mx-1 mt-1 text-uppercase small">'.$stockVal.'</span>';
 
+									if ($module->title_module == "products" && $item->title_column == "stock_product") {
+										$HTMLTable .= ' <button type="button" class="btn btn-xs btn-primary rounded px-2 py-0 border-0 ms-1 viewProductStock" idProduct="'.$value["id_product"].'" nameProduct="'.htmlspecialchars(urldecode($value["title_product"]), ENT_QUOTES, 'UTF-8').'" style="font-size: 10px; padding: 2px 5px;"><i class="bi bi-eye"></i> Ver</button>';
+									}
+
 								}else{
 
 	        						$HTMLTable .= TemplateController::reduceText(urldecode($value[$item->title_column]),25); 
@@ -775,7 +759,7 @@ class DynamicTablesController{
 			
 						}
 
-				 		if ($this->rolAdmin == "superadmin" || $module->editable_module == 1){
+				 		if ($_ajaxShowActions){
 
 							$HTMLTable .= '<td class="text-center">';
 							if ($module->title_module == "cashs" && (int)$value["status_cash"] === 1) {
@@ -1188,4 +1172,28 @@ if(isset($_POST["tableOrder"])){
     $ajax -> token = $_POST["token"];  
     $ajax -> changeOrderItems();
 
+}
+
+/*=============================================
+Obtener stock por sucursales
+=============================================*/
+if(isset($_POST["getProductStockBranches"])){
+	$db = InstallController::connect();
+	$idProduct = (int)$_POST["getProductStockBranches"];
+
+	$stmt = $db->prepare("
+		SELECT o.title_office as name_office, COALESCE(pi.stock_inventory, 0) as stock
+		FROM offices o
+		LEFT JOIN product_inventory pi ON pi.id_office_inventory = o.id_office AND pi.id_product_inventory = :product
+		ORDER BY o.title_office ASC
+	");
+	$stmt->execute([':product' => $idProduct]);
+	$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+	foreach ($results as $key => $val) {
+		$results[$key]['name_office'] = urldecode($val['name_office']);
+	}
+
+	echo json_encode($results);
+	exit;
 }

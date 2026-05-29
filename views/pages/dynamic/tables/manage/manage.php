@@ -1,11 +1,26 @@
 <?php 
 
 /*=============================================
+Verificar permisos para módulo de productos
+=============================================*/
+
+if(isset($module->title_module) && $module->title_module == "products"){
+	$_manageRol = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+	if($_manageRol !== "superadmin" && $_manageRol !== "admin"){
+		echo '<script>
+			fncSweetAlert("error","No tiene permisos para agregar o editar productos. Solo administradores pueden realizar esta acción.", setTimeout(()=>window.location="/'.$module->url_page.'",2000));
+		</script>';
+		return;
+	}
+}
+
+/*=============================================
 Capturar datos para editar
 =============================================*/
 $data = null;
 
 if(!empty($routesArray[2])){
+
 	
 
 	$url = $module->title_module."?linkTo=id_".$module->suffix_module."&equalTo=".base64_decode($routesArray[2]);

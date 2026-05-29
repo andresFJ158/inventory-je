@@ -10,6 +10,22 @@ class DynamicController{
 
 		if(isset($_POST["module"])){
 
+			/*=============================================
+			Verificar permisos: solo admin/superadmin pueden gestionar productos
+			=============================================*/
+			$_moduleCheck = isset($_POST["module"]) ? json_decode($_POST["module"]) : null;
+			if(isset($_moduleCheck->title_module) && $_moduleCheck->title_module == "products"){
+				$rolCheck = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
+				if($rolCheck !== "superadmin" && $rolCheck !== "admin"){
+					echo '<script>
+						fncMatPreloader("off");
+						fncFormatInputs();
+						fncSweetAlert("error","No tiene permisos para agregar o editar productos. Solo administradores pueden realizar esta acción.", "");
+					</script>';
+					return;
+				}
+			}
+
 			echo '<script>
 
 				fncMatPreloader("on");

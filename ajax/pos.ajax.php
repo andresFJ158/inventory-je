@@ -157,9 +157,14 @@ class PosController{
 
 								</div>';
 
-								$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase";
+								$url = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$value->id_product.",".$this->idOffice."&select=cost_purchase&orderBy=date_created_purchase&orderMode=DESC";
 
 								$price = CurlController::request($url,$method,$fields);
+
+								if($price->status != 200){
+									$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase&orderBy=date_created_purchase&orderMode=DESC";
+									$price = CurlController::request($urlFallback,$method,$fields);
+								}
 
 								if($price->status == 200){
 
@@ -404,11 +409,16 @@ class PosController{
 
 	public function addProductPos(){
 
-		$url = "relations?rel=purchases,products&type=purchase,product&linkTo=id_product&equalTo=".$this->idProduct;
+		$url = "relations?rel=purchases,products&type=purchase,product&linkTo=id_product,id_office_purchase&equalTo=".$this->idProduct.",".$this->idOffice."&orderBy=date_created_purchase&orderMode=DESC";
 		$method = "GET";
 		$fields = array();
 
 		$getProduct = CurlController::request($url,$method,$fields);
+
+		if($getProduct->status != 200){
+			$urlFallback = "relations?rel=purchases,products&type=purchase,product&linkTo=id_product&equalTo=".$this->idProduct."&orderBy=date_created_purchase&orderMode=DESC";
+			$getProduct = CurlController::request($urlFallback,$method,$fields);
+		}
 
 		if($getProduct->status == 200){
 
@@ -655,7 +665,7 @@ class PosController{
 
 	public function toggleCartWholesale(){
 
-		$url = "sales?linkTo=id_order_sale&equalTo=".$this->idOrder."&select=id_sale,id_product_sale,qty_sale,discount_sale";
+		$url = "sales?linkTo=id_order_sale&equalTo=".$this->idOrder."&select=id_sale,id_product_sale,qty_sale,discount_sale,id_office_sale";
 		$method = "GET";
 		$fields = array();
 
@@ -665,8 +675,13 @@ class PosController{
 
 			foreach ($getSales->results as $key => $sale) {
 				
-				$urlProduct = "purchases?linkTo=id_product_purchase&equalTo=".$sale->id_product_sale."&select=cost_purchase,may_product";
+				$urlProduct = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$sale->id_product_sale.",".$sale->id_office_sale."&select=cost_purchase,may_product&orderBy=date_created_purchase&orderMode=DESC";
 				$getProduct = CurlController::request($urlProduct,$method,$fields);
+
+				if($getProduct->status != 200){
+					$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$sale->id_product_sale."&select=cost_purchase,may_product&orderBy=date_created_purchase&orderMode=DESC";
+					$getProduct = CurlController::request($urlFallback,$method,$fields);
+				}
 
 				if(isset($getProduct->status) && $getProduct->status == 200){
 					
@@ -1934,8 +1949,8 @@ if (isset($_POST["getAssignedByOffice"])) {
 						WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
 						ELSE 0 END) as total_assigned
 		FROM warehouse_assignments wa
-		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-		WHERE sw.id_office_sub_warehouse = :office
+		LEFT JOIN admins disp_a ON wa.id_dispatched_by = disp_a.id_admin
+		WHERE disp_a.id_office_admin = :office
 		GROUP BY wa.id_product_assignment
 	");
 	$stmt->execute([':office' => $id_office]);
@@ -1951,12 +1966,12 @@ if (isset($_POST["getSubWarehousesDetail"])) {
 	$db = LocalConnection::connect();
 	
 	$stmtSw = $db->prepare("
-		SELECT sw.id_sub_warehouse, sw.name_sub_warehouse, a.name_admin
+		SELECT sw.id_sub_warehouse, sw.name_sub_warehouse, a.name_admin, o.title_office
 		FROM sub_warehouses sw
 		JOIN admins a ON sw.id_admin_sub_warehouse = a.id_admin
-		WHERE sw.id_office_sub_warehouse = :office
+		LEFT JOIN offices o ON sw.id_office_sub_warehouse = o.id_office
 	");
-	$stmtSw->execute([':office' => $id_office]);
+	$stmtSw->execute();
 	$subs = $stmtSw->fetchAll(PDO::FETCH_ASSOC);
 	
 	$results = [];
@@ -1989,13 +2004,15 @@ if (isset($_POST["getWarehouseMovements"])) {
 	$stmt = $db->prepare("
 		SELECT wa.date_created_assignment, wa.type_assignment, p.title_product, wa.qty_assignment, wa.notes_assignment,
 			   dest_a.name_admin as name_admin,
-			   disp_a.name_admin as dispatcher_name
+			   disp_a.name_admin as dispatcher_name,
+			   o.title_office as office_name
 		FROM warehouse_assignments wa
 		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
 		JOIN products p ON wa.id_product_assignment = p.id_product
 		JOIN admins dest_a ON sw.id_admin_sub_warehouse = dest_a.id_admin
 		LEFT JOIN admins disp_a ON wa.id_dispatched_by = disp_a.id_admin
-		WHERE sw.id_office_sub_warehouse = :office
+		LEFT JOIN offices o ON sw.id_office_sub_warehouse = o.id_office
+		WHERE disp_a.id_office_admin = :office OR sw.id_office_sub_warehouse = :office
 		ORDER BY wa.id_assignment DESC
 	");
 	$stmt->execute([':office' => $id_office]);
@@ -2018,18 +2035,22 @@ if (isset($_POST["assignToSubWarehouse"])) {
 	try {
 		$db->beginTransaction();
 		
-		// Find or create sub-warehouse for dest admin
+		// Find destination admin's real office ID
+		$stmtAdmin = $db->prepare("SELECT id_office_admin, name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
+		$stmtAdmin->execute([':admin' => $id_admin_dest]);
+		$adminRow = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+		$dest_office_id = $adminRow ? (int)$adminRow['id_office_admin'] : $id_office;
+		
+		// Find or create sub-warehouse for dest admin using destination office ID
 		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_admin_sub_warehouse = :admin AND id_office_sub_warehouse = :office LIMIT 1");
-		$stmtCheck->execute([':admin' => $id_admin_dest, ':office' => $id_office]);
+		$stmtCheck->execute([':admin' => $id_admin_dest, ':office' => $dest_office_id]);
 		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 		
 		if (!$sub) {
-			$stmtName = $db->prepare("SELECT name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
-			$stmtName->execute([':admin' => $id_admin_dest]);
-			$admName = $stmtName->fetchColumn() ?: "Usuario";
+			$admName = $adminRow ? $adminRow['name_admin'] : "Usuario";
 			$subName = "Sub-Almacén de " . $admName;
 			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (:admin, :office, :name, 1, CURDATE())");
-			$stmtIns->execute([':admin' => $id_admin_dest, ':office' => $id_office, ':name' => $subName]);
+			$stmtIns->execute([':admin' => $id_admin_dest, ':office' => $dest_office_id, ':name' => $subName]);
 			$id_sub = $db->lastInsertId();
 		} else {
 			$id_sub = $sub['id_sub_warehouse'];
@@ -2124,11 +2145,11 @@ if (isset($_POST["getPendingRequests"])) {
 							WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
 							ELSE 0 END) as total_assigned
 			FROM warehouse_assignments wa
-			JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-			WHERE sw.id_office_sub_warehouse = :office
+			LEFT JOIN admins disp_a ON wa.id_dispatched_by = disp_a.id_admin
+			WHERE disp_a.id_office_admin = :office
 			GROUP BY wa.id_product_assignment
 		) sub ON p.id_product = sub.id_product_assignment
-		WHERE ir.id_office_request = :office AND ir.status_request = 'pendiente'
+		WHERE ir.status_request = 'pendiente'
 		ORDER BY ir.id_request DESC
 	");
 	$stmt->execute([':office' => $id_office]);
@@ -2148,10 +2169,10 @@ if (isset($_POST["getRequestHistory"])) {
 		FROM inventory_requests ir
 		JOIN admins a ON ir.id_admin_request = a.id_admin
 		JOIN products p ON ir.id_product_request = p.id_product
-		WHERE ir.id_office_request = :office AND ir.status_request != 'pendiente'
+		WHERE ir.status_request != 'pendiente'
 		ORDER BY ir.id_request DESC
 	");
-	$stmt->execute([':office' => $id_office]);
+	$stmt->execute();
 	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
 	exit;
 }
@@ -2199,7 +2220,7 @@ if (isset($_POST["dispatchRequest"])) {
 		$db->beginTransaction();
 		
 		// Get request details
-		$stmtReq = $db->prepare("SELECT id_admin_request, id_product_request FROM inventory_requests WHERE id_request = :id LIMIT 1");
+		$stmtReq = $db->prepare("SELECT id_admin_request, id_office_request, id_product_request FROM inventory_requests WHERE id_request = :id LIMIT 1");
 		$stmtReq->execute([':id' => $id_request]);
 		$req = $stmtReq->fetch(PDO::FETCH_ASSOC);
 		if (!$req) {
@@ -2209,18 +2230,22 @@ if (isset($_POST["dispatchRequest"])) {
 		$id_admin_dest = $req['id_admin_request'];
 		$id_product = $req['id_product_request'];
 		
-		// Find or create sub-warehouse for dest admin
+		// Find destination admin's real office ID
+		$stmtAdmin = $db->prepare("SELECT id_office_admin, name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
+		$stmtAdmin->execute([':admin' => $id_admin_dest]);
+		$adminRow = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+		$dest_office_id = $adminRow ? (int)$adminRow['id_office_admin'] : $id_office;
+		
+		// Find or create sub-warehouse for dest admin using destination office ID
 		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_admin_sub_warehouse = :admin AND id_office_sub_warehouse = :office LIMIT 1");
-		$stmtCheck->execute([':admin' => $id_admin_dest, ':office' => $id_office]);
+		$stmtCheck->execute([':admin' => $id_admin_dest, ':office' => $dest_office_id]);
 		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 		
 		if (!$sub) {
-			$stmtName = $db->prepare("SELECT name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
-			$stmtName->execute([':admin' => $id_admin_dest]);
-			$admName = $stmtName->fetchColumn() ?: "Usuario";
+			$admName = $adminRow ? $adminRow['name_admin'] : "Usuario";
 			$subName = "Sub-Almacén de " . $admName;
 			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (:admin, :office, :name, 1, CURDATE())");
-			$stmtIns->execute([':admin' => $id_admin_dest, ':office' => $id_office, ':name' => $subName]);
+			$stmtIns->execute([':admin' => $id_admin_dest, ':office' => $dest_office_id, ':name' => $subName]);
 			$id_sub = $db->lastInsertId();
 		} else {
 			$id_sub = $sub['id_sub_warehouse'];

@@ -1071,3 +1071,51 @@ $(document).on("change", ".changeOrder", function () {
 	})
 
 })
+
+/*=============================================
+Ver stock por sucursal
+=============================================*/
+$(document).on("click", ".viewProductStock", function () {
+	var idProduct = $(this).attr("idProduct");
+	var nameProduct = $(this).attr("nameProduct");
+
+	$("#modalStockProductName").text(nameProduct);
+	$("#modalProductStockBody").html('<tr><td colspan="2" class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Cargando...</td></tr>');
+	$("#modalProductStock").modal("show");
+
+	var data = new FormData();
+	data.append("getProductStockBranches", idProduct);
+
+	$.ajax({
+		url: "/ajax/dynamic-tables.ajax.php",
+		method: "POST",
+		data: data,
+		contentType: false,
+		cache: false,
+		processData: false,
+		dataType: "json",
+		success: function (response) {
+			var html = "";
+			if (response && response.length > 0) {
+				response.forEach(function (row) {
+					html += `
+						<tr>
+							<td class="align-middle ps-3 py-2">${row.name_office}</td>
+							<td class="text-center align-middle font-weight-bold py-2">
+								<span class="badge ${row.stock > 0 ? 'bg-success' : 'bg-secondary'} rounded py-1 px-3">
+									${row.stock}
+								</span>
+							</td>
+						</tr>
+					`;
+				});
+			} else {
+				html = '<tr><td colspan="2" class="text-center py-3 text-muted">No se encontró stock en ninguna sucursal.</td></tr>';
+			}
+			$("#modalProductStockBody").html(html);
+		},
+		error: function () {
+			$("#modalProductStockBody").html('<tr><td colspan="2" class="text-center py-3 text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Error al cargar el stock.</td></tr>');
+		}
+	});
+});
