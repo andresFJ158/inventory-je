@@ -9,7 +9,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
         <!-- Breadcrumb -->
         <div class="col-12 mb-3">
             <div class="d-lg-flex justify-content-lg-between mt-2 align-items-center">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-check-double text-success me-2"></i> Control de Calidad</div>
+                <div class="text-capitalize h5 ps-2"><i class="sk sk-shield-check text-success me-2"></i> Control de Calidad</div>
                 <span class="badge fs-6 px-3 py-2 backColor shadow-sm" id="pendingBadgeHeader"></span>
             </div>
         </div>
@@ -19,13 +19,13 @@ $adminId  = $_SESSION["admin"]->id_admin;
             <ul class="nav nav-tabs border-bottom-0" id="qcTabs">
                 <li class="nav-item">
                     <a class="nav-link active fw-bold text-secondary" id="tab-pending-link" data-bs-toggle="tab" href="#tab-pending" style="border-radius: 12px 12px 0 0;">
-                        <i class="fas fa-clock me-1 text-warning"></i> Pendientes
+                        <i class="sk sk-clock me-1 text-warning"></i> Pendientes
                         <span class="badge bg-warning text-dark ms-1" id="pendingCount">0</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link fw-bold text-secondary" id="tab-history-link" data-bs-toggle="tab" href="#tab-history" style="border-radius: 12px 12px 0 0;">
-                        <i class="fas fa-history me-1 text-info"></i> Historial
+                        <i class="sk sk-hourglass-split me-1 text-info"></i> Historial
                     </a>
                 </li>
             </ul>
@@ -67,7 +67,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <button class="btn btn-sm btn-default px-3 rounded" onclick="loadHistory()"><i class="fas fa-sync-alt me-1"></i> Actualizar</button>
+                            <button class="btn btn-sm btn-default px-3 rounded" onclick="loadHistory()"><i class="sk sk-arrow-clockwise me-1"></i> Actualizar</button>
                         </div>
                     </div>
                     <!-- Stats cards -->
@@ -137,7 +137,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
   <div class="modal-dialog modal-lg">
     <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
       <div class="modal-header text-white backColor" style="border-radius: 1rem 1rem 0 0;">
-        <h5 class="modal-title"><i class="fas fa-check-double me-2"></i>Control de Calidad — Lote <span id="qc_order_id"></span></h5>
+        <h5 class="modal-title"><i class="sk sk-shield-check me-2"></i>Control de Calidad — Lote <span id="qc_order_id"></span></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -162,15 +162,15 @@ $adminId  = $_SESSION["admin"]->id_admin;
             <div class="d-flex gap-3 flex-wrap">
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="result_qc" id="res_aprobado" value="aprobado" required>
-                    <label class="form-check-label text-success fw-semibold" for="res_aprobado"><i class="fas fa-check-circle me-1"></i>Aprobado</label>
+                    <label class="form-check-label text-success fw-semibold" for="res_aprobado"><i class="sk sk-shield-check me-1"></i>Aprobado</label>
                 </div>
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="result_qc" id="res_obs" value="aprobado_con_obs">
-                    <label class="form-check-label text-warning fw-semibold" for="res_obs"><i class="fas fa-exclamation-circle me-1"></i>Aprobado con observaciones</label>
+                    <label class="form-check-label text-warning fw-semibold" for="res_obs"><i class="sk sk-warning me-1"></i>Aprobado con observaciones</label>
                 </div>
                 <div class="form-check">
                     <input class="form-check-input" type="radio" name="result_qc" id="res_rechazado" value="rechazado">
-                    <label class="form-check-label text-danger fw-semibold" for="res_rechazado"><i class="fas fa-times-circle me-1"></i>Rechazado</label>
+                    <label class="form-check-label text-danger fw-semibold" for="res_rechazado"><i class="sk sk-ios-close-circle me-1"></i>Rechazado</label>
                 </div>
             </div>
         </div>
@@ -208,7 +208,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn text-white backColor" onclick="submitQC()">
-            <i class="fas fa-check-double me-1"></i>Registrar Control de Calidad
+            <i class="sk sk-shield-check me-1"></i>Registrar Control de Calidad
         </button>
       </div>
     </div>
@@ -219,7 +219,7 @@ $adminId  = $_SESSION["admin"]->id_admin;
 <div class="modal fade" id="modalNotes" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
-      <div class="modal-header" style="border-radius: 1rem 1rem 0 0;"><h5 class="modal-title"><i class="fas fa-sticky-note me-2 text-warning"></i>Observaciones</h5>
+      <div class="modal-header" style="border-radius: 1rem 1rem 0 0;"><h5 class="modal-title"><i class="sk sk-sticky me-2 text-warning"></i>Observaciones</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body"><p id="modal_notes_text" class="text-muted"></p></div>
@@ -246,7 +246,7 @@ function loadPending() {
             $('#pendingBadgeHeader').text(count > 0 ? count + ' lotes pendientes de revisión' : 'Sin lotes pendientes').toggle(count > 0);
 
             if (count === 0) {
-                html = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-check-circle text-success fs-4 d-block mb-2"></i>No hay lotes pendientes de control de calidad.</td></tr>';
+                html = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="sk sk-shield-check text-success fs-4 d-block mb-2"></i>No hay lotes pendientes de control de calidad.</td></tr>';
             } else {
                 data.forEach(function(p) {
                     let d = new Date(p.date_updated_production);
@@ -261,7 +261,7 @@ function loadPending() {
                         <td class="text-center">
                             <button class="btn btn-sm text-white backColor px-3"
                                 onclick="openQCModal(${p.id_production}, '${escapeJs(p.title_product)}', '${escapeJs(p.name_recipe)}', ${qtyPackaged}, '${p.unit_product}', '${p.date_updated_production}')">
-                                <i class="fas fa-clipboard-check me-1"></i>Evaluar
+                                <i class="sk sk-task me-1"></i>Evaluar
                             </button>
                         </td>
                     </tr>`;
@@ -437,7 +437,7 @@ function loadHistory() {
                     else badge = '<span class="badge bg-danger">Rechazado</span>';
 
                     let notesHtml = qc.notes_qc
-                        ? `<button class="btn btn-link btn-sm p-0" onclick="showNotes('${escapeJs(qc.notes_qc)}')"><i class="fas fa-eye"></i> Ver</button>`
+                        ? `<button class="btn btn-link btn-sm p-0" onclick="showNotes('${escapeJs(qc.notes_qc)}')"><i class="sk sk-eye"></i> Ver</button>`
                         : '<span class="text-muted">—</span>';
 
                     let qtyPackaged = parseFloat(qc.qty_packaged_production) || parseFloat(qc.total_qty_production) || 0;

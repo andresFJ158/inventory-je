@@ -72,7 +72,22 @@ if($pages->status == 200){
 						
 					<?php endif ?>
 	
-				 		<i class="<?php echo $value->icon_page ?> textColor"></i> 
+				 		<i class="<?php 
+				 			$icon_class = $value->icon_page;
+				 			$lab_icons = [
+				 				"lab_materiales" => "sk sk-drop",
+				 				"lab_inventario" => "sk sk-box",
+				 				"lab_entradas" => "sk sk-shipping",
+				 				"lab_recetas" => "sk sk-file",
+				 				"lab_produccion" => "sk sk-settings",
+				 				"lab_inventario_final" => "sk sk-bag",
+				 				"lab_calidad" => "sk sk-shield-check"
+				 			];
+				 			if (array_key_exists($value->url_page, $lab_icons)) {
+				 				$icon_class = $lab_icons[$value->url_page];
+				 			}
+				 			echo $icon_class;
+				 		?> textColor"></i> 
 				 		<span class="menu-text"><?php echo $value->title_page ?></span>
 
 				 	</a>

@@ -41,7 +41,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-industry text-success me-2"></i> Producción de Laboratorio</div>
+                <div class="text-capitalize h5 ps-2"><i class="sk sk-settings text-success me-2"></i> Producción de Laboratorio</div>
             </div>
         </div>
 
@@ -56,7 +56,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                                 <h3 class="fw-bold mb-0 text-warning mt-1"><?php echo $cntPendiente; ?></h3>
                             </div>
                             <div class="p-3 rounded-circle text-warning fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(255, 179, 0, 0.1);">
-                                <i class="fas fa-clock"></i>
+                                <i class="sk sk-clock"></i>
                             </div>
                         </div>
                     </div>
@@ -69,7 +69,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                                 <h3 class="fw-bold mb-0 text-info mt-1"><?php echo $cntProceso; ?></h3>
                             </div>
                             <div class="p-3 rounded-circle text-info fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(0, 172, 193, 0.1);">
-                                <i class="fas fa-cog fa-spin"></i>
+                                <i class="sk sk-loop"></i>
                             </div>
                         </div>
                     </div>
@@ -82,7 +82,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                                 <h3 class="fw-bold mb-0 mt-1" style="color: #00897b;"><?php echo $cntQC; ?></h3>
                             </div>
                             <div class="p-3 rounded-circle fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(0, 137, 123, 0.1); color: #00897b;">
-                                <i class="fas fa-shield-alt"></i>
+                                <i class="sk sk-shield-check"></i>
                             </div>
                         </div>
                     </div>
@@ -95,7 +95,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                                 <h3 class="fw-bold mb-0 text-success mt-1"><?php echo $cntCompletado; ?></h3>
                             </div>
                             <div class="p-3 rounded-circle text-success fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(67, 160, 71, 0.1);">
-                                <i class="fas fa-check-circle"></i>
+                                <i class="sk sk-shield-check"></i>
                             </div>
                         </div>
                     </div>
@@ -109,7 +109,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                     <div class="d-flex align-items-center gap-3">
                         <span class="fw-bold text-secondary fs-5">Órdenes registradas (<?php echo count($productions); ?>)</span>
                         <?php if ($role == 'lab_admin' || $role == 'superadmin' || $role == 'admin'): ?>
-                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="openProductionModal()"><i class="fas fa-plus me-1"></i> Nueva Producción</button>
+                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="openProductionModal()"><i class="sk sk-plus me-1"></i> Nueva Producción</button>
                         <?php endif; ?>
                     </div>
                     <div class="d-flex align-items-center gap-3 ms-auto flex-wrap">
@@ -139,7 +139,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                                     <tr>
                                         <td colspan="8" class="text-center p-0">
                                             <div class="empty-state">
-                                                <i class="fas fa-industry empty-state-icon"></i>
+                                                <i class="sk sk-settings empty-state-icon"></i>
                                                 <div class="empty-state-title">No hay órdenes de producción</div>
                                                 <div class="empty-state-description">Aún no se han registrado órdenes de producción en este laboratorio. Inicia una nueva producción para comenzar.</div>
                                                 <?php if ($role == 'lab_admin' || $role == 'superadmin' || $role == 'admin'): ?>
@@ -192,7 +192,7 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
                                         </td>
                                         <td>
                                             <button class="btn btn-sm btn-info rounded text-white px-3" onclick="viewProductionDetails(<?php echo $prod->id_production ?>)" title="Ver Detalles">
-                                                <i class="fas fa-eye"></i>
+                                                <i class="sk sk-eye"></i>
                                             </button>
                                             <?php if($prod->status_production == 'pendiente' && ($role == 'lab_worker' || $role == 'lab_admin' || $role == 'superadmin' || $role == 'admin')): ?>
                                                 <button class="btn btn-sm btn-primary rounded backColor px-3 ms-1" onclick="startProduction(<?php echo $prod->id_production ?>)">
@@ -261,14 +261,14 @@ $recipes = ($recRes->status == 200) ? $recRes->results : array();
             </div>
             
             <div class="card border-0 shadow-sm bg-light p-3 mb-3">
-                <h6 class="fw-bold text-secondary mb-2"><i class="fas fa-dolly-flatbed me-1"></i> Insumos Requeridos</h6>
+                <h6 class="fw-bold text-secondary mb-2"><i class="sk sk-suitcase me-1"></i> Insumos Requeridos</h6>
                 <div id="ingredients_production_container">
                     <small class="text-muted">Seleccione una receta y cantidad para ver los insumos.</small>
                 </div>
             </div>
 
             <div class="card border-0 shadow-sm bg-light p-3 mb-3">
-                <h6 class="fw-bold text-secondary mb-2"><i class="fas fa-users me-1"></i> Costos de Mano de Obra</h6>
+                <h6 class="fw-bold text-secondary mb-2"><i class="sk sk-people me-1"></i> Costos de Mano de Obra</h6>
                 <div id="labor_production_container">
                     <small class="text-muted">Seleccione una receta para ver la mano de obra requerida.</small>
                 </div>
@@ -532,7 +532,7 @@ function saveProduction() {
         <!-- Sección de Control de Calidad — solo se muestra si el QC fue realizado -->
         <div id="det_qc_container" class="d-none mt-3 border rounded p-3 bg-light mb-3">
             <h6 class="border-bottom pb-2 text-secondary">
-                <i class="fas fa-check-double me-1"></i> Control de Calidad
+                <i class="sk sk-shield-check me-1"></i> Control de Calidad
             </h6>
             <div class="row">
                 <div class="col-sm-6">
@@ -666,7 +666,7 @@ function viewProductionDetails(id_production) {
                 let pct = parseFloat(p.yield_variance_pct) || 0;
                 let sign = variance >= 0 ? '+' : '';
                 let colorClass = variance >= 0 ? 'text-success' : 'text-danger';
-                let emoji = variance > 0 ? '<i class="fas fa-circle text-success me-1"></i> Excedente' : (variance < 0 ? '<i class="fas fa-circle text-danger me-1"></i> Merma' : '<i class="fas fa-circle text-secondary me-1"></i> Sin cambio');
+                let emoji = variance > 0 ? '<i class="sk sk-drop text-success me-1"></i> Excedente' : (variance < 0 ? '<i class="sk sk-drop text-danger me-1"></i> Merma' : '<i class="sk sk-drop text-secondary me-1"></i> Sin cambio');
                 
                 $('#det_yield_variance').html(`<span class="${colorClass}">${emoji} (${sign}${variance.toFixed(2)} / ${sign}${pct.toFixed(1)}%)</span>`);
             } else {
@@ -801,7 +801,7 @@ function viewProductionDetails(id_production) {
 
         <!-- SECCIÓN: Rendimiento Real / Merma -->
         <div class="mb-4 border rounded p-3 bg-light">
-            <h6 class="mb-3 text-secondary"><i class="fas fa-flask"></i> Resultado del Proceso de Elaboración</h6>
+            <h6 class="mb-3 text-secondary"><i class="sk sk-drop"></i> Resultado del Proceso de Elaboración</h6>
             <div class="d-flex align-items-center gap-3 mb-2">
                 <span>Rendimiento esperado: <strong id="pkg_expected_qty_label" class="text-primary"></strong></span>
             </div>
@@ -960,7 +960,7 @@ function onRealQtyChange() {
         
         let cls = variance >= 0 ? 'alert-success' : 'alert-danger';
         let sign = variance >= 0 ? '+' : '';
-        let emoji = variance > 0 ? '<i class="fas fa-circle text-success me-1"></i> Excedente' : (variance < 0 ? '<i class="fas fa-circle text-danger me-1"></i> Merma' : '<i class="fas fa-circle text-secondary me-1"></i> Sin cambio');
+        let emoji = variance > 0 ? '<i class="sk sk-drop text-success me-1"></i> Excedente' : (variance < 0 ? '<i class="sk sk-drop text-danger me-1"></i> Merma' : '<i class="sk sk-drop text-secondary me-1"></i> Sin cambio');
         
         $('#yield_variance_banner').removeClass('d-none alert-success alert-danger').addClass(cls)
             .html(`<strong>${emoji}</strong> &nbsp; Variación: ${sign}${variance.toFixed(2)} ${currentBulkUnit} (${sign}${pct.toFixed(1)}%)`);
@@ -1017,7 +1017,7 @@ function addPkgMaterial() {
     <tr class="pkg-row">
         <td><select class="form-select form-select-sm pkg-id">${options}</select></td>
         <td><input type="number" step="0.01" class="form-control form-control-sm pkg-qty" placeholder="Cant." value="${envases}"></td>
-        <td><button class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove();"><i class="fas fa-times"></i></button></td>
+        <td><button class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove();"><i class="sk sk-multiply"></i></button></td>
     </tr>`;
     $('#pkgMaterialsTable tbody').append(html);
 }

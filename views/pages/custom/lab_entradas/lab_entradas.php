@@ -23,7 +23,7 @@ foreach($entries as $e) {
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-truck-loading text-success me-2"></i> Entradas de Materia Prima</div>
+                <div class="text-capitalize h5 ps-2"><i class="sk sk-shipping text-success me-2"></i> Entradas de Materia Prima</div>
             </div>
         </div>
 
@@ -33,7 +33,7 @@ foreach($entries as $e) {
                     <div class="d-flex align-items-center gap-3">
                         <span class="fw-bold text-secondary fs-5">Entradas registradas (<?php echo count($entries); ?>)</span>
                         <?php /* Permitir a lab_worker registrar */ ?>
-                        <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="openEntryModal()"><i class="fas fa-plus me-1"></i> Registrar Entrada</button>
+                        <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="openEntryModal()"><i class="sk sk-plus me-1"></i> Registrar Entrada</button>
                     </div>
                     <div class="d-flex align-items-center gap-3 ms-auto flex-wrap">
                         <div class="btn-group btn-group-sm rounded-pill shadow-sm" role="group">
@@ -69,7 +69,7 @@ foreach($entries as $e) {
                                     <tr>
                                         <td colspan="6" class="text-center p-0">
                                             <div class="empty-state">
-                                                <i class="fas fa-truck-loading empty-state-icon"></i>
+                                                <i class="sk sk-shipping empty-state-icon"></i>
                                                 <div class="empty-state-title">No hay entradas de materia prima</div>
                                                 <div class="empty-state-description">Aún no se han registrado entradas de insumos en este laboratorio.</div>
                                                 <button class="btn btn-primary btn-sm rounded backColor px-4" onclick="openEntryModal()">Registrar Entrada</button>
@@ -87,14 +87,14 @@ foreach($entries as $e) {
                                         <td>
                                             <div class="d-flex flex-column gap-1 align-items-start">
                                                 <?php if($entry->status_entry == 'pendiente'): ?>
-                                                    <span class="badge bg-warning text-dark badge-pending-status"><i class="fas fa-clock me-1"></i>Pendiente</span>
+                                                    <span class="badge bg-warning text-dark badge-pending-status"><i class="sk sk-clock me-1"></i>Pendiente</span>
                                                     <?php if($role == 'lab_admin' || $role == 'superadmin' || $role == 'admin'): ?>
                                                         <button class="btn btn-sm btn-success rounded px-3 mt-1" onclick="openApproveModal(<?php echo $entry->id_entry ?>, '<?php echo $entry->name_raw_material ?>', <?php echo $entry->qty_entry ?>, '<?php echo $entry->unit_raw_material ?>', <?php echo $entry->id_raw_material_entry ?>)">
                                                             Aprobar y Costear
                                                         </button>
                                                     <?php endif; ?>
                                                 <?php else: ?>
-                                                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Aprobado</span>
+                                                    <span class="badge bg-success"><i class="sk sk-shield-check me-1"></i>Aprobado</span>
                                                     <small class="text-secondary fw-semibold">Bs <?php echo number_format($entry->unit_price_entry, 2) ?> / <?php echo $entry->unit_raw_material ?></small>
                                                 <?php endif; ?>
                                             </div>
