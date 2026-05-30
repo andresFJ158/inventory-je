@@ -13,6 +13,8 @@ $queries = [
     "ALTER TABLE purchases ADD COLUMN status_purchase TEXT NULL DEFAULT 'pendiente'",
     "ALTER TABLE purchases ADD COLUMN received_date_purchase DATE NULL",
     "ALTER TABLE purchases ADD COLUMN received_by_purchase INT NULL",
+    "ALTER TABLE purchases ADD COLUMN may_product DOUBLE DEFAULT 0",
+    "ALTER TABLE purchases ADD COLUMN wholesale_quantity INT DEFAULT 0",
     
     "CREATE TABLE IF NOT EXISTS raw_materials (
       id_raw_material           INT AUTO_INCREMENT PRIMARY KEY,

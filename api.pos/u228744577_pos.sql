@@ -173,8 +173,8 @@ CREATE TABLE `categories` (
 LOCK TABLES `categories` WRITE;
 /*!40000 ALTER TABLE `categories` DISABLE KEYS */;
 INSERT INTO `categories` VALUES
-(8,'Vinagres','https%3A%2F%2Fpos.desarrolloweb24siete.com%2F%2Fviews%2Fassets%2Ffiles%2F69025436db56e50.png',0,1,'2025-10-29','2025-10-29 19:44:39'),
-(9,'Tonicos','https://pos.desarrolloweb24siete.com//views/assets/files/69025436db56e50.png',0,1,'2025-10-29','2025-10-29 19:45:27'),
+(8,'Vinagres','http%3A%2F%2Flocalhost%3A8080%2F%2Fviews%2Fassets%2Ffiles%2F69025436db56e50.png',0,1,'2025-10-29','2025-10-29 19:44:39'),
+(9,'Tonicos','http://localhost:8080//views/assets/files/69025436db56e50.png',0,1,'2025-10-29','2025-10-29 19:45:27'),
 (10,'Vital+Herbs','',0,1,'2025-10-29','2025-10-29 20:39:56');
 /*!40000 ALTER TABLE `categories` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -248,45 +248,45 @@ INSERT INTO `columns` VALUES
 (3,2,'email_admin','email','email','',1,'2024-12-16','2024-12-16 21:46:24'),
 (4,2,'password_admin','pass','password','',0,'2024-12-16','2024-12-16 21:46:24'),
 (5,2,'token_admin','token','text','',0,'2024-12-16','2024-12-16 21:46:24'),
-(6,2,'token_exp_admin','expiraci├│n','text','',0,'2024-12-16','2024-12-16 21:46:24'),
+(6,2,'token_exp_admin','expiración','text','',0,'2024-12-16','2024-12-16 21:46:24'),
 (7,2,'status_admin','estado','boolean','',1,'2024-12-16','2024-12-16 21:46:24'),
-(8,2,'title_admin','t├¡tulo','text','',0,'2024-12-16','2024-12-16 21:46:25'),
+(8,2,'title_admin','título','text','',0,'2024-12-16','2024-12-16 21:46:25'),
 (9,2,'symbol_admin','simbolo','text','',0,'2024-12-16','2024-12-16 21:46:25'),
-(10,2,'font_admin','tipograf├¡a','text','',0,'2024-12-16','2024-12-16 21:46:25'),
+(10,2,'font_admin','tipografía','text','',0,'2024-12-16','2024-12-16 21:46:25'),
 (11,2,'color_admin','color','text','',0,'2024-12-16','2024-12-16 21:46:25'),
 (12,2,'back_admin','fondo','text','',0,'2024-12-16','2024-12-16 21:46:25'),
 (13,2,'scode_admin','seguridad','text','',0,'2024-12-16','2024-12-16 21:46:25'),
 (14,4,'title_office','Sucursales','text',NULL,1,'2024-12-17','2024-12-16 23:17:24'),
-(15,4,'address_office','Direcci├│n','text',NULL,1,'2024-12-17','2024-12-16 23:17:24'),
-(16,4,'phone_office','Tel├®fono','text',NULL,1,'2024-12-17','2024-12-16 23:17:24'),
+(15,4,'address_office','Dirección','text',NULL,1,'2024-12-17','2024-12-16 23:17:24'),
+(16,4,'phone_office','Teléfono','text',NULL,1,'2024-12-17','2024-12-16 23:17:24'),
 (17,6,'dni_client','Documento','text',NULL,1,'2024-12-18','2024-12-18 19:37:40'),
 (18,6,'name_client','Nombre','text',NULL,1,'2024-12-18','2024-12-18 19:37:40'),
 (19,6,'surname_client','Apellido','text',NULL,1,'2024-12-18','2024-12-18 19:37:40'),
 (20,6,'email_client','Email','email',NULL,1,'2024-12-18','2024-12-18 19:37:40'),
-(21,6,'address_client','Direcci├│n','text',NULL,1,'2024-12-18','2024-12-18 19:37:41'),
-(22,6,'phone_client','Tel├®fono','text',NULL,1,'2024-12-18','2024-12-18 19:37:41'),
+(21,6,'address_client','Dirección','text',NULL,1,'2024-12-18','2024-12-18 19:37:41'),
+(22,6,'phone_client','Teléfono','text',NULL,1,'2024-12-18','2024-12-18 19:37:41'),
 (23,6,'id_office_client','Sucursal','relations','offices',1,'2024-12-18','2024-12-18 19:38:33'),
-(24,8,'title_category','Categor├¡a','text',NULL,1,'2024-12-18','2024-12-18 20:14:59'),
+(24,8,'title_category','Categoría','text',NULL,1,'2024-12-18','2024-12-18 20:14:59'),
 (25,8,'img_category','Imagen','image',NULL,1,'2024-12-18','2024-12-18 20:15:00'),
 (26,8,'order_category','Orden','order',NULL,1,'2024-12-18','2024-12-18 20:15:00'),
 (27,8,'status_category','Estado','boolean',NULL,1,'2024-12-18','2024-12-18 20:15:00'),
 (28,10,'title_product','Producto','text',NULL,1,'2024-12-18','2024-12-18 20:38:31'),
 (29,10,'img_product','Imagen','image',NULL,1,'2024-12-18','2024-12-18 20:38:31'),
-(30,10,'id_category_product','Categor├¡a','relations','categories',1,'2024-12-18','2024-12-18 20:42:20'),
+(30,10,'id_category_product','Categoría','relations','categories',1,'2024-12-18','2024-12-18 20:42:20'),
 (31,10,'sku_product','SKU','text',NULL,1,'2024-12-18','2024-12-18 20:38:32'),
 (32,10,'unit_product','Medida','select','1Lt,2Lt,500gr,50gr',1,'2024-12-18','2025-11-08 04:51:03'),
 (35,10,'stock_product','Stock','text',NULL,1,'2024-12-18','2025-10-29 22:14:18'),
 (36,10,'discount_product','Descuento en %','double',NULL,1,'2024-12-18','2025-10-29 19:49:54'),
 (37,10,'status_product','Estado','boolean',NULL,1,'2024-12-18','2024-12-18 20:38:33'),
 (38,10,'id_office_product','Sucursal','relations','offices',1,'2024-12-18','2025-10-31 22:18:15'),
-(48,14,'transaction_order','Transacci├│n','pos',NULL,1,'2024-12-18','2024-12-28 00:49:38'),
+(48,14,'transaction_order','Transacción','pos',NULL,1,'2024-12-18','2024-12-28 00:49:38'),
 (49,14,'id_admin_order','Vendedor','relations','admins',1,'2024-12-18','2024-12-18 22:41:54'),
 (50,14,'id_client_order','Cliente','relations','clients',1,'2024-12-18','2024-12-18 22:42:03'),
 (51,14,'subtotal_order','Subtotal','money',NULL,1,'2024-12-18','2024-12-18 22:41:11'),
 (52,14,'discount_order','Descuento','money',NULL,1,'2024-12-18','2024-12-18 22:41:11'),
 (53,14,'tax_order','Impuesto','money',NULL,1,'2024-12-18','2024-12-18 22:41:12'),
 (54,14,'total_order','Total','money',NULL,1,'2024-12-18','2024-12-18 22:41:12'),
-(55,14,'method_order','M├®todo','select','efectivo,transferencia,tarjeta',1,'2024-12-18','2024-12-18 22:46:09'),
+(55,14,'method_order','Método','select','efectivo,transferencia,tarjeta',1,'2024-12-18','2024-12-18 22:46:09'),
 (56,14,'transfer_order','Transferencia','text',NULL,1,'2024-12-18','2024-12-18 22:41:12'),
 (57,14,'status_order','Estado','select','Completada,Pendiente',1,'2024-12-18','2024-12-18 22:46:26'),
 (58,14,'date_order','Fecha','timestamp',NULL,1,'2024-12-18','2024-12-18 22:41:13'),
@@ -320,10 +320,10 @@ INSERT INTO `columns` VALUES
 (86,20,'id_office_bill','Sucursal','relations','offices',1,'2024-12-19','2024-12-19 15:55:46'),
 (87,2,'name_admin','Nombre','text',NULL,1,'2024-12-19','2024-12-19 20:12:24'),
 (88,2,'id_office_admin','Sucursal','relations','offices',1,'2024-12-19','2024-12-19 20:20:36'),
-(89,10,'code_product','C├│digo de Barras','text',NULL,1,'2025-01-24','2025-01-24 13:13:35'),
+(89,10,'code_product','Código de Barras','text',NULL,1,'2025-01-24','2025-01-24 13:13:35'),
 (90,4,'dni_office','NIT','text',NULL,1,'2025-01-24','2025-01-24 15:57:02'),
 (102,40,'supplier_name','Proveedor','text',NULL,1,'2025-10-29','2025-10-29 20:02:41'),
-(103,40,'supplier_contact','Cont├ícto','text',NULL,1,'2025-10-29','2025-10-29 20:02:41'),
+(103,40,'supplier_contact','Contácto','text',NULL,1,'2025-10-29','2025-10-29 20:02:41'),
 (115,41,'id_supplier_purchase','Proveedor','relations','suppliers',1,'2025-10-31','2025-10-31 23:07:32'),
 (116,41,'id_office_purchase','Sucursal','relations','offices',1,'2025-10-31','2025-10-31 23:07:39'),
 (117,41,'id_product_purchase','Producto','relations','products',1,'2025-10-31','2025-10-31 23:07:49'),
@@ -331,7 +331,9 @@ INSERT INTO `columns` VALUES
 (119,41,'utility_purchase','Utilidad %','select','100%,50%,150%,200%',1,'2025-10-31','2025-11-08 04:52:08'),
 (120,41,'price_purchase','Precio venta','money',NULL,1,'2025-10-31','2025-10-31 23:07:11'),
 (121,41,'qty_purchase','Cantidad','int',NULL,1,'2025-10-31','2025-10-31 23:07:11'),
-(122,41,'invest_purchase','Inversi├│n','money',NULL,1,'2025-10-31','2025-10-31 23:07:11');
+(122,41,'invest_purchase','Inversión','money',NULL,1,'2025-10-31','2025-10-31 23:07:11'),
+(129,41,'may_product','Precio Mayorista','money',NULL,1,'2026-05-30','2026-05-30 07:05:21'),
+(130,41,'wholesale_quantity','Cantidad Mayorista','int',NULL,1,'2026-05-30','2026-05-30 07:05:21');
 /*!40000 ALTER TABLE `columns` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -365,17 +367,17 @@ CREATE TABLE `files` (
 LOCK TABLES `files` WRITE;
 /*!40000 ALTER TABLE `files` DISABLE KEYS */;
 INSERT INTO `files` VALUES
-(2,1,'Vinagre (11)','png','image/png',405934,'https://pos.desarrolloweb24siete.com//views/assets/files/690253664dc6922.png',NULL,NULL,'2025-10-29','2025-10-29 17:48:22'),
-(3,1,'Vinagre (10)','png','image/png',416491,'https://pos.desarrolloweb24siete.com//views/assets/files/690253669277c22.png',NULL,NULL,'2025-10-29','2025-10-29 17:48:22'),
-(5,1,'Vinagre (2)','png','image/png',450078,'https://pos.desarrolloweb24siete.com//views/assets/files/69025366c5b8622.png',NULL,NULL,'2025-10-29','2025-10-29 17:48:22'),
-(6,1,'ChatGPT Image 22 oct 2025, 12_24_24 p.m.','png','image/png',1472808,'https://pos.desarrolloweb24siete.com//views/assets/files/69025436db56e50.png',NULL,NULL,'2025-10-29','2025-10-29 17:51:50'),
-(7,1,'VitalHerbs','png','image/png',564976,'https://pos.desarrolloweb24siete.com/views/assets/files/69027c36d94d230.png',NULL,NULL,'2025-10-29','2025-10-29 20:42:30'),
-(8,1,'Vinagre (12)','png','image/png',434964,'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb326e451.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
-(9,1,'Vinagre (6)','png','image/png',417891,'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb3530c51.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
-(10,1,'Vinagre (5)','png','image/png',416664,'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb5ae1851.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
-(11,1,'Vinagre (9)','png','image/png',434308,'https://pos.desarrolloweb24siete.com/views/assets/files/690280fb8968251.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
-(12,1,'Golden Milk','png','image/png',554308,'https://pos.desarrolloweb24siete.com/views/assets/files/69053796c997b30.png',NULL,NULL,'2025-10-31','2025-11-07 21:23:37'),
-(13,1,'Viangre de Mora','jpeg','image/jpeg',53055,'https://pos.desarrolloweb24siete.com/views/assets/files/690ecc1c8438a36.jpeg',NULL,NULL,'2025-11-08','2025-11-08 04:55:55');
+(2,1,'Vinagre (11)','png','image/png',405934,'http://localhost:8080//views/assets/files/690253664dc6922.png',NULL,NULL,'2025-10-29','2025-10-29 17:48:22'),
+(3,1,'Vinagre (10)','png','image/png',416491,'http://localhost:8080//views/assets/files/690253669277c22.png',NULL,NULL,'2025-10-29','2025-10-29 17:48:22'),
+(5,1,'Vinagre (2)','png','image/png',450078,'http://localhost:8080//views/assets/files/69025366c5b8622.png',NULL,NULL,'2025-10-29','2025-10-29 17:48:22'),
+(6,1,'ChatGPT Image 22 oct 2025, 12_24_24 p.m.','png','image/png',1472808,'http://localhost:8080//views/assets/files/69025436db56e50.png',NULL,NULL,'2025-10-29','2025-10-29 17:51:50'),
+(7,1,'VitalHerbs','png','image/png',564976,'http://localhost:8080/views/assets/files/69027c36d94d230.png',NULL,NULL,'2025-10-29','2025-10-29 20:42:30'),
+(8,1,'Vinagre (12)','png','image/png',434964,'http://localhost:8080/views/assets/files/690280fb326e451.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
+(9,1,'Vinagre (6)','png','image/png',417891,'http://localhost:8080/views/assets/files/690280fb3530c51.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
+(10,1,'Vinagre (5)','png','image/png',416664,'http://localhost:8080/views/assets/files/690280fb5ae1851.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
+(11,1,'Vinagre (9)','png','image/png',434308,'http://localhost:8080/views/assets/files/690280fb8968251.png',NULL,NULL,'2025-10-29','2025-10-29 21:02:51'),
+(12,1,'Golden Milk','png','image/png',554308,'http://localhost:8080/views/assets/files/69053796c997b30.png',NULL,NULL,'2025-10-31','2025-11-07 21:23:37'),
+(13,1,'Viangre de Mora','jpeg','image/jpeg',53055,'http://localhost:8080/views/assets/files/690ecc1c8438a36.jpeg',NULL,NULL,'2025-11-08','2025-11-08 04:55:55');
 /*!40000 ALTER TABLE `files` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -407,7 +409,7 @@ CREATE TABLE `folders` (
 LOCK TABLES `folders` WRITE;
 /*!40000 ALTER TABLE `folders` DISABLE KEYS */;
 INSERT INTO `folders` VALUES
-(1,'Server','200000000000',5621477,'500000000','https://pos.desarrolloweb24siete.com',NULL,'2024-12-16','2025-11-08 04:50:36');
+(1,'Server','200000000000',5621477,'500000000','http://localhost:8080',NULL,'2024-12-16','2025-11-08 04:50:36');
 /*!40000 ALTER TABLE `folders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -474,12 +476,12 @@ INSERT INTO `modules` VALUES
 (4,4,'tables','offices','office','',100,1,'2024-12-17','2024-12-16 23:17:23'),
 (5,5,'breadcrumbs','clientes','','',100,1,'2024-12-18','2024-12-18 19:33:43'),
 (6,5,'tables','clients','client','',100,1,'2024-12-18','2024-12-18 19:37:39'),
-(7,6,'breadcrumbs','categor├¡as','','',100,1,'2024-12-18','2024-12-18 20:12:25'),
+(7,6,'breadcrumbs','categorías','','',100,1,'2024-12-18','2024-12-18 20:12:25'),
 (8,6,'tables','categories','category','',100,1,'2024-12-18','2024-12-18 20:14:59'),
 (9,7,'breadcrumbs','productos','','',100,1,'2024-12-18','2024-12-18 20:33:10'),
 (10,7,'tables','products','product','',100,1,'2024-12-18','2024-12-18 20:38:30'),
 (11,8,'breadcrumbs','compras','','',100,1,'2024-12-18','2024-12-18 21:37:39'),
-(13,9,'breadcrumbs','├ôrdenes','','',100,1,'2024-12-18','2024-12-18 22:35:32'),
+(13,9,'breadcrumbs','Órdenes','','',100,1,'2024-12-18','2024-12-18 22:35:32'),
 (14,9,'tables','orders','order','',100,0,'2024-12-18','2024-12-18 22:45:34'),
 (15,10,'breadcrumbs','ventas','','',100,1,'2024-12-18','2024-12-18 22:50:59'),
 (16,10,'tables','sales','sale','',100,0,'2024-12-18','2024-12-18 22:54:24'),
@@ -524,7 +526,7 @@ LOCK TABLES `offices` WRITE;
 /*!40000 ALTER TABLE `offices` DISABLE KEYS */;
 INSERT INTO `offices` VALUES
 (3,'Sucursal JE','Calle sucre Esquina Cobija','60836039','42135423524-3','2024-12-17','2025-10-31 02:30:57','sucursal'),
-(4,'Sucursal Montero','Calle montero N┬░ 24','7900900','42135423524-3','2025-10-30','2025-10-31 19:09:11','sucursal'),
+(4,'Sucursal Montero','Calle montero N° 24','7900900','42135423524-3','2025-10-30','2025-10-31 19:09:11','sucursal'),
 (5,'Laboratorio Principal',NULL,NULL,NULL,'2026-05-19','2026-05-19 02:19:46','laboratorio');
 /*!40000 ALTER TABLE `offices` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -636,22 +638,21 @@ INSERT INTO `pages` VALUES
 (3,'Archivos','archivos','bi bi-file-earmark-image','custom',16,'2024-12-16','2026-05-20 18:01:14'),
 (4,'Sucursales','sucursales','bi bi-shop','modules',3,'2024-12-17','2025-10-31 20:18:40'),
 (5,'Clientes','clientes','bi bi-people','modules',5,'2024-12-18','2025-10-31 20:18:46'),
-(6,'Categor├¡as','categorias','bi bi-card-list','modules',6,'2024-12-18','2025-10-31 20:18:46'),
+(6,'Categorías','categorias','bi bi-card-list','modules',6,'2024-12-18','2025-10-31 20:18:46'),
 (7,'Productos','productos','bi bi-box','modules',8,'2024-12-18','2025-10-31 20:18:46'),
 (8,'Compras','compras','bi bi-basket-fill','modules',9,'2024-12-18','2025-10-31 20:18:46'),
-(9,'├ôrdenes','ordenes','bi bi-ticket-detailed','modules',10,'2024-12-18','2025-10-31 20:18:46'),
+(9,'Órdenes','ordenes','bi bi-ticket-detailed','modules',10,'2024-12-18','2025-10-31 20:18:46'),
 (10,'Ventas','ventas','bi bi-cash-coin','modules',12,'2024-12-18','2026-05-20 18:01:14'),
 (11,'Caja','caja','fas fa-cash-register','modules',2,'2024-12-19','2025-10-31 20:18:40'),
 (12,'Gastos','gastos','fas fa-money-bill-wave','modules',13,'2024-12-19','2026-05-20 18:01:14'),
 (15,'Proveedores','proveedores','bi bi-person-bounding-box','modules',7,'2025-10-29','2025-10-31 20:18:46'),
 (16,'Reportes','reports','bi bi-file-earmark-excel-fill','custom',15,'2025-10-31','2026-05-20 18:01:14'),
-(17,'Cat├ílogo M.P.','lab_materiales','fas fa-flask','custom',10,'2026-05-19','2026-05-19 02:24:03'),
+(17,'Catálogo M.P.','lab_materiales','fas fa-flask','custom',10,'2026-05-19','2026-05-19 02:24:03'),
 (18,'Entradas M.P.','lab_entradas','fas fa-truck-loading','custom',12,'2026-05-19','2026-05-20 18:01:14'),
 (19,'Costos Indirectos','lab_cif','fas fa-money-bill-wave','custom',13,'2026-05-19','2026-05-20 18:01:14'),
 (20,'Recetas','lab_recetas','fas fa-scroll','custom',14,'2026-05-19','2026-05-20 18:01:14'),
-(21,'Producci├│n','lab_produccion','fas fa-industry','custom',15,'2026-05-19','2026-05-20 18:01:14'),
-(22,'Inventario M.P.','lab_inventario','fas fa-boxes','custom',11,'2026-05-20','2026-05-20 18:01:14'),
-(23,'Control Calidad','lab_calidad','fas fa-check-double','custom',16,'2026-05-22','2026-05-22 22:00:00');
+(21,'Producción','lab_produccion','fas fa-industry','custom',15,'2026-05-19','2026-05-20 18:01:14'),
+(22,'Inventario M.P.','lab_inventario','fas fa-boxes','custom',11,'2026-05-20','2026-05-20 18:01:14');
 /*!40000 ALTER TABLE `pages` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -762,20 +763,20 @@ CREATE TABLE `products` (
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
 INSERT INTO `products` VALUES
-(12,'Vinagre+de+Fresa','https%3A%2F%2Fpos.desarrolloweb24siete.com%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png',8,'VF1','1Lt',NULL,'0',0,0,3,'133331441','2025-10-31','2025-11-04 18:48:17',0,0),
-(13,'Vinagre+de+Fresa','https%3A%2F%2Fpos.desarrolloweb24siete.com%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png',8,'VF1','1Lt',NULL,'16',0,1,4,'133331441','2025-10-31','2025-11-04 04:19:54',0,0),
-(14,'Green+Powder','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png',10,'VHGP10','500gr',NULL,'9',3,1,3,'33322212215','2025-10-31','2025-11-08 04:40:07',0,0),
-(15,'Green+Powder','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png',10,'VHGP10','500gr',NULL,'21',3,1,4,'33322212215','2025-10-31','2025-11-04 04:19:54',0,0),
-(16,'Vinagre+de+Pitaya','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png',8,'VP10','1Lt',NULL,'11',0,1,3,'14445455','2025-11-04','2025-11-08 04:40:07',0,0),
-(17,'Vinagre+de+Pitaya','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png',8,'VP10','1Lt',NULL,'',0,1,4,'14445455','2025-11-04','2025-11-04 17:36:55',0,0),
-(18,'Vinagre de Durazno','https://pos.desarrolloweb24siete.com/views/assets/files/690280fb5ae1851.png',8,'VD10','1Lt',NULL,'10',3,1,3,'6061611165','2025-11-04','2025-11-07 21:48:27',0,0),
-(19,'Vinagre+de+Durazno','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb5ae1851.png',8,'VD10','1Lt',NULL,'',0,1,4,'6061611165','2025-11-04','2025-11-04 17:38:51',0,0),
-(21,'Vinagre de Perejil','https://pos.desarrolloweb24siete.com/views/assets/files/690280fb326e451.png',8,'dsf','1Lt',NULL,'3',3,1,3,'61511515','2025-11-04','2025-11-07 22:15:47',0,0),
-(22,'Vinagre de Perejil','https://pos.desarrolloweb24siete.com/views/assets/files/690280fb326e451.png',8,'VP10','1Lt',NULL,'',0,1,4,'61511515','2025-11-04','2025-11-04 18:59:14',0,0),
-(23,'Vinagre+de+Mel%C3%B3n','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png',8,'VM10','1Lt',NULL,'2',0,1,3,'151515511','2025-11-04','2025-11-08 04:57:54',0,0),
-(24,'Vinagre+de+Mel%C3%B3n','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png',8,'VM10','1Lt',NULL,'',0,1,4,'151515511','2025-11-04','2025-11-04 19:01:32',0,0),
-(25,'Vinagre+de+Mora','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg',8,'VM10','1Lt',NULL,'9',0,1,3,'633361148481','2025-11-08','2025-11-08 04:58:06',0,0),
-(26,'Vinagre+de+Mora','https%3A%2F%2Fpos.desarrolloweb24siete.com%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg',8,'VM10','1Lt',NULL,'',0,1,4,'633361148481','2025-11-08','2025-11-08 04:51:28',0,0);
+(12,'Vinagre+de+Fresa','http%3A%2F%2Flocalhost%3A8080%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png',8,'VF1','1Lt',NULL,'0',0,0,3,'133331441','2025-10-31','2025-11-04 18:48:17',0,0),
+(13,'Vinagre+de+Fresa','http%3A%2F%2Flocalhost%3A8080%2F%2Fviews%2Fassets%2Ffiles%2F69025366c5b8622.png',8,'VF1','1Lt',NULL,'16',0,1,4,'133331441','2025-10-31','2025-11-04 04:19:54',0,0),
+(14,'Green+Powder','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png',10,'VHGP10','500gr',NULL,'9',3,1,3,'33322212215','2025-10-31','2025-11-08 04:40:07',0,0),
+(15,'Green+Powder','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F69027c36d94d230.png',10,'VHGP10','500gr',NULL,'21',3,1,4,'33322212215','2025-10-31','2025-11-04 04:19:54',0,0),
+(16,'Vinagre+de+Pitaya','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png',8,'VP10','1Lt',NULL,'11',0,1,3,'14445455','2025-11-04','2025-11-08 04:40:07',0,0),
+(17,'Vinagre+de+Pitaya','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb8968251.png',8,'VP10','1Lt',NULL,'',0,1,4,'14445455','2025-11-04','2025-11-04 17:36:55',0,0),
+(18,'Vinagre de Durazno','http://localhost:8080/views/assets/files/690280fb5ae1851.png',8,'VD10','1Lt',NULL,'10',3,1,3,'6061611165','2025-11-04','2025-11-07 21:48:27',0,0),
+(19,'Vinagre+de+Durazno','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb5ae1851.png',8,'VD10','1Lt',NULL,'',0,1,4,'6061611165','2025-11-04','2025-11-04 17:38:51',0,0),
+(21,'Vinagre de Perejil','http://localhost:8080/views/assets/files/690280fb326e451.png',8,'dsf','1Lt',NULL,'3',3,1,3,'61511515','2025-11-04','2025-11-07 22:15:47',0,0),
+(22,'Vinagre de Perejil','http://localhost:8080/views/assets/files/690280fb326e451.png',8,'VP10','1Lt',NULL,'',0,1,4,'61511515','2025-11-04','2025-11-04 18:59:14',0,0),
+(23,'Vinagre+de+Mel%C3%B3n','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png',8,'VM10','1Lt',NULL,'2',0,1,3,'151515511','2025-11-04','2025-11-08 04:57:54',0,0),
+(24,'Vinagre+de+Mel%C3%B3n','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690280fb3530c51.png',8,'VM10','1Lt',NULL,'',0,1,4,'151515511','2025-11-04','2025-11-04 19:01:32',0,0),
+(25,'Vinagre+de+Mora','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg',8,'VM10','1Lt',NULL,'9',0,1,3,'633361148481','2025-11-08','2025-11-08 04:58:06',0,0),
+(26,'Vinagre+de+Mora','http%3A%2F%2Flocalhost%3A8080%2Fviews%2Fassets%2Ffiles%2F690ecc1c8438a36.jpeg',8,'VM10','1Lt',NULL,'',0,1,4,'633361148481','2025-11-08','2025-11-08 04:51:28',0,0);
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -802,6 +803,8 @@ CREATE TABLE `purchases` (
   `status_purchase` text DEFAULT 'pendiente',
   `received_date_purchase` date DEFAULT NULL,
   `received_by_purchase` int(11) DEFAULT NULL,
+  `may_product` double DEFAULT 0,
+  `wholesale_quantity` int(11) DEFAULT 0,
   PRIMARY KEY (`id_purchase`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1138,30 +1141,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
---
--- Table structure for table `quality_checks`
---
-
-DROP TABLE IF EXISTS `quality_checks`;
-CREATE TABLE `quality_checks` (
-  `id_qc` int(11) NOT NULL AUTO_INCREMENT,
-  `id_production_qc` int(11) NOT NULL,
-  `id_admin_qc` int(11) NOT NULL,
-  `id_office_qc` int(11) NOT NULL,
-  `result_qc` enum('aprobado','rechazado','aprobado_con_obs') NOT NULL,
-  `qty_approved_qc` double DEFAULT 0,
-  `qty_rejected_qc` double DEFAULT 0,
-  `notes_qc` text DEFAULT NULL,
-  `date_created_qc` date DEFAULT NULL,
-  `date_updated_qc` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id_qc`),
-  KEY `id_production_qc` (`id_production_qc`),
-  KEY `id_office_qc` (`id_office_qc`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-
-LOCK TABLES `quality_checks` WRITE;
-/*!40000 ALTER TABLE `quality_checks` DISABLE KEYS */;
-/*!40000 ALTER TABLE `quality_checks` ENABLE KEYS */;
-UNLOCK TABLES;
-
--- Dump completed on 2026-05-22 22:00:00
+-- Dump completed on 2026-05-20 18:10:51

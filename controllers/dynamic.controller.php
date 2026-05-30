@@ -102,7 +102,8 @@ class DynamicController{
 
 						// Seguridad: forzar que no cambien de sucursal al editar si no son superadmin
 						$rolAdminEdit = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
-						$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "products" => "id_office_product", "purchases" => "id_office_purchase"];
+						// Nota: 'purchases' NO está aquí porque su campo almacena id_warehouse, no id_office
+						$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "products" => "id_office_product"];
 						if(isset($officeForceTables[$module->title_module]) && $rolAdminEdit !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
 							$forceOfficeField = $officeForceTables[$module->title_module];
 							// Reemplazar o añadir el campo forzadamente en el string x-www-form-urlencoded
@@ -111,6 +112,35 @@ class DynamicController{
 								$fields = preg_replace($pattern, '$1'.$forceOfficeField.'='.(int)$_SESSION["admin"]->id_office_admin, $fields);
 							}else{
 								$fields .= '&'.$forceOfficeField.'='.(int)$_SESSION["admin"]->id_office_admin;
+							}
+						}
+						// Para clientes: forzar id_office_client = 0 (global)
+						if($module->title_module === "clients"){
+							$pattern = '/(&|^)id_office_client=[^&]*/';
+							if(preg_match($pattern, $fields)){
+								$fields = preg_replace($pattern, '$1id_office_client=0', $fields);
+							}else{
+								$fields .= '&id_office_client=0';
+							}
+						}
+						// Para compras: forzar almacén asignado al usuario (despachador)
+						if($module->title_module === "purchases" && $rolAdminEdit !== "superadmin"){
+							$forceWarehouseId = 0;
+							if(isset($_SESSION["admin"]->id_warehouse_admin) && (int)$_SESSION["admin"]->id_warehouse_admin > 0){
+								$forceWarehouseId = (int)$_SESSION["admin"]->id_warehouse_admin;
+							} else if(isset($_SESSION["admin"]->id_office_admin) && (int)$_SESSION["admin"]->id_office_admin > 0){
+								$respWHEdit = CurlController::request('warehouses?linkTo=id_office_warehouse&equalTo='.(int)$_SESSION["admin"]->id_office_admin, 'GET', []);
+								if(isset($respWHEdit->status) && $respWHEdit->status == 200 && !empty($respWHEdit->results)){
+									$forceWarehouseId = (int)$respWHEdit->results[0]->id_warehouse;
+								}
+							}
+							if($forceWarehouseId > 0){
+								$pattern = '/(&|^)id_office_purchase=[^&]*/';
+								if(preg_match($pattern, $fields)){
+									$fields = preg_replace($pattern, '$1id_office_purchase='.$forceWarehouseId, $fields);
+								}else{
+									$fields .= '&id_office_purchase='.$forceWarehouseId;
+								}
 							}
 						}
 
@@ -422,11 +452,30 @@ class DynamicController{
 
 					// Seguridad: para caja, gastos y ventas, el campo de sucursal siempre viene del usuario si no es superadmin
 					$rolAdminSave = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
-					// Nota: 'products' se excluye porque ahora es catálogo global (sin id_office_product)
-					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "purchases" => "id_office_purchase"];
+					// Nota: 'purchases' NO está aquí porque id_office_purchase almacena id_warehouse, no id_office
+					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order"];
 					if(isset($officeForceTables[$module->title_module]) && $rolAdminSave !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
 						$forceOfficeField = $officeForceTables[$module->title_module];
 						$fields[$forceOfficeField] = (int)$_SESSION["admin"]->id_office_admin;
+					}
+					// Para clientes: forzar id_office_client = 0 (global)
+					if($module->title_module === "clients"){
+						$fields["id_office_client"] = 0;
+					}
+					// Para compras: forzar almacén asignado al usuario (no la sucursal)
+					if($module->title_module === "purchases" && $rolAdminSave !== "superadmin"){
+						$forceWarehouseId = 0;
+						if(isset($_SESSION["admin"]->id_warehouse_admin) && (int)$_SESSION["admin"]->id_warehouse_admin > 0){
+							$forceWarehouseId = (int)$_SESSION["admin"]->id_warehouse_admin;
+						} else if(isset($_SESSION["admin"]->id_office_admin) && (int)$_SESSION["admin"]->id_office_admin > 0){
+							$respWH = CurlController::request('warehouses?linkTo=id_office_warehouse&equalTo='.(int)$_SESSION["admin"]->id_office_admin, 'GET', []);
+							if(isset($respWH->status) && $respWH->status == 200 && !empty($respWH->results)){
+								$forceWarehouseId = (int)$respWH->results[0]->id_warehouse;
+							}
+						}
+						if($forceWarehouseId > 0){
+							$fields["id_office_purchase"] = $forceWarehouseId;
+						}
 					}
 					// Para productos: forzar id_office_product = 0 (catálogo global)
 					if($isProduct){
@@ -651,11 +700,24 @@ class DynamicController{
 			}
 		}
 
+		// Obtener vendedores independientes (usuarios con rol vendedor)
+		$vendedores = CurlController::request("admins?linkTo=rol_admin&equalTo=vendedor&select=id_admin", "GET", array());
+		$independentSellers = [];
+		if (isset($vendedores->status) && $vendedores->status == 200 && !empty($vendedores->results)) {
+			foreach ($vendedores->results as $v) {
+				$independentSellers[] = (int) $v->id_admin;
+			}
+		}
+
 		$totalOrders = 0.0;
 		$urlOrders = TemplateController::ordersSessionApiUrl($cashOffice, $tStart, $tEnd);
 		$orders = CurlController::request($urlOrders, "GET", array());
 		if(isset($orders->status) && $orders->status == 200 && !empty($orders->results)){
 			foreach($orders->results as $o){
+				// Excluir ventas de vendedores independientes (de calle)
+				if (in_array((int)($o->id_admin_order ?? 0), $independentSellers)) {
+					continue;
+				}
 				$s = isset($o->status_order) ? (string) $o->status_order : "";
 				if($s === "Completada"){
 					$totalOrders += isset($o->total_order) ? (float)$o->total_order : 0.0;

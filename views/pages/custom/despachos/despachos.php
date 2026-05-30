@@ -134,6 +134,7 @@ if ($role == 'despachador' && isset($_SESSION["admin"]->id_warehouse_admin) && $
 <script>
 var idOffice = <?php echo $id_office ?>;
 var currentAdminId = <?php echo $id_admin ?>;
+var idWarehouseAdmin = <?php echo $_SESSION["admin"]->id_warehouse_admin ?? 0 ?>;
 
 $(document).ready(function() {
     loadPendingRequests();
@@ -226,7 +227,7 @@ function loadPendingRequests(){
     $.ajax({
         url: "/ajax/pos.ajax.php",
         method: "POST",
-        data: { getPendingRequests: true, id_office: idOffice },
+        data: { getPendingRequests: true, id_office: idOffice, id_warehouse: idWarehouseAdmin },
         dataType: "json",
         success: function(data){
             if(!data || data.length == 0){
@@ -237,15 +238,16 @@ function loadPendingRequests(){
             $('#pendingCount').text(data.length);
             var html = '<table class="table table-bordered table-striped"><thead><tr><th>Fecha</th><th>Solicitante</th><th>Producto</th><th>Cantidad</th><th>Stock Disponible</th><th>Notas</th><th>Acciones</th></tr></thead><tbody>';
             data.forEach(function(r){
+                var decodedProduct = decodeURIComponent((r.title_product || '').replace(/\+/g, ' '));
                 html += '<tr>';
                 html += '<td>' + r.date_created_request + '</td>';
                 html += '<td><strong>' + r.name_admin + '</strong></td>';
-                html += '<td>' + r.title_product + '</td>';
+                html += '<td>' + decodedProduct + '</td>';
                 html += '<td><span class="badge bg-info fs-6">' + r.qty_request + '</span></td>';
                 html += '<td><span class="badge fs-6 ' + (r.available_stock > 0 ? 'bg-success' : 'bg-danger') + '">' + r.available_stock + '</span></td>';
                 html += '<td>' + (r.notes_request || '-') + '</td>';
                 html += '<td>';
-                html += '<button class="btn btn-sm btn-success btnDispatch me-1" data-id="' + r.id_request + '" data-requester="' + r.name_admin + '" data-product="' + r.title_product + '" data-qty="' + r.qty_request + '" data-available="' + r.available_stock + '"><i class="fas fa-check"></i> Despachar</button>';
+                html += '<button class="btn btn-sm btn-success btnDispatch me-1" data-id="' + r.id_request + '" data-requester="' + r.name_admin + '" data-product="' + decodedProduct + '" data-qty="' + r.qty_request + '" data-available="' + r.available_stock + '"><i class="fas fa-check"></i> Despachar</button>';
                 html += '<button class="btn btn-sm btn-danger btnReject" data-id="' + r.id_request + '"><i class="fas fa-times"></i> Rechazar</button>';
                 html += '</td>';
                 html += '</tr>';
@@ -260,7 +262,7 @@ function loadHistory(){
     $.ajax({
         url: "/ajax/pos.ajax.php",
         method: "POST",
-        data: { getRequestHistory: true, id_office: idOffice },
+        data: { getRequestHistory: true, id_office: idOffice, id_warehouse: idWarehouseAdmin },
         dataType: "json",
         success: function(data){
             if(!data || data.length == 0){
@@ -275,7 +277,7 @@ function loadHistory(){
                 html += '<tr>';
                 html += '<td>' + r.date_created_request + '</td>';
                 html += '<td>' + r.name_admin + '</td>';
-                html += '<td>' + r.title_product + '</td>';
+                html += '<td>' + decodeURIComponent((r.title_product || '').replace(/\+/g, ' ')) + '</td>';
                 html += '<td>' + r.qty_request + '</td>';
                 html += '<td>' + (r.qty_dispatched_request || '-') + '</td>';
                 html += '<td>' + statusBadge + '</td>';

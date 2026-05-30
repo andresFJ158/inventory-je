@@ -1,4 +1,4 @@
-﻿-- =============================================
+-- =============================================
 -- Migración: Módulo Almacén + Sub-Almacenes
 -- =============================================
 
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS `inventory_requests` (
   `qty_dispatched_request` INT(11) DEFAULT NULL,
   `notes_request` TEXT DEFAULT NULL,
   `notes_dispatcher_request` TEXT DEFAULT NULL,
+  `id_warehouse_request` INT(11) DEFAULT NULL,
   `date_created_request` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `date_updated_request` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_request`)

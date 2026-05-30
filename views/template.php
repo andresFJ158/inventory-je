@@ -340,7 +340,7 @@ if($adminTable->status == 404){
 							if (in_array($route, $lab_routes)) $allowed = true;
 						} else if ($role == "qc_inspector") {
 							if ($route === "lab_calidad") $allowed = true;
-						} else if ($role == "cajero" || $role == "despachador" || $role == "editor") {
+						} else if ($role == "cajero" || $role == "despachador" || $role == "vendedor" || $role == "editor") {
 							$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
 							if (isset($perms[$route]) && $perms[$route] == "on") {
 								$allowed = true;
@@ -437,7 +437,7 @@ if($adminTable->status == 404){
 
 					<script>window.location = "lab_calidad";</script>
 
-				<?php elseif ($_SESSION["admin"]->rol_admin == "cajero" || $_SESSION["admin"]->rol_admin == "despachador" || $_SESSION["admin"]->rol_admin == "editor"): ?>
+				<?php elseif ($_SESSION["admin"]->rol_admin == "cajero" || $_SESSION["admin"]->rol_admin == "despachador" || $_SESSION["admin"]->rol_admin == "vendedor" || $_SESSION["admin"]->rol_admin == "editor"): ?>
 
 					<?php
 

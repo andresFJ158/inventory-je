@@ -450,13 +450,26 @@ class TemplateController{
 
 	static public function ordersSessionApiUrl($officeId, $sessionStart, $sessionEnd){
 
-		return "orders?linkTo=date_order&between1=".rawurlencode($sessionStart)."&between2=".rawurlencode($sessionEnd)."&filterTo=id_office_order&inTo=".(int) $officeId."&select=total_order,date_order,method_order,status_order,id_office_order";
+		return "orders?linkTo=date_order&between1=".rawurlencode($sessionStart)."&between2=".rawurlencode($sessionEnd)."&filterTo=id_office_order&inTo=".(int) $officeId."&select=total_order,date_order,method_order,status_order,id_office_order,id_admin_order";
+	}
+
+	static public function normalizeImage($url){
+		$url = trim((string)$url);
+		if (empty($url) || $url === 'NULL' || $url === 'null') {
+			return "";
+		}
+		$decoded = urldecode($url);
+		if (strpos($decoded, "/views/assets/files/") !== false) {
+			$parts = explode("/views/assets/files/", $decoded);
+			return self::path() . "views/assets/files/" . end($parts);
+		}
+		return $url;
 	}
 
 	static public function fallbackProductImage($sku, $title, $currentImg){
 		$img = trim((string)$currentImg);
 		if (!empty($img) && $img !== 'NULL' && $img !== 'null') {
-			return $img;
+			return self::normalizeImage($img);
 		}
 
 		try {
@@ -484,7 +497,7 @@ class TemplateController{
 			]);
 			$fallbackImg = $stmtImg->fetchColumn();
 			if (!empty($fallbackImg) && $fallbackImg !== 'NULL' && $fallbackImg !== 'null') {
-				return $fallbackImg;
+				return self::normalizeImage($fallbackImg);
 			}
 		} catch (Exception $e) {
 		}

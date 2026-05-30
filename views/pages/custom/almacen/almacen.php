@@ -25,7 +25,7 @@ try {
         SELECT p.*, pi.stock_inventory as stock_product
         FROM products p
         INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product
-        WHERE pi.id_office_inventory = :office AND pi.status_inventory = 1 AND p.status_product = 1
+        WHERE pi.id_office_inventory = :office AND pi.status_inventory = 1
         ORDER BY p.id_product DESC
     ");
     $stmt->execute([':office' => $id_office]);
@@ -121,7 +121,7 @@ foreach($officesList as $off) {
                                         <td class="fw-bold"><?php echo urldecode($prod->title_product) ?></td>
                                         <td><span class="badge bg-secondary"><?php echo $prod->sku_product ?></span></td>
                                         <td><?php echo $prod->unit_product ?></td>
-                                        <td>
+                                        <td class="stock-total-cell" data-product="<?php echo $prod->id_product ?>">
                                             <span class="badge fs-6 <?php echo $stockTotal > 0 ? 'bg-success' : 'bg-danger' ?>">
                                                 <?php echo $stockTotal ?>
                                             </span>
@@ -241,9 +241,32 @@ var token = "<?php echo $_SESSION["admin"]->token_admin ?>";
 var currentAdminId = <?php echo $_SESSION["admin"]->id_admin ?>;
 
 $(document).ready(function() {
-    // Init DataTable
+    // Init DataTable (idioma inline para evitar CORS con CDN externo)
     $('#almacenTable').DataTable({
-        "language": { "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json" },
+        "language": {
+            "decimal":        "",
+            "emptyTable":     "No hay datos disponibles",
+            "info":           "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            "infoEmpty":      "Mostrando 0 a 0 de 0 registros",
+            "infoFiltered":   "(filtrado de _MAX_ registros totales)",
+            "infoPostFix":    "",
+            "thousands":      ",",
+            "lengthMenu":     "Mostrar _MENU_ registros",
+            "loadingRecords": "Cargando...",
+            "processing":     "Procesando...",
+            "search":         "Buscar:",
+            "zeroRecords":    "No se encontraron resultados",
+            "paginate": {
+                "first":      "Primero",
+                "last":       "Último",
+                "next":       "Siguiente",
+                "previous":   "Anterior"
+            },
+            "aria": {
+                "sortAscending":  ": activar para ordenar ascendente",
+                "sortDescending": ": activar para ordenar descendente"
+            }
+        },
         "order": [[4, "desc"]]
     });
 
@@ -323,7 +346,7 @@ function loadAssignedQuantities(){
     $.ajax({
         url: "/ajax/pos.ajax.php",
         method: "POST",
-        data: { getAssignedByOffice: true, id_office: idOffice },
+        data: { getAssignedByOffice: true, id_office: idOffice, id_dispatcher: currentAdminId },
         dataType: "json",
         success: function(data){
             // data = [{id_product: X, total_assigned: Y}, ...]
@@ -336,11 +359,12 @@ function loadAssignedQuantities(){
 
             $('#almacenTable tbody tr').each(function(){
                 var prodId = $(this).data('id');
-                var stockTotal = parseInt($(this).data('stock')) || 0;
+                var mainStock = parseInt($(this).data('stock')) || 0;
                 var assigned = assignedMap[prodId] || 0;
-                var available = stockTotal - assigned;
-                if(available < 0) available = 0;
+                var totalStock = mainStock + assigned;
+                var available = mainStock;
 
+                $(this).find('.stock-total-cell').html('<span class="badge fs-6 ' + (totalStock > 0 ? 'bg-success' : 'bg-danger') + '">' + totalStock + '</span>');
                 $(this).find('.assigned-qty').html('<span class="badge fs-6 bg-info">' + assigned + '</span>');
                 $(this).find('.available-qty').html('<span class="badge fs-6 bg-primary">' + available + '</span>');
                 
@@ -376,7 +400,7 @@ function loadSubWarehouses(){
                 if(sw.products && sw.products.length > 0){
                     html += '<table class="table table-sm mb-0"><thead><tr><th>Producto</th><th>Stock Sub-Almacén</th></tr></thead><tbody>';
                     sw.products.forEach(function(p){
-                        html += '<tr><td>' + p.title_product + '</td><td><span class="badge fs-6 ' + (p.stock > 0 ? 'bg-success' : 'bg-danger') + '">' + p.stock + '</span></td></tr>';
+                        html += '<tr><td>' + decodeURIComponent((p.title_product || '').replace(/\+/g, ' ')) + '</td><td><span class="badge fs-6 ' + (p.stock > 0 ? 'bg-success' : 'bg-danger') + '">' + p.stock + '</span></td></tr>';
                     });
                     html += '</tbody></table>';
                 } else {
@@ -393,7 +417,7 @@ function loadMovements(){
     $.ajax({
         url: "/ajax/pos.ajax.php",
         method: "POST",
-        data: { getWarehouseMovements: true, id_office: idOffice },
+        data: { getWarehouseMovements: true, id_office: idOffice, id_dispatcher: currentAdminId },
         dataType: "json",
         success: function(data){
             if(!data || data.length == 0){
@@ -409,7 +433,7 @@ function loadMovements(){
                 html += '<tr>';
                 html += '<td>' + m.date_created_assignment + '</td>';
                 html += '<td>' + typeBadge + '</td>';
-                html += '<td>' + m.title_product + '</td>';
+                html += '<td>' + decodeURIComponent((m.title_product || '').replace(/\+/g, ' ')) + '</td>';
                 html += '<td>' + m.qty_assignment + '</td>';
                 html += '<td>' + m.name_admin + '</td>';
                 html += '<td>' + destOffice + '</td>';

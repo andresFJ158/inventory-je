@@ -37,38 +37,48 @@ JD SLIDER
 
 					<div class="border-0 rounded text-center bg-white mx-1 p-3 pb-0 loadCategory" idCategory="all">
 							
-						<img src="https://pos.tutorialesatualcance.com/views/assets/files/67659e224786f6.png" class="img-fluid mx-auto" style="width:50px; cursor:pointer">
+						<img src="<?php echo TemplateController::normalizeImage('https://pos.tutorialesatualcance.com/views/assets/files/67659e224786f6.png') ?>" class="img-fluid mx-auto" style="width:50px; cursor:pointer">
 						<p class="pt-2 mb-0 lead" style="cursor:move"><strong>Todo</strong></p>
 
 						<?php 
 
-						if ($_SESSION["admin"]->id_office_admin > 0) {
-							$role = $_SESSION["admin"]->rol_admin;
-							if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
-								require_once "controllers/install.controller.php";
-								$db = InstallController::connect();
-								$stmtTot = $db->prepare("
-									SELECT COUNT(DISTINCT wa.id_product_assignment)
-									FROM warehouse_assignments wa
-									JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-									WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
-								");
-								$stmtTot->execute([':admin' => $_SESSION["admin"]->id_admin, ':office' => $_SESSION["admin"]->id_office_admin]);
-								$totalProducts = (int)$stmtTot->fetchColumn();
-							} else {
-								$url = "product_inventory?linkTo=id_office_inventory,status_inventory&equalTo=".$_SESSION["admin"]->id_office_admin.",1&select=id_inventory";
-								$totalProducts = CurlController::request($url,$method,$fields);
-								if($totalProducts->status == 200){
-									$totalProducts = $totalProducts->total;
-								}else{
+								if ($_SESSION["admin"]->id_office_admin > 0) {
+									require_once "controllers/install.controller.php";
+									$db = InstallController::connect();
+									$role = $_SESSION["admin"]->rol_admin;
+									$id_admin = $_SESSION["admin"]->id_admin;
+									$id_office = $_SESSION["admin"]->id_office_admin;
+									$hasSubWarehouse = false;
+									if ($id_admin) {
+										$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
+										$stmtHasSub->execute([':office' => $id_office]);
+										$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
+									}
+
+									if ($hasSubWarehouse) {
+										require_once "controllers/install.controller.php";
+										$db = InstallController::connect();
+										$stmtTot = $db->prepare("
+											SELECT COUNT(DISTINCT wa.id_product_assignment)
+											FROM warehouse_assignments wa
+											JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+											JOIN products p ON wa.id_product_assignment = p.id_product
+											WHERE sw.id_office_sub_warehouse = :office AND p.status_product = 1
+										");
+										$stmtTot->execute([':office' => $id_office]);
+										$totalProducts = (int)$stmtTot->fetchColumn();
+									} else {
+										$url = "product_inventory?linkTo=id_office_inventory,status_inventory&equalTo=".$_SESSION["admin"]->id_office_admin.",1&select=id_inventory";
+										$totalProducts = CurlController::request($url,$method,$fields);
+										if($totalProducts->status == 200){
+											$totalProducts = $totalProducts->total;
+										}else{
+											$totalProducts = 0;
+										}
+									}
+								} else {
 									$totalProducts = 0;
 								}
-							}
-						
-						}else{
-
-							$totalProducts = 0;
-						}
 	
 						?>
 
@@ -85,14 +95,25 @@ JD SLIDER
 						
 						<div class="border-0 rounded text-center bg-white mx-1 p-3 pb-0 loadCategory" idCategory="<?php echo $value->id_category ?>">
 							
-							<img src="<?php echo urldecode($value->img_category) ?>" class="img-fluid mx-auto" style="width:50px; cursor:pointer">
+							<img src="<?php echo TemplateController::normalizeImage($value->img_category) ?>" class="img-fluid mx-auto" style="width:50px; cursor:pointer">
 							<p class="pt-2 mb-0 lead" style="cursor:move"><strong><?php echo urldecode($value->title_category) ?></strong></p>
 
 							<?php 
 
 								if ($_SESSION["admin"]->id_office_admin > 0) {
+									require_once "controllers/install.controller.php";
+									$db = InstallController::connect();
 									$role = $_SESSION["admin"]->rol_admin;
-									if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+									$id_admin = $_SESSION["admin"]->id_admin;
+									$id_office = $_SESSION["admin"]->id_office_admin;
+									$hasSubWarehouse = false;
+									if ($id_admin) {
+										$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
+										$stmtHasSub->execute([':office' => $id_office]);
+										$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
+									}
+
+									if ($hasSubWarehouse) {
 										require_once "controllers/install.controller.php";
 										$db = InstallController::connect();
 										$stmtTot = $db->prepare("
@@ -100,9 +121,9 @@ JD SLIDER
 											FROM warehouse_assignments wa
 											JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
 											JOIN products p ON wa.id_product_assignment = p.id_product
-											WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND p.id_category_product = :category
+											WHERE sw.id_office_sub_warehouse = :office AND p.id_category_product = :category AND p.status_product = 1
 										");
-										$stmtTot->execute([':admin' => $_SESSION["admin"]->id_admin, ':office' => $_SESSION["admin"]->id_office_admin, ':category' => $value->id_category]);
+										$stmtTot->execute([':office' => $id_office, ':category' => $value->id_category]);
 										$totalProducts = (int)$stmtTot->fetchColumn();
 									} else {
 										// Contar productos activos en esta categoría para esta sucursal

@@ -9,21 +9,32 @@ $id_office = $_SESSION["admin"]->id_office_admin;
 try {
 	$db = InstallController::connect();
 
-	if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+	$hasSubWarehouse = false;
+	if ($id_admin) {
+		$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
+		$stmtHasSub->execute([':office' => $id_office]);
+		$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
+	}
+
+	$warehouseIds = [];
+	$stmtWH = $db->prepare("SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office");
+	$stmtWH->execute([':office' => $id_office]);
+	$warehouseIds = $stmtWH->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+	if ($hasSubWarehouse) {
 		$sqlCount = "
 			SELECT COUNT(*) as total
 			FROM (
 				SELECT p.id_product
 				FROM products p
 				INNER JOIN categories c ON p.id_category_product = c.id_category
-				INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
 				INNER JOIN (
 					SELECT wa.id_product_assignment,
 						   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
 							COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
 					FROM warehouse_assignments wa
 					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-					WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+					WHERE sw.id_office_sub_warehouse = :office
 					GROUP BY wa.id_product_assignment
 					HAVING stock > 0
 				) sub ON p.id_product = sub.id_product_assignment
@@ -31,7 +42,7 @@ try {
 			) t
 		";
 		$stmtCount = $db->prepare($sqlCount);
-		$stmtCount->execute([':admin' => $id_admin, ':office' => $id_office]);
+		$stmtCount->execute([':office' => $id_office]);
 	} else {
 		$sqlCount = "
 			SELECT COUNT(*) as total
@@ -51,27 +62,26 @@ try {
 	Query de productos: JOIN con product_inventory para stock y estado por sucursal.
 	Para vendedores (sub-almacén), el stock viene de warehouse_assignments.
 	=============================================*/
-	if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+	if ($hasSubWarehouse) {
 		$sql = "
 			SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
 				   sub.stock as stock_product
 			FROM products p
 			INNER JOIN categories c ON p.id_category_product = c.id_category
-			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
 			INNER JOIN (
 				SELECT wa.id_product_assignment,
 					   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
 						COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
 				FROM warehouse_assignments wa
 				JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-				WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office
+				WHERE sw.id_office_sub_warehouse = :office
 				GROUP BY wa.id_product_assignment
 				HAVING stock > 0
 			) sub ON p.id_product = sub.id_product_assignment
 			WHERE p.status_product = 1
 			ORDER BY p.id_product DESC
 			LIMIT 0, " . (int)$limit;
-		$params = [':admin' => $id_admin, ':office' => $id_office];
+		$params = [':office' => $id_office];
 	} else {
 		$sql = "
 			SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
@@ -156,18 +166,26 @@ $fields = array();
 
 							<?php 
 
-							$url = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$value->id_product.",".$id_office."&select=cost_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
+							$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,id_office_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
 
 							$price = CurlController::request($url,$method,$fields);
 
-							if($price->status != 200){
-								$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,date_created_purchase&orderBy=date_created_purchase&orderMode=DESC";
-								$price = CurlController::request($urlFallback,$method,$fields);
+							$costPurchase = 0;
+							if($price->status == 200 && !empty($price->results)){
+								foreach ($price->results as $pRow) {
+									if (in_array((int)$pRow->id_office_purchase, $warehouseIds)) {
+										$costPurchase = $pRow->cost_purchase;
+										break;
+									}
+								}
+								if ($costPurchase == 0) {
+									$costPurchase = $price->results[0]->cost_purchase;
+								}
 							}
 
-							if($price->status == 200){
+							if($costPurchase > 0){
 
-								$price = $price->results[0]->cost_purchase;
+								$price = $costPurchase;
 
 								if($value->discount_product > 0){
 
@@ -213,14 +231,6 @@ $fields = array();
 		
 	<?php endif ?>
 
-	<input type="hidden" id="totalPagesProducts" value="<?php echo $totalPageProducts ?>">
-	<input type="hidden" id="currentPageProducts" value="1">
-	<input type="hidden" id="limitProduct" value="<?php echo $limit ?>">
-	<input type="hidden" id="idOffice" value="<?php echo $_SESSION["admin"]->id_office_admin ?>">
-	<input type="hidden" id="filterByCategory" value="all">
-	<input type="hidden" id="sellerId" value="<?php echo $_SESSION['admin']->id_admin ?>">
-	<input type="hidden" id="sellerRole" value="<?php echo $_SESSION['admin']->rol_admin ?>">
-
 <?php else: ?>
 
 	<div class="row p-2 my-5 text-center">
@@ -232,3 +242,11 @@ $fields = array();
 	</div>
 	
 <?php endif ?>
+
+<input type="hidden" id="totalPagesProducts" value="<?php echo $totalPageProducts ?>">
+<input type="hidden" id="currentPageProducts" value="1">
+<input type="hidden" id="limitProduct" value="<?php echo $limit ?>">
+<input type="hidden" id="idOffice" value="<?php echo $_SESSION["admin"]->id_office_admin ?>">
+<input type="hidden" id="filterByCategory" value="all">
+<input type="hidden" id="sellerId" value="<?php echo $_SESSION['admin']->id_admin ?>">
+<input type="hidden" id="sellerRole" value="<?php echo $_SESSION['admin']->rol_admin ?>">

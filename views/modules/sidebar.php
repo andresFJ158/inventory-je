@@ -50,7 +50,7 @@ if($pages->status == 200){
 				} else if ($role == "qc_inspector") {
 					$qc_routes = ["lab_calidad"];
 					if (in_array($page_url, $qc_routes)) $allowed_menu = true;
-				} else if ($role == "cajero" || $role == "despachador" || $role == "editor") {
+				} else if ($role == "cajero" || $role == "despachador" || $role == "vendedor" || $role == "editor") {
 					$perms = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
 					if (isset($perms[$page_url]) && $perms[$page_url] == "on") {
 						$allowed_menu = true;

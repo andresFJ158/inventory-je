@@ -459,8 +459,24 @@ $(document).on("click", ".addProductPos", function () {
 			return;
 		}
 
+		var idProduct = $(this).attr("idProduct");
+		var $input = $(".showQuantity_" + idProduct);
+		if ($input.length > 0) {
+			let current = Number($input.val());
+			let stock = Number($input.attr("stock"));
+			if (current + 1 <= stock) {
+				$input.val(current + 1);
+				changeQuantity(idProduct);
+				fncSweetAlert("close", "", "");
+			} else {
+				fncSweetAlert("close", "", "");
+				fncToastr("error", "La cantidad es mayor al stock existente");
+			}
+			return;
+		}
+
 		var data = new FormData();
-		data.append("idProduct", $(this).attr("idProduct"));
+		data.append("idProduct", idProduct);
 		data.append("idOrder", $("#orderHeader").attr("idOrder"));
 		data.append("idClient", $("#clientList").val());
 		data.append("seller", $("#seller").attr("idAdmin"));
@@ -1357,6 +1373,7 @@ $('#formOverridePrice').submit(function(e){
 	let originalPrice = $('#overrideOriginalPrice').val();
 	let newPrice = $('#overrideNewPrice').val();
 	let reason = $('#overrideReason').val();
+	let qty = $('.showQuantity_' + idProduct).val();
 	
 	let data = new FormData();
 	data.append('overridePriceCart', 'yes');
@@ -1366,6 +1383,7 @@ $('#formOverridePrice').submit(function(e){
 	data.append('originalPriceOverride', originalPrice);
 	data.append('newPriceOverride', newPrice);
 	data.append('reasonOverride', reason);
+	data.append('qtyOverride', qty);
 	data.append('token', localStorage.getItem('tokenAdmin'));
 	data.append('seller', $('#seller').attr('idAdmin'));
 	
@@ -1385,11 +1403,11 @@ $('#formOverridePrice').submit(function(e){
 				
 				// Update the UI
 				let pricePurchaseElem = $('.pricePurchase_'+idProduct);
-				let qty = $('.showQuantity_'+idProduct).val();
 				let newSubtotal = Number(newPrice) * Number(qty);
 				
 				pricePurchaseElem.attr('originalPricePurchase', newPrice);
 				pricePurchaseElem.attr('pricePurchase', newSubtotal);
+				pricePurchaseElem.attr('appliedPriceType', 'manual');
 				pricePurchaseElem.html(money(newSubtotal.toFixed(2)));
 				
 				calculateProducts();

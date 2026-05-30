@@ -383,7 +383,7 @@ class DynamicTablesController{
 
 					if(count($clientIds) > 0){
 						$inIds = implode("_", $clientIds);
-						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 							$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&filterTo=".$value."&inTo=".$inIds."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
 						}else{
 							$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&filterTo=".$value.",id_office_".$module->suffix_module."&inTo=".$inIds.",".$this->idOffice."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
@@ -398,7 +398,7 @@ class DynamicTablesController{
 					if ($module->title_module == "products") {
 						$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
 					} else {
-						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 							$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
 						}else{
 							$url = $module->title_module."?linkTo=".$value.",id_office_".$module->suffix_module."&search=".str_replace(" ", "_", $this->search).",".$this->idOffice."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;
@@ -416,7 +416,7 @@ class DynamicTablesController{
 					$table = $table->results;
 
 					if($value == "id_client_order" && $module->title_module == "orders" && !is_numeric($this->search) && isset($inIds) && count($clientIds) > 0){
-						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+						if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 							$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&filterTo=".$value."&inTo=".$inIds."&select=id_".$module->suffix_module;
 						}else{
 							$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&filterTo=".$value.",id_office_".$module->suffix_module."&inTo=".$inIds.",".$this->idOffice."&select=id_".$module->suffix_module;
@@ -425,7 +425,7 @@ class DynamicTablesController{
 						if ($module->title_module == "products") {
 							$url = "products?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&select=id_product";
 						} else {
-							if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+							if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 								$url = $module->title_module."?linkTo=".$value."&search=".str_replace(" ", "_", $this->search)."&select=id_".$module->suffix_module;
 							}else{
 								$url = $module->title_module."?linkTo=".$value.",id_office_".$module->suffix_module."&search=".str_replace(" ", "_", $this->search).",".$this->idOffice."&select=id_".$module->suffix_module;
@@ -451,7 +451,7 @@ class DynamicTablesController{
 			if ($module->title_module == "products") {
 				$url = "products?linkTo=date_created_product&between1=".$this->between1."&between2=".$this->between2."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;	
 			} else {
-				if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+				if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 					$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit;	
 				}else{
 					$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&orderBy=".$this->orderBy."&orderMode=".$this->orderMode."&startAt=".$startAt."&endAt=".$this->limit."&filterTo=id_office_".$module->suffix_module."&inTo=".$this->idOffice;	
@@ -475,7 +475,7 @@ class DynamicTablesController{
 				if ($module->title_module == "products") {
 					$url = "products?select=id_product&linkTo=date_created_product&between1=".$this->between1."&between2=".$this->between2;
 				} else {
-					if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+					if($this->idOffice == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 						$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&select=id_".$module->suffix_module;
 					}else{
 						$url = $module->title_module."?linkTo=date_created_".$module->suffix_module."&between1=".$this->between1."&between2=".$this->between2."&select=id_".$module->suffix_module."&filterTo=id_office_".$module->suffix_module."&inTo=".$this->idOffice;
@@ -538,6 +538,8 @@ class DynamicTablesController{
 									}
 									if (empty($imgSrc) || $imgSrc === 'NULL' || $imgSrc === 'null') {
 										$imgSrc = '/views/assets/img/multimedia.png';
+									} else {
+										$imgSrc = TemplateController::normalizeImage($imgSrc);
 									}
 
 									$HTMLTable .= '<a href="'.urldecode($imgSrc).'" target="_blank">
@@ -707,18 +709,23 @@ class DynamicTablesController{
 									$stockVal = $value[$item->title_column];
 									if ($module->title_module == "products" && $item->title_column == "stock_product" && $this->idOffice > 0) {
 										$role = $_SESSION["admin"]->rol_admin;
-										if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
-											$id_admin = $_SESSION["admin"]->id_admin;
-											$db = InstallController::connect();
+										$id_admin = $_SESSION["admin"]->id_admin;
+										$db = InstallController::connect();
+										$hasSubWarehouse = false;
+										if ($id_admin) {
+											$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_admin_sub_warehouse = :admin LIMIT 1");
+											$stmtHasSub->execute([':admin' => $id_admin]);
+											$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
+										}
+										if ($hasSubWarehouse) {
 											$stmtStock = $db->prepare("
 												SELECT (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
 														COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
 												FROM warehouse_assignments wa
 												JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-												WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
+												WHERE sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
 											");
 											$stmtStock->execute([
-												':admin' => $id_admin,
 												':office' => $this->idOffice,
 												':product' => $value["id_product"]
 											]);
@@ -910,11 +917,22 @@ class DynamicTablesController{
 		}
 
 		// Calcular ingresos en efectivo (orders) en la misma ventana
+		$vendedores = CurlController::request("admins?linkTo=rol_admin&equalTo=vendedor&select=id_admin","GET",array());
+		$independentSellers = [];
+		if (isset($vendedores->status) && $vendedores->status == 200 && !empty($vendedores->results)) {
+			foreach ($vendedores->results as $v) {
+				$independentSellers[] = (int) $v->id_admin;
+			}
+		}
+
 		$totalOrders = 0;
 		$urlOrders = TemplateController::ordersSessionApiUrl($cashOffice, $cashSessionStart, $cashSessionEnd);
 		$orders = CurlController::request($urlOrders,"GET",array());
 		if(isset($orders->status) && $orders->status == 200){
 			foreach ($orders->results as $key => $value) {
+				if (in_array((int)($value->id_admin_order ?? 0), $independentSellers)) {
+					continue;
+				}
 				$s = isset($value->status_order) ? (string) $value->status_order : "";
 				if($s === "Completada"){
 					$totalOrders += (float) $value->total_order;
@@ -1182,9 +1200,20 @@ if(isset($_POST["getProductStockBranches"])){
 	$idProduct = (int)$_POST["getProductStockBranches"];
 
 	$stmt = $db->prepare("
-		SELECT o.title_office as name_office, COALESCE(pi.stock_inventory, 0) as stock
+		SELECT o.title_office as name_office, 
+		       (COALESCE(pi.stock_inventory, 0) + COALESCE(sub.sub_stock, 0)) as stock
 		FROM offices o
 		LEFT JOIN product_inventory pi ON pi.id_office_inventory = o.id_office AND pi.id_product_inventory = :product
+		LEFT JOIN (
+			SELECT sw.id_office_sub_warehouse,
+			       SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 
+			                WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
+			                ELSE 0 END) as sub_stock
+			FROM warehouse_assignments wa
+			JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
+			WHERE wa.id_product_assignment = :product
+			GROUP BY sw.id_office_sub_warehouse
+		) sub ON sub.id_office_sub_warehouse = o.id_office
 		ORDER BY o.title_office ASC
 	");
 	$stmt->execute([':product' => $idProduct]);

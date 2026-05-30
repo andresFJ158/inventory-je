@@ -112,12 +112,26 @@ $ordersRaw  = [];
 $totalSales = 0;
 
 if ($officeId > 0) {
-    $ordersUrl  = "orders?linkTo=date_order&between1=" . rawurlencode($sessionStart) . "&between2=" . rawurlencode($sessionEnd) . "&filterTo=id_office_order&inTo={$officeId}&select=id_order,total_order,date_order,method_order,status_order,transaction_order";
+    // Obtener vendedores independientes
+    $vendedores = apiRequest("admins?linkTo=rol_admin&equalTo=vendedor&select=id_admin");
+    $independentSellers = [];
+    if (isset($vendedores->status) && $vendedores->status == 200 && !empty($vendedores->results)) {
+        foreach ($vendedores->results as $v) {
+            $independentSellers[] = (int) $v->id_admin;
+        }
+    }
+
+    $ordersUrl  = "orders?linkTo=date_order&between1=" . rawurlencode($sessionStart) . "&between2=" . rawurlencode($sessionEnd) . "&filterTo=id_office_order&inTo={$officeId}&select=id_order,total_order,date_order,method_order,status_order,transaction_order,id_admin_order";
     $ordersResp = apiRequest($ordersUrl);
 
     if (isset($ordersResp->status) && $ordersResp->status == 200 && !empty($ordersResp->results)) {
         foreach ($ordersResp->results as $order) {
             $o = (array) $order;
+
+            // Excluir ventas de vendedores independientes (de calle)
+            if (in_array((int)($o["id_admin_order"] ?? 0), $independentSellers)) {
+                continue;
+            }
 
             if ((string)($o["status_order"] ?? "") === "Completada") {
                 $totalSales += (float)($o["total_order"] ?? 0);

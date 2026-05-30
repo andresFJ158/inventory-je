@@ -2,6 +2,24 @@
 $id_office = $_SESSION["admin"]->id_office_admin;
 $id_admin = $_SESSION["admin"]->id_admin;
 $role = $_SESSION["admin"]->rol_admin;
+
+require_once "controllers/install.controller.php";
+$db = InstallController::connect();
+
+// hasSubWarehouse = true si el rol es vendedor O si el usuario tiene un sub-almacén asignado (cajero con sub-almacén)
+$hasSubWarehouse = false;
+if ($role === 'vendedor') {
+    $hasSubWarehouse = true;
+} else {
+    // Verificar si existe un sub-almacén para este usuario
+    try {
+        $stmtHas = $db->prepare("SELECT COUNT(*) FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
+        $stmtHas->execute([':office' => $id_office]);
+        $hasSubWarehouse = (int)$stmtHas->fetchColumn() > 0;
+    } catch (Exception $e) {
+        $hasSubWarehouse = false;
+    }
+}
 ?>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
@@ -13,12 +31,12 @@ $role = $_SESSION["admin"]->rol_admin;
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-box-open"></i> <?php echo ($role == 'despachador' || $role == 'admin' || $role == 'superadmin') ? 'Inventario Almacén' : 'Mi Inventario'; ?></div>
+                <div class="text-capitalize h5 ps-2"><i class="fas fa-box-open"></i> <?php echo (!$hasSubWarehouse) ? 'Inventario Almacén' : 'Mi Inventario'; ?></div>
                 <div class="pe-0">
                     <ul class="nav justify-content-lg-end">
                         <li class="nav-item"><a class="nav-link py-0 px-0 text-dark" href="/">Inicio</a></li>
                         <li class="nav-item ps-3">/</li>
-                        <li class="nav-item"><a class="nav-link py-0 disabled text-capitalize" href="#"><?php echo ($role == 'despachador' || $role == 'admin' || $role == 'superadmin') ? 'Inventario Almacén' : 'Mi Inventario'; ?></a></li>
+                        <li class="nav-item"><a class="nav-link py-0 disabled text-capitalize" href="#"><?php echo (!$hasSubWarehouse) ? 'Inventario Almacén' : 'Mi Inventario'; ?></a></li>
                     </ul>
                 </div>
             </div>
@@ -29,8 +47,8 @@ $role = $_SESSION["admin"]->rol_admin;
             <div class="card rounded p-3 border-0 shadow-sm">
                 <div class="card-body">
                     <div class="d-flex justify-content-between mb-3 align-items-center">
-                        <h6 class="mb-0"><i class="fas fa-boxes"></i> <?php echo ($role == 'despachador' || $role == 'admin' || $role == 'superadmin') ? 'Productos en Almacén' : 'Productos en mi Sub-Almacén'; ?></h6>
-                        <?php if($role != 'despachador' && $role != 'admin' && $role != 'superadmin'): ?>
+                        <h6 class="mb-0"><i class="fas fa-boxes"></i> <?php echo (!$hasSubWarehouse) ? 'Productos en Almacén' : 'Productos en mi Sub-Almacén'; ?></h6>
+                        <?php if($hasSubWarehouse): ?>
                         <a href="/solicitar_inventario" class="btn btn-sm backColor">
                             <i class="fas fa-plus-circle"></i> Solicitar más inventario
                         </a>
@@ -44,7 +62,7 @@ $role = $_SESSION["admin"]->rol_admin;
         </div>
 
         <!-- Historial de movimientos del sub-almacén -->
-        <?php if($role != 'despachador' && $role != 'admin' && $role != 'superadmin'): ?>
+        <?php if($hasSubWarehouse): ?>
         <div class="col-12 mb-3">
             <div class="card rounded p-3 border-0 shadow-sm">
                 <div class="card-body">
@@ -63,10 +81,11 @@ $role = $_SESSION["admin"]->rol_admin;
 var idAdmin = <?php echo $id_admin ?>;
 var idOffice = <?php echo $id_office ?>;
 var userRole = "<?php echo $role ?>";
+var hasSubWarehouse = <?php echo $hasSubWarehouse ? 'true' : 'false' ?>;
 
 $(document).ready(function() {
     loadMyInventory();
-    if(userRole !== 'despachador' && userRole !== 'admin' && userRole !== 'superadmin'){
+    if(hasSubWarehouse){
         loadMyMovements();
     }
 });
@@ -88,7 +107,7 @@ function loadMyInventory(){
                 var statusText = item.stock > 0 ? 'Disponible' : 'Agotado';
                 html += '<tr>';
                 html += '<td>' + (i+1) + '</td>';
-                html += '<td class="fw-bold">' + item.title_product + '</td>';
+                html += '<td class="fw-bold">' + decodeURIComponent((item.title_product || '').replace(/\+/g, ' ')) + '</td>';
                 html += '<td><span class="badge bg-secondary">' + (item.sku_product || '-') + '</span></td>';
                 html += '<td>' + (item.unit_product || '-') + '</td>';
                 html += '<td><span class="badge fs-6 ' + stockClass + '">' + item.stock + '</span></td>';
@@ -98,10 +117,18 @@ function loadMyInventory(){
             html += '</tbody></table></div>';
             $('#myInventoryContent').html(html);
 
-            // Init DataTable after rendering
+            // Init DataTable after rendering (idioma inline, sin CDN)
             setTimeout(function(){
                 $('#myInvTable').DataTable({
-                    "language": { "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json" },
+                    "language": {
+                        "emptyTable": "No hay datos",
+                        "info": "Mostrando _START_ a _END_ de _TOTAL_",
+                        "infoEmpty": "Mostrando 0 a 0 de 0",
+                        "lengthMenu": "Mostrar _MENU_ registros",
+                        "search": "Buscar:",
+                        "zeroRecords": "Sin resultados",
+                        "paginate": { "first": "Primero", "last": "Último", "next": "Siguiente", "previous": "Anterior" }
+                    },
                     "order": [[4, "desc"]]
                 });
             }, 100);
@@ -128,7 +155,7 @@ function loadMyMovements(){
                 html += '<tr>';
                 html += '<td>' + m.date_created_assignment + '</td>';
                 html += '<td>' + typeBadge + '</td>';
-                html += '<td>' + m.title_product + '</td>';
+                html += '<td>' + decodeURIComponent((m.title_product || '').replace(/\+/g, ' ')) + '</td>';
                 html += '<td>' + m.qty_assignment + '</td>';
                 html += '<td>' + (m.notes_assignment || '-') + '</td>';
                 html += '</tr>';

@@ -23,10 +23,16 @@ $isAutoAdmin = (($module->title_module === "cashs" && $titleCol === "id_admin_ca
 
 // Auto-asignar sucursal: para caja, gastos y ventas, los usuarios NO superadmin no pueden seleccionar otra sucursal
 $isAutoOffice = false;
-$autoOfficeTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "products" => "id_office_product", "purchases" => "id_office_purchase"];
+$autoOfficeTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "clients" => "id_office_client", "products" => "id_office_product"];
 if (isset($autoOfficeTables[$module->title_module]) && $titleCol === $autoOfficeTables[$module->title_module]) {
 	$rolAdmin = isset($_SESSION['admin']->rol_admin) ? $_SESSION['admin']->rol_admin : '';
 	$isAutoOffice = ($rolAdmin !== 'superadmin');
+}
+
+$isAutoWarehouse = false;
+if ($module->title_module === "purchases" && $titleCol === "id_office_purchase") {
+	$rolAdmin = isset($_SESSION['admin']->rol_admin) ? $_SESSION['admin']->rol_admin : '';
+	$isAutoWarehouse = ($rolAdmin !== 'superadmin');
 }
 ?>
 
@@ -45,6 +51,28 @@ if (isset($autoOfficeTables[$module->title_module]) && $titleCol === $autoOffice
 	?>
 	<input type="text" class="form-control rounded mb-3 bg-light" value="<?php echo htmlspecialchars($adminOfficeId . ' - ' . $adminOfficeName, ENT_QUOTES, 'UTF-8'); ?>" disabled>
 	<input type="hidden" name="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo $adminOfficeId; ?>">
+
+<?php elseif ($isAutoWarehouse): ?>
+	<?php
+	$adminWarehouseId = 0;
+	$adminWarehouseName = '';
+	if (isset($_SESSION['admin']->id_warehouse_admin) && (int)$_SESSION['admin']->id_warehouse_admin > 0) {
+		$adminWarehouseId = (int)$_SESSION['admin']->id_warehouse_admin;
+	} else if (isset($_SESSION['admin']->id_office_admin) && (int)$_SESSION['admin']->id_office_admin > 0) {
+		$respWH = CurlController::request('warehouses?linkTo=id_office_warehouse&equalTo=' . $_SESSION['admin']->id_office_admin, 'GET', []);
+		if (isset($respWH->status) && $respWH->status == 200 && !empty($respWH->results)) {
+			$adminWarehouseId = (int)$respWH->results[0]->id_warehouse;
+		}
+	}
+	if ($adminWarehouseId > 0) {
+		$respWHName = CurlController::request('warehouses?linkTo=id_warehouse&equalTo=' . $adminWarehouseId, 'GET', []);
+		if (isset($respWHName->status) && $respWHName->status == 200 && !empty($respWHName->results)) {
+			$adminWarehouseName = urldecode($respWHName->results[0]->title_warehouse);
+		}
+	}
+	?>
+	<input type="text" class="form-control rounded mb-3 bg-light" value="<?php echo htmlspecialchars($adminWarehouseId . ' - ' . $adminWarehouseName, ENT_QUOTES, 'UTF-8'); ?>" disabled>
+	<input type="hidden" name="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" id="<?php echo htmlspecialchars($titleCol, ENT_QUOTES, 'UTF-8'); ?>" value="<?php echo $adminWarehouseId; ?>">
 
 <?php elseif ($isAutoAdmin): ?>
 	<?php

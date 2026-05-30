@@ -36,7 +36,7 @@ $totalData = 0;
 if ($module->title_module == "products") {
 	$url = "products?linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01&orderBy=id_product&orderMode=DESC&startAt=0&endAt=".$limit;
 } else {
-	if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+	if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 
 		$url = $module->title_module."?orderBy=id_".$module->suffix_module."&orderMode=DESC&startAt=0&endAt=".$limit;
 
@@ -63,7 +63,7 @@ if($table->status == 200){
 	if ($module->title_module == "products") {
 		$url = "products?select=id_product&linkTo=date_created_product&between1=1970-01-01&between2=2030-01-01";
 	} else {
-		if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column"))){
+		if($_SESSION["admin"]->id_office_admin == 0 || !in_array("id_office_".$module->suffix_module, array_column($module->columns, "title_column")) || $module->title_module == "clients"){
 
 			$url = $module->title_module."?select=id_".$module->suffix_module;
 
@@ -434,6 +434,8 @@ Cargamos el módulo tabla
 											}
 											if (empty($imgSrc) || $imgSrc === 'NULL' || $imgSrc === 'null') {
 												$imgSrc = '/views/assets/img/multimedia.png';
+											} else {
+												$imgSrc = TemplateController::normalizeImage($imgSrc);
 											}
 
 											echo '<a href="'.urldecode($imgSrc).'" target="_blank">
@@ -595,19 +597,27 @@ Cargamos el módulo tabla
 											$stockVal = $value[$item->title_column];
 											if ($module->title_module == "products" && $item->title_column == "stock_product" && $_SESSION["admin"]->id_office_admin > 0) {
 												$role = $_SESSION["admin"]->rol_admin;
-												if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
-													require_once "controllers/install.controller.php";
+												$id_admin = $_SESSION["admin"]->id_admin;
+												$id_office = $_SESSION["admin"]->id_office_admin;
+												require_once "controllers/install.controller.php";
+												$db = InstallController::connect();
+												$hasSubWarehouse = false;
+												if ($id_admin) {
+													$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
+													$stmtHasSub->execute([':office' => $id_office]);
+													$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
+												}
+												if ($hasSubWarehouse) {
 													$db = InstallController::connect();
 													$stmtStock = $db->prepare("
 														SELECT (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
 																COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
 														FROM warehouse_assignments wa
 														JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-														WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
+														WHERE sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
 													");
 													$stmtStock->execute([
-														':admin' => $_SESSION["admin"]->id_admin,
-														':office' => $_SESSION["admin"]->id_office_admin,
+														':office' => $id_office,
 														':product' => $value["id_product"]
 													]);
 													$stockVal = (int)($stmtStock->fetchColumn() ?: 0);

@@ -15,11 +15,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Simulate session for Santiago
+// Simulate session for Sebastian Guzman
 $adminObj = new stdClass();
 $adminObj->rol_admin = "cajero";
-$adminObj->id_admin = 22;
-$adminObj->id_office_admin = 7;
+$adminObj->id_admin = 26;
+$adminObj->id_office_admin = 10;
 $_SESSION["admin"] = $adminObj;
 
 $pos = new PosController();
@@ -27,9 +27,9 @@ $pos->limit = 10;
 $pos->startAt = 0;
 $pos->category = "all";
 $pos->search = "";
-$pos->idOffice = 7;
+$pos->idOffice = 10;
 $_POST["sellerRole"] = "cajero";
-$_POST["sellerId"] = 22;
+$_POST["sellerId"] = 26;
 $_POST["isWholesale"] = 0;
 
 $pos->loadProducts();

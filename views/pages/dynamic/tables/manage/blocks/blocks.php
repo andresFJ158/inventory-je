@@ -39,6 +39,14 @@ if ($isAutoAdminField):
 	if (empty($allRoles)) {
 		$allRoles = array("superadmin", "admin", "cajero", "despachador", "lab_admin", "lab_worker");
 	}
+	if (!in_array("vendedor", $allRoles)) {
+		$pos = array_search("cajero", $allRoles);
+		if ($pos !== false) {
+			array_splice($allRoles, $pos + 1, 0, "vendedor");
+		} else {
+			$allRoles[] = "vendedor";
+		}
+	}
 ?>
 <div class="card rounded border-0 shadow mb-3 pb-3">
 	<div class="card-body">
@@ -95,10 +103,12 @@ if ($isAutoAdminField):
 			document.getElementById("rol_admin").value = role;
 			toggleRoleFields(role);
 
-			if (role === "cajero" || role === "despachador") {
+			if (role === "cajero" || role === "vendedor" || role === "despachador") {
 				var targetModules = [];
 				if (role === "cajero") {
 					targetModules = ["pos", "caja", "clientes", "productos", "ordenes", "ventas", "gastos", "reports", "solicitar_inventario", "mi_inventario"];
+				} else if (role === "vendedor") {
+					targetModules = ["pos", "clientes", "ordenes", "solicitar_inventario", "mi_inventario"];
 				} else if (role === "despachador") {
 					targetModules = ["proveedores", "productos", "compras", "almacen", "despachos"];
 				}

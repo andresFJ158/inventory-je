@@ -60,22 +60,35 @@ if(!empty($order)){
 		<tbody id="addProduct">
 
 			<?php if (!empty($sales) && !empty($order)): ?>
+				<?php
+				$id_office = $_SESSION["admin"]->id_office_admin;
+				$warehouseIds = [];
+				try {
+					$db = InstallController::connect();
+					$stmtWH = $db->prepare("SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office");
+					$stmtWH->execute([':office' => $id_office]);
+					$warehouseIds = $stmtWH->fetchAll(PDO::FETCH_COLUMN) ?: [];
+				} catch (Exception $e) {}
+				?>
 
 				<?php foreach ($sales as $key => $value): 
 
-					$original_price = $value->subtotal_sale;
+					$unit_price = $value->qty_sale > 0 ? ($value->subtotal_sale / $value->qty_sale) : $value->subtotal_sale;
+					$original_price = $unit_price;
 
-					$urlPurch = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$value->id_product.",".$id_office."&select=cost_purchase,may_product,wholesale_quantity&orderBy=date_created_purchase&orderMode=DESC";
+					$urlPurch = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,may_product,wholesale_quantity,id_office_purchase&orderBy=date_created_purchase&orderMode=DESC";
 					$reqPurch = CurlController::request($urlPurch, "GET", array());
 					$basePrice = 0; $wholesalePrice = 0; $wholesaleQty = 0;
 					if(isset($reqPurch->status) && $reqPurch->status == 200 && !empty($reqPurch->results)){
-						$basePrice = $reqPurch->results[0]->cost_purchase;
-						$wholesalePrice = $reqPurch->results[0]->may_product;
-						$wholesaleQty = $reqPurch->results[0]->wholesale_quantity;
-					} else {
-						$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,may_product,wholesale_quantity&orderBy=date_created_purchase&orderMode=DESC";
-						$reqPurch = CurlController::request($urlFallback, "GET", array());
-						if(isset($reqPurch->status) && $reqPurch->status == 200 && !empty($reqPurch->results)){
+						foreach ($reqPurch->results as $pRow) {
+							if (in_array((int)$pRow->id_office_purchase, $warehouseIds)) {
+								$basePrice = $pRow->cost_purchase;
+								$wholesalePrice = $pRow->may_product;
+								$wholesaleQty = $pRow->wholesale_quantity;
+								break;
+							}
+						}
+						if ($basePrice == 0) {
 							$basePrice = $reqPurch->results[0]->cost_purchase;
 							$wholesalePrice = $reqPurch->results[0]->may_product;
 							$wholesaleQty = $reqPurch->results[0]->wholesale_quantity;
@@ -88,8 +101,17 @@ if(!empty($order)){
 					$id_admin = $_SESSION["admin"]->id_admin;
 					$id_office = $_SESSION["admin"]->id_office_admin;
 					$stock = 0;
+					$hasSubWarehouse = false;
+					try {
+						$db = InstallController::connect();
+						if ($id_admin) {
+							$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
+							$stmtHasSub->execute([':office' => $id_office]);
+							$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
+						}
+					} catch (Exception $e) {}
 
-					if ($role != "superadmin" && $role != "admin" && $role != "despachador") {
+					if ($hasSubWarehouse) {
 						try {
 							$db = InstallController::connect();
 							$stmtStock = $db->prepare("
@@ -97,10 +119,9 @@ if(!empty($order)){
 										COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
 								FROM warehouse_assignments wa
 								JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-								WHERE sw.id_admin_sub_warehouse = :admin AND sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
+								WHERE sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
 							");
 							$stmtStock->execute([
-								':admin' => $id_admin,
 								':office' => $id_office,
 								':product' => $value->id_product
 							]);
@@ -178,7 +199,7 @@ if(!empty($order)){
 						<td>
 							<h6 class="text-center my-3 pricePurchase pricePurchase_<?php echo $value->id_product ?>" 
 							pricePurchase="<?php echo $value->subtotal_sale ?>" 
-							originalPricePurchase="<?php echo $value->subtotal_sale ?>"
+							originalPricePurchase="<?php echo $unit_price ?>"
 							basePrice="<?php echo $basePrice ?>"
 							wholesalePrice="<?php echo empty($wholesalePrice) ? 0 : $wholesalePrice ?>"
 							wholesaleQty="<?php echo empty($wholesaleQty) ? 0 : $wholesaleQty ?>"
