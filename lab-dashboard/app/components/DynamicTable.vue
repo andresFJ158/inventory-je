@@ -225,6 +225,24 @@ function onFormSaved() {
   isSlideoverOpen.value = false
   fetchRows()
 }
+
+// Order PDF Logic
+const isReceiptModalOpen = ref(false)
+const selectedOrderId = ref<number | string | null>(null)
+
+function openReceipt(id: string | number) {
+  selectedOrderId.value = id
+  isReceiptModalOpen.value = true
+}
+
+// Cash Details Logic
+const isCashDetailsModalOpen = ref(false)
+const selectedCash = ref<any>(null)
+
+function openCashDetails(cashRow: any) {
+  selectedCash.value = cashRow
+  isCashDetailsModalOpen.value = true
+}
 </script>
 
 <template>
@@ -330,22 +348,44 @@ function onFormSaved() {
               </td>
               
               <!-- Actions -->
-              <td v-if="showActions" class="p-4 text-right">
+              <td v-if="showActions || moduleConfig?.title_module === 'orders' || moduleConfig?.title_module === 'cashs'" class="p-4 text-right">
                 <div class="flex items-center justify-end gap-2">
+                  <!-- Custom Print Order Action -->
                   <UButton
-                    icon="i-lucide-edit"
-                    color="neutral"
-                    variant="ghost"
+                    v-if="moduleConfig?.title_module === 'orders'"
+                    icon="i-lucide-printer"
+                    color="primary"
+                    variant="soft"
                     size="xs"
-                    @click="openEdit(row)"
+                    @click="openReceipt(row[`id_${moduleConfig.suffix_module}`])"
+                    title="Imprimir Comprobante"
                   />
+                  <!-- Custom View Cash Details Action -->
                   <UButton
-                    icon="i-lucide-trash"
-                    color="rose"
-                    variant="ghost"
+                    v-if="moduleConfig?.title_module === 'cashs'"
+                    icon="i-lucide-receipt"
+                    color="primary"
+                    variant="soft"
                     size="xs"
-                    @click="handleDelete(row)"
+                    @click="openCashDetails(row)"
+                    title="Ver Detalles de Caja"
                   />
+                  <template v-if="showActions">
+                    <UButton
+                      icon="i-lucide-edit"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      @click="openEdit(row)"
+                    />
+                    <UButton
+                      icon="i-lucide-trash"
+                      color="rose"
+                      variant="ghost"
+                      size="xs"
+                      @click="handleDelete(row)"
+                    />
+                  </template>
                 </div>
               </td>
             </tr>
@@ -381,5 +421,21 @@ function onFormSaved() {
         />
       </template>
     </USlideover>
+
+    <!-- Receipt Modal for Orders -->
+    <OrderReceiptModal 
+      v-if="moduleConfig?.title_module === 'orders'"
+      v-model:isOpen="isReceiptModalOpen"
+      :order-id="selectedOrderId"
+      @close="selectedOrderId = null"
+    />
+
+    <!-- Cash Details Modal -->
+    <CashDetailsModal
+      v-if="moduleConfig?.title_module === 'cashs'"
+      v-model:isOpen="isCashDetailsModalOpen"
+      :cash="selectedCash"
+      @close="selectedCash = null"
+    />
   </div>
 </template>

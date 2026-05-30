@@ -206,6 +206,55 @@ async function checkCashRegister() {
   }
 }
 
+// Cash Register Opening logic
+const isOpeningCash = ref(false)
+const openingCashAmount = ref(0)
+const cashModalLoading = ref(false)
+
+async function submitCashOpen() {
+  if (openingCashAmount.value < 0) {
+    alert('El monto inicial no puede ser negativo.')
+    return
+  }
+  cashModalLoading.value = true
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const officeId = auth.officeId || 3
+
+    const payload = new URLSearchParams()
+    payload.append('date_created_cash', today)
+    payload.append('id_office_cash', String(officeId))
+    payload.append('initial_cash', String(openingCashAmount.value))
+    payload.append('status_cash', '1') // 1 means open
+    payload.append('bills_cash', '0')
+    payload.append('money_cash', '0')
+    payload.append('diff_cash', '0')
+
+    const res = await $fetch<any>(`/api/cashs?token=no&except=date_end_cash`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...apiHeaders
+      },
+      body: payload.toString()
+    })
+
+    if (res.status === 200) {
+      isCashRegisterOpen.value = true
+      isOpeningCash.value = false
+      alert('Caja abierta exitosamente.')
+      await checkActiveOrder()
+    } else {
+      alert(`Error al abrir caja: ${res.results || 'Intenta de nuevo'}`)
+    }
+  } catch (e) {
+    console.error('Error opening cash:', e)
+    alert('Error de conexión al abrir caja.')
+  } finally {
+    cashModalLoading.value = false
+  }
+}
+
 onMounted(async () => {
   await checkCashRegister()
   await fetchCategories()
@@ -1044,17 +1093,43 @@ function printReceipt() {
         </div>
 
         <UButton
-          to="/caja"
           size="lg"
           color="emerald"
           icon="i-lucide-lock-keyhole-open"
           block
           class="font-bold py-3 text-base shadow-lg shadow-emerald-500/20"
+          @click="isOpeningCash = true"
         >
           Abrir Caja
         </UButton>
       </div>
     </div>
+
+    <!-- Modal to open cash -->
+    <UModal v-model="isOpeningCash">
+      <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-slate-800' }">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold">Apertura de Caja</h3>
+            <UButton color="gray" variant="ghost" icon="i-lucide-x" class="-my-1" @click="isOpeningCash = false" />
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500">Ingrese el monto inicial con el que comienza el día.</p>
+          <UFormGroup label="Dinero Inicial (Bs.)" :error="openingCashAmount < 0 ? 'Monto no puede ser negativo' : ''">
+            <UInput v-model.number="openingCashAmount" type="number" step="0.10" icon="i-lucide-coins" size="lg" />
+          </UFormGroup>
+        </div>
+
+        <template #footer>
+          <div class="flex justify-end gap-3">
+            <UButton color="gray" variant="soft" @click="isOpeningCash = false">Cancelar</UButton>
+            <UButton color="emerald" :loading="cashModalLoading" @click="submitCashOpen">Confirmar y Abrir</UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>
 

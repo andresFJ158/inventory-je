@@ -285,6 +285,17 @@ const sidebarItems = computed(() => {
     if (role === 'despachador' || role === 'superadmin' || role === 'admin' || hasPerm('despachos')) {
       items.push({ label: 'Centro Despachos', to: '/despachos', icon: 'i-lucide-truck' })
     }
+    if (hasPerm('mi_inventario') || role === 'cajero' || role === 'vendedor') {
+      items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
+    }
+    if (hasPerm('solicitar_inventario') || role === 'cajero' || role === 'vendedor') {
+      items.push({ label: 'Solicitar Inventario', to: '/solicitar-inventario', icon: 'i-lucide-clipboard-list' })
+    }
+
+    // Reportes
+    if (role === 'superadmin' || role === 'admin' || role === 'cajero' || hasPerm('reports') || hasPerm('reportes')) {
+      items.push({ label: 'Reportes', to: '/reportes', icon: 'i-lucide-bar-chart-2' })
+    }
   }
 
   // Módulos de Laboratorio

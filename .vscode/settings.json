@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^php -r \"require 'api\\.pos/models/connection\\.php'; \\$db = Connection::connect\\(\\); \\$stmt = \\$db->query\\('DESCRIBE cashs'\\); print_r\\(\\$stmt->fetchAll\\(PDO::FETCH_ASSOC\\)\\);\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
