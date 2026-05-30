@@ -22,6 +22,14 @@ foreach ($routesArray as $key => $value) {
 	$routesArray[$key] = explode("?",$value)[0];
 }
 
+$is_lab_module = false;
+if (isset($routesArray[0])) {
+	$lab_routes = ["lab_materiales", "lab_inventario", "lab_entradas", "lab_recetas", "lab_produccion", "lab_inventario_final", "lab_calidad"];
+	if (in_array($routesArray[0], $lab_routes)) {
+		$is_lab_module = true;
+	}
+}
+
 /*=============================================
 Validar si existe la base de datos con la tabla admins
 =============================================*/
@@ -191,6 +199,8 @@ if($adminTable->status == 404){
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 	<!-- https://icons.getbootstrap.com/ -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.3/font/bootstrap-icons.min.css">
+	<!-- Sketch Icons (Hand-drawn outline icons) -->
+	<link rel="stylesheet" href="https://unpkg.com/sketch-icons@0.1.13/dist/cdn/sketch-icons.css">
 	<!-- https://www.jqueryscript.net/demo/Google-Inbox-Style-Linear-Preloader-Plugin-with-jQuery-CSS3/#google_vignette -->
 	<link rel="stylesheet" href="/views/assets/plugins/material-preloader/material-preloader.css">
 	<!-- https://codeseven.github.io/toastr/demo.html -->
@@ -265,10 +275,117 @@ if($adminTable->status == 404){
 	<link rel="stylesheet" href="/views/assets/css/dashboard/dashboard.css">
 	<link rel="stylesheet" href="/views/assets/css/colors/colors.css">
 	<link rel="stylesheet" href="/views/assets/css/fms/fms.css">
-
+	<?php if ($is_lab_module): ?>
+		<style>
+			/* Teal Palette Overrides for Laboratory Module */
+			body.lab-module {
+				background-color: #f0f7f7 !important; /* Premium light teal-tinted background */
+			}
+			body.lab-module .backColor,
+			body.lab-module .modal-header.backColor {
+				background: #009688 !important;
+				background-color: #009688 !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .textColor,
+			body.lab-module .text-success {
+				color: #00897b !important;
+			}
+			body.lab-module .btn-primary {
+				background-color: #009688 !important;
+				border-color: #009688 !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .btn-primary:hover,
+			body.lab-module .btn-primary:focus,
+			body.lab-module .btn-primary:active {
+				background-color: #00796b !important;
+				border-color: #00796b !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .btn-success {
+				background-color: #00897b !important;
+				border-color: #00897b !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .btn-success:hover,
+			body.lab-module .btn-success:focus,
+			body.lab-module .btn-success:active {
+				background-color: #00695c !important;
+				border-color: #00695c !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .btn-outline-success {
+				color: #00897b !important;
+				border-color: #00897b !important;
+			}
+			body.lab-module .btn-outline-success:hover,
+			body.lab-module .btn-outline-success.active,
+			body.lab-module .btn-outline-success:checked + label,
+			body.lab-module .btn-check:checked + .btn-outline-success {
+				background-color: #00897b !important;
+				border-color: #00897b !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .btn-outline-primary {
+				color: #009688 !important;
+				border-color: #009688 !important;
+			}
+			body.lab-module .btn-outline-primary:hover,
+			body.lab-module .btn-outline-primary.active,
+			body.lab-module .btn-outline-primary:checked + label,
+			body.lab-module .btn-check:checked + .btn-outline-primary {
+				background-color: #009688 !important;
+				border-color: #009688 !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .btn-outline-info {
+				color: #26a69a !important;
+				border-color: #26a69a !important;
+			}
+			body.lab-module .btn-outline-info:hover,
+			body.lab-module .btn-outline-info.active,
+			body.lab-module .btn-outline-info:checked + label,
+			body.lab-module .btn-check:checked + .btn-outline-info {
+				background-color: #26a69a !important;
+				border-color: #26a69a !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .btn-outline-warning {
+				color: #009688 !important;
+				border-color: #009688 !important;
+			}
+			body.lab-module .btn-outline-warning:hover,
+			body.lab-module .btn-outline-warning.active,
+			body.lab-module .btn-outline-warning:checked + label,
+			body.lab-module .btn-check:checked + .btn-outline-warning {
+				background-color: #009688 !important;
+				border-color: #009688 !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .badge.bg-success {
+				background-color: #00897b !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .page-item.active .page-link {
+				background-color: #009688 !important;
+				border-color: #009688 !important;
+				color: #ffffff !important;
+			}
+			body.lab-module .page-link {
+				color: #009688 !important;
+			}
+			body.lab-module .kpi-success {
+				border-left: 4px solid #00897b !important;
+			}
+			body.lab-module .kpi-info {
+				border-left: 4px solid #009688 !important;
+			}
+		</style>
+	<?php endif; ?>
 
 </head>
-<body>
+<body class="<?php echo $is_lab_module ? 'lab-module' : '' ?>">
 
 	<?php 
 

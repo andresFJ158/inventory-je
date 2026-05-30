@@ -28,7 +28,7 @@ foreach($materials as $mp) {
     <div class="row">
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-scroll text-success me-2"></i> Recetas de Laboratorio</div>
+                <div class="text-capitalize h5 ps-2"><i class="sk sk-file text-success me-2"></i> Recetas de Laboratorio</div>
             </div>
         </div>
 
@@ -38,7 +38,7 @@ foreach($materials as $mp) {
                     <div class="d-flex align-items-center gap-3">
                         <span class="fw-bold text-secondary fs-5">Recetas registradas (<?php echo count($recipes); ?>)</span>
                         <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
-                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="showRecipeForm()"><i class="fas fa-plus me-1"></i> Crear Nueva Receta</button>
+                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="showRecipeForm()"><i class="sk sk-plus me-1"></i> Crear Nueva Receta</button>
                         <?php endif; ?>
                     </div>
                     <div class="d-flex align-items-center gap-3 ms-auto flex-wrap">
@@ -66,7 +66,7 @@ foreach($materials as $mp) {
                                     <tr>
                                         <td colspan="6" class="text-center p-0">
                                             <div class="empty-state">
-                                                <i class="fas fa-scroll empty-state-icon"></i>
+                                                <i class="sk sk-file empty-state-icon"></i>
                                                 <div class="empty-state-title">No hay recetas registradas</div>
                                                 <div class="empty-state-description">Aún no has registrado ninguna fórmula o receta en este laboratorio.</div>
                                                 <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
@@ -84,10 +84,10 @@ foreach($materials as $mp) {
                                         <td><span class="badge bg-secondary"><?php echo $recipe->unit_batch_recipe ?></span></td>
                                         <td><?php echo $recipe->name_admin ?></td>
                                         <td>
-                                            <button class="btn btn-sm btn-info text-white px-3 rounded" onclick="viewRecipe(<?php echo $recipe->id_recipe ?>)" title="Ver"><i class="fas fa-eye me-1"></i> Ver</button>
+                                            <button class="btn btn-sm btn-info text-white px-3 rounded" onclick="viewRecipe(<?php echo $recipe->id_recipe ?>)" title="Ver"><i class="sk sk-eye me-1"></i> Ver</button>
                                             <?php if ($_SESSION["admin"]->rol_admin != 'lab_worker'): ?>
-                                            <button class="btn btn-sm btn-warning text-dark px-3 rounded ms-1" onclick="editRecipe(<?php echo $recipe->id_recipe ?>)" title="Editar"><i class="fas fa-pencil-alt"></i></button>
-                                            <button class="btn btn-sm btn-danger text-white px-3 rounded ms-1" onclick="deleteRecipe(<?php echo $recipe->id_recipe ?>)" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+                                            <button class="btn btn-sm btn-warning text-dark px-3 rounded ms-1" onclick="editRecipe(<?php echo $recipe->id_recipe ?>)" title="Editar"><i class="sk sk-edit"></i></button>
+                                            <button class="btn btn-sm btn-danger text-white px-3 rounded ms-1" onclick="deleteRecipe(<?php echo $recipe->id_recipe ?>)" title="Eliminar"><i class="sk sk-bin"></i></button>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -107,7 +107,7 @@ foreach($materials as $mp) {
     <div class="row">
         <div class="col-12 mb-3">
             <div class="d-flex justify-content-between align-items-center">
-                <h5 class="m-0"><i class="fas fa-edit"></i> Creador de Receta</h5>
+                <h5 class="m-0"><i class="sk sk-edit"></i> Creador de Receta</h5>
                 <button class="btn btn-secondary btn-sm" onclick="hideRecipeForm()">Volver</button>
             </div>
             <hr>
@@ -141,7 +141,7 @@ foreach($materials as $mp) {
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="text-muted m-0">Materia Prima (Ingredientes)</h6>
-                        <button class="btn btn-sm btn-outline-success rounded" onclick="addIngredient()"><i class="fas fa-plus"></i> Agregar</button>
+                        <button class="btn btn-sm btn-outline-success rounded" onclick="addIngredient()"><i class="sk sk-plus"></i> Agregar</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm" id="ingredientsTable">
@@ -163,7 +163,7 @@ foreach($materials as $mp) {
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="text-muted m-0">Mano de Obra</h6>
-                        <button class="btn btn-sm btn-outline-primary rounded" onclick="addLabor()"><i class="fas fa-plus"></i> Agregar</button>
+                        <button class="btn btn-sm btn-outline-primary rounded" onclick="addLabor()"><i class="sk sk-plus"></i> Agregar</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm" id="laborTable">
@@ -280,7 +280,7 @@ function addIngredient() {
                 <span class="input-group-text ing-unit-addon">--</span>
             </div>
         </td>
-        <td><button class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove();"><i class="fas fa-times"></i></button></td>
+        <td><button class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove();"><i class="sk sk-multiply"></i></button></td>
     </tr>`;
     $('#ingredientsTable tbody').append(html);
 }
@@ -316,7 +316,7 @@ function addLabor() {
                 <option value="hourly">Por Horas</option>
             </select>
         </td>
-        <td><button class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove();"><i class="fas fa-times"></i></button></td>
+        <td><button class="btn btn-sm text-danger" onclick="$(this).closest('tr').remove();"><i class="sk sk-multiply"></i></button></td>
     </tr>`;
     $('#laborTable tbody').append(html);
 }
@@ -409,7 +409,7 @@ function saveRecipe() {
             </div>
         </div>
 
-        <h6 class="border-bottom pb-2 text-secondary"><i class="fas fa-dolly-flatbed me-1"></i> Insumos (Fórmula Base)</h6>
+        <h6 class="border-bottom pb-2 text-secondary"><i class="sk sk-suitcase me-1"></i> Insumos (Fórmula Base)</h6>
         <div class="table-responsive mb-3">
             <table class="table table-sm table-striped border">
                 <thead class="table-light">
@@ -425,7 +425,7 @@ function saveRecipe() {
             </table>
         </div>
 
-        <h6 class="border-bottom pb-2 text-secondary"><i class="fas fa-users me-1"></i> Mano de Obra Requerida</h6>
+        <h6 class="border-bottom pb-2 text-secondary"><i class="sk sk-people me-1"></i> Mano de Obra Requerida</h6>
         <div class="table-responsive mb-3">
             <table class="table table-sm table-striped border">
                 <thead class="table-light">

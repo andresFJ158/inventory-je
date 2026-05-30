@@ -27,7 +27,7 @@ foreach($materials as $m) {
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-flask text-success me-2"></i> Catálogo de Materia Prima</div>
+                <div class="text-capitalize h5 ps-2"><i class="sk sk-drop text-success me-2"></i> Catálogo de Materia Prima</div>
             </div>
         </div>
 
@@ -41,8 +41,8 @@ foreach($materials as $m) {
                                 <span class="text-muted small text-uppercase fw-bold">Registrados</span>
                                 <h3 class="fw-bold mb-0 text-info mt-1"><?php echo $totalMaterials; ?></h3>
                             </div>
-                            <div class="p-3 rounded-circle text-info fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(0, 172, 193, 0.1);">
-                                <i class="fas fa-flask"></i>
+                             <div class="p-3 rounded-circle text-info fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(0, 172, 193, 0.1);">
+                                <i class="sk sk-drop"></i>
                             </div>
                         </div>
                     </div>
@@ -54,8 +54,8 @@ foreach($materials as $m) {
                                 <span class="text-muted small text-uppercase fw-bold">Con Stock</span>
                                 <h3 class="fw-bold mb-0 text-success mt-1"><?php echo $withStock; ?></h3>
                             </div>
-                            <div class="p-3 rounded-circle text-success fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(67, 160, 71, 0.1);">
-                                <i class="fas fa-check-circle"></i>
+                             <div class="p-3 rounded-circle text-success fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(67, 160, 71, 0.1);">
+                                <i class="sk sk-shield-check"></i>
                             </div>
                         </div>
                     </div>
@@ -67,8 +67,8 @@ foreach($materials as $m) {
                                 <span class="text-muted small text-uppercase fw-bold">Sin Stock</span>
                                 <h3 class="fw-bold mb-0 text-danger mt-1"><?php echo $withoutStock; ?></h3>
                             </div>
-                            <div class="p-3 rounded-circle text-danger fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(229, 57, 53, 0.1);">
-                                <i class="fas fa-exclamation-triangle"></i>
+                             <div class="p-3 rounded-circle text-danger fs-4 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: rgba(229, 57, 53, 0.1);">
+                                <i class="sk sk-warning"></i>
                             </div>
                         </div>
                     </div>
@@ -82,7 +82,7 @@ foreach($materials as $m) {
                     <div class="d-flex align-items-center gap-3">
                         <span class="fw-bold text-secondary fs-5">Insumos en Catálogo (<?php echo count($materials); ?>)</span>
                         <?php if ($role != 'lab_worker'): ?>
-                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="openMaterialModal()"><i class="fas fa-plus me-1"></i> Agregar Materia Prima</button>
+                            <button class="btn btn-primary btn-sm px-3 rounded-pill backColor" onclick="openMaterialModal()"><i class="sk sk-plus me-1"></i> Agregar Materia Prima</button>
                         <?php endif; ?>
                     </div>
                     <div class="d-flex align-items-center gap-3 ms-auto flex-wrap">
@@ -113,7 +113,7 @@ foreach($materials as $m) {
                                     <tr>
                                         <td colspan="7" class="text-center p-0">
                                             <div class="empty-state">
-                                                <i class="fas fa-flask empty-state-icon"></i>
+                                                <i class="sk sk-drop empty-state-icon"></i>
                                                 <div class="empty-state-title">No hay materias primas registradas</div>
                                                 <div class="empty-state-description">Aún no has registrado ninguna materia prima en tu catálogo.</div>
                                                 <?php if ($role != 'lab_worker'): ?>
@@ -128,8 +128,8 @@ foreach($materials as $m) {
                                         $tipoLabel = 'Desconocido';
                                         if(isset($material->measure_type)) {
                                             if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = '<i class="fas fa-weight-hanging me-1"></i> Peso'; }
-                                            else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '<i class="fas fa-flask me-1"></i> Volumen'; }
-                                            else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '<i class="fas fa-box me-1"></i> Unidad'; }
+                                            else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '<i class="sk sk-drop me-1"></i> Volumen'; }
+                                            else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '<i class="sk sk-box me-1"></i> Unidad'; }
                                         }
                                         $st = isset($material->stock_raw_material) ? floatval($material->stock_raw_material) : 0;
                                         $stockBadgeClass = $st > 0 ? 'badge bg-success' : 'badge bg-danger';
@@ -144,10 +144,10 @@ foreach($materials as $m) {
                                         <?php if ($role != 'lab_worker'): ?>
                                         <td class="text-center">
                                             <button class="btn btn-sm btn-warning rounded text-dark px-3" onclick="editMaterial(<?php echo htmlspecialchars(json_encode($material)) ?>)" title="Editar">
-                                                <i class="fas fa-edit"></i>
+                                                <i class="sk sk-edit"></i>
                                             </button>
                                             <button class="btn btn-sm btn-danger rounded text-white px-3 ms-1" onclick="deleteMaterial(<?php echo $material->id_raw_material ?>, '<?php echo addslashes($material->name_raw_material) ?>')" title="Eliminar">
-                                                <i class="fas fa-trash"></i>
+                                                <i class="sk sk-bin"></i>
                                             </button>
                                         </td>
                                         <?php endif; ?>
@@ -184,19 +184,24 @@ foreach($materials as $m) {
             
             <div class="mb-3">
                 <label class="form-label d-block fw-bold text-secondary">Tipo de Medida</label>
-                <div class="d-flex gap-3 mt-2">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input measure-type-radio" type="radio" name="measure_type" id="type_weight" value="weight" onchange="updateUnitSelect()">
-                        <label class="form-check-label" for="type_weight"><i class="fas fa-weight-hanging me-1 text-warning"></i> Peso</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input measure-type-radio" type="radio" name="measure_type" id="type_volume" value="volume" onchange="updateUnitSelect()">
-                        <label class="form-check-label" for="type_volume"><i class="fas fa-flask me-1 text-info"></i> Volumen</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input measure-type-radio" type="radio" name="measure_type" id="type_unit" value="unit" onchange="updateUnitSelect()" checked>
-                        <label class="form-check-label" for="type_unit"><i class="fas fa-box me-1 text-success"></i> Unidad</label>
-                    </div>
+                <div class="d-flex gap-2 mt-2">
+                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_weight" value="weight" onchange="updateUnitSelect()">
+                    <label class="btn btn-outline-warning w-100 py-3 rounded-3 d-flex flex-column align-items-center justify-content-center" for="type_weight" style="border-width: 2px;">
+                        <i class="fas fa-weight-hanging mb-2" style="font-size: 1.8rem;"></i>
+                        <span class="fw-bold">Peso</span>
+                    </label>
+
+                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_volume" value="volume" onchange="updateUnitSelect()">
+                    <label class="btn btn-outline-info w-100 py-3 rounded-3 d-flex flex-column align-items-center justify-content-center" for="type_volume" style="border-width: 2px;">
+                        <i class="sk sk-drop mb-2" style="font-size: 1.8rem;"></i>
+                        <span class="fw-bold">Volumen</span>
+                    </label>
+
+                    <input type="radio" class="btn-check measure-type-radio" name="measure_type" id="type_unit" value="unit" onchange="updateUnitSelect()" checked>
+                    <label class="btn btn-outline-success w-100 py-3 rounded-3 d-flex flex-column align-items-center justify-content-center" for="type_unit" style="border-width: 2px;">
+                        <i class="sk sk-box mb-2" style="font-size: 1.8rem;"></i>
+                        <span class="fw-bold">Unidad</span>
+                    </label>
                 </div>
             </div>
 

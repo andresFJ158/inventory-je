@@ -24,7 +24,7 @@ $packagedIds = array_unique($packagedIds);
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-box-open text-success me-2"></i> Inventario de Productos Finales</div>
+                <div class="text-capitalize h5 ps-2"><i class="sk sk-bag text-success me-2"></i> Inventario de Productos Finales</div>
             </div>
         </div>
 
@@ -73,7 +73,7 @@ $packagedIds = array_unique($packagedIds);
                                     <td class="align-middle text-end fw-bold text-success">Bs <?php echo number_format($estimatedValue, 2) ?></td>
                                     <td class="align-middle text-center">
                                         <button class="btn btn-sm btn-info text-white px-3 rounded" onclick="viewLots(<?php echo $prod->id_product ?>, '<?php echo addslashes($prod->title_product) ?>')" title="Ver Lotes">
-                                            <i class="fas fa-eye me-1"></i> Lotes
+                                            <i class="sk sk-eye me-1"></i> Lotes
                                         </button>
                                     </td>
                                 </tr>

@@ -21,7 +21,7 @@ if ($materials->status == 200) {
         <!-- Breadcrumbs -->
         <div class="col-12 mb-3 position-relative">
             <div class="d-lg-flex justify-content-lg-between mt-2">
-                <div class="text-capitalize h5 ps-2"><i class="fas fa-boxes text-success me-2"></i> Inventario de Materia Prima</div>
+                <div class="text-capitalize h5 ps-2"><i class="sk sk-box text-success me-2"></i> Inventario de Materia Prima</div>
             </div>
         </div>
 
@@ -49,8 +49,8 @@ if ($materials->status == 200) {
                                     $tipoLabel = 'Desconocido';
                                     if(isset($material->measure_type)) {
                                         if($material->measure_type == 'weight') { $badgeClass = 'bg-warning text-dark'; $tipoLabel = '<i class="fas fa-weight-hanging me-1"></i> Peso'; }
-                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '<i class="fas fa-flask me-1"></i> Volumen'; }
-                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '<i class="fas fa-box me-1"></i> Unidad'; }
+                                        else if($material->measure_type == 'volume') { $badgeClass = 'bg-info text-dark'; $tipoLabel = '<i class="sk sk-drop me-1"></i> Volumen'; }
+                                        else if($material->measure_type == 'unit') { $badgeClass = 'bg-success'; $tipoLabel = '<i class="sk sk-box me-1"></i> Unidad'; }
                                     }
                                     $estimatedValue = $material->stock_raw_material * $material->last_price;
                                 ?>

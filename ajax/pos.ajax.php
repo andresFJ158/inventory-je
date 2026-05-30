@@ -1005,6 +1005,11 @@ if(isset($_POST["idOrderDelete"])){
 Aprobar Entrada de Materia Prima
 =============================================*/
 if(isset($_POST["approveRawMaterialEntry"])){
+	if (session_status() === PHP_SESSION_NONE) { session_start(); }
+	if (!isset($_SESSION["admin"]) || !in_array($_SESSION["admin"]->rol_admin, ["superadmin", "admin", "lab_admin"])) {
+		echo "error|No tiene permisos para aprobar o costear entradas.";
+		exit;
+	}
 	$db = LocalConnection::connect();
 	try {
 		$db->beginTransaction();
@@ -1065,10 +1070,10 @@ if(isset($_POST["apiProxy"])){
 	$fields = json_decode($_POST["fields"], true);
 	
 	// SEC-01: Whitelist de endpoints
-	$allowed_endpoints = ['raw_materials', 'raw_material_entries', 'recipes', 'productions'];
+	$allowed_endpoints = ['raw_materials', 'raw_material_entries', 'recipes', 'productions', 'warehouse', 'quality_checks', 'qc_checks', 'raw_material_purchases'];
 	$endpoint = explode('?', $url)[0];
 	if(!in_array($endpoint, $allowed_endpoints)) {
-		echo json_encode(["status" => 403, "results" => "Endpoint no permitido"]);
+		echo json_encode(["status" => 403, "results" => "Endpoint no permitido: " . $endpoint]);
 		exit;
 	}
 	
@@ -1745,6 +1750,11 @@ if(isset($_POST["getPendingQC"]) && $_POST["getPendingQC"] == "ok") {
 // SUBMIT QUALITY CHECK
 //=====================================
 if(isset($_POST["submitQualityCheck"]) && $_POST["submitQualityCheck"] == "ok") {
+	if (session_status() === PHP_SESSION_NONE) { session_start(); }
+	if (!isset($_SESSION["admin"]) || !in_array($_SESSION["admin"]->rol_admin, ["superadmin", "admin", "lab_admin", "qc_inspector"])) {
+		echo "error|No tiene permisos para registrar controles de calidad.";
+		exit;
+	}
 	$db = LocalConnection::connect();
 	try {
 		$db->beginTransaction();
@@ -1958,3 +1968,920 @@ if(isset($_POST["deleteRawMaterial"])){
 	}
 	exit;
 }
+
+//=====================================
+// GET LAB MATERIALS
+//=====================================
+if(isset($_POST["getLabMaterials"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("SELECT * FROM raw_materials WHERE id_office_raw_material = :office ORDER BY id_raw_material ASC");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode([
+		'status' => 200,
+		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+	]);
+	exit;
+}
+
+//=====================================
+// SAVE LAB MATERIAL
+//=====================================
+if(isset($_POST["saveLabMaterial"])){
+	$db = LocalConnection::connect();
+	try {
+		$name = trim(htmlspecialchars($_POST['name_raw_material']));
+		$measure_type = $_POST['measure_type'];
+		$unit = trim(htmlspecialchars($_POST['unit_raw_material']));
+		$desc = trim(htmlspecialchars($_POST['description_raw_material']));
+		$id_office = intval($_POST['id_office_raw_material']);
+		$id_admin = isset($_POST['id_admin_raw_material']) ? intval($_POST['id_admin_raw_material']) : 1;
+
+		// Validate duplicate name
+		$stmtDup = $db->prepare("SELECT id_raw_material FROM raw_materials WHERE name_raw_material = :name AND id_office_raw_material = :office LIMIT 1");
+		$stmtDup->execute([':name' => $name, ':office' => $id_office]);
+		if($stmtDup->fetch()) {
+			echo "error|Ya existe una materia prima con ese nombre en esta sucursal.";
+			exit;
+		}
+
+		$stmt = $db->prepare("INSERT INTO raw_materials (name_raw_material, measure_type, unit_raw_material, description_raw_material, id_office_raw_material, id_admin_raw_material, stock_raw_material, date_created_raw_material) VALUES (:name, :measure, :unit, :desc, :office, :id_admin, 0, CURDATE())");
+		$stmt->execute([
+			':name' => $name,
+			':measure' => $measure_type,
+			':unit' => $unit,
+			':desc' => $desc,
+			':office' => $id_office,
+			':id_admin' => $id_admin
+		]);
+		echo "ok";
+	} catch (Exception $e) {
+		echo "error|" . $e->getMessage();
+	}
+	exit;
+}
+
+//=====================================
+// SAVE LAB ENTRY
+//=====================================
+if(isset($_POST["saveLabEntry"])){
+	$db = LocalConnection::connect();
+	try {
+		$id_raw_material = intval($_POST['id_raw_material_entry']);
+		$qty = floatval($_POST['qty_entry']);
+		$lot_number = trim(htmlspecialchars($_POST['lot_number_entry']));
+		$supplier = trim(htmlspecialchars($_POST['supplier_entry']));
+		$date = $_POST['date_entry'];
+		$id_admin = intval($_POST['id_admin_entry']);
+
+		$stmt = $db->prepare("INSERT INTO raw_material_entries (id_raw_material_entry, qty_entry, lot_number_entry, supplier_entry, date_entry, id_admin_entry, status_entry, date_created_entry) VALUES (:id_raw, :qty, :lot, :supplier, :date, :id_admin, 'pendiente', NOW())");
+		$stmt->execute([
+			':id_raw' => $id_raw_material,
+			':qty' => $qty,
+			':lot' => $lot_number,
+			':supplier' => $supplier,
+			':date' => $date,
+			':id_admin' => $id_admin
+		]);
+		echo json_encode(["status" => 200, "results" => "ok"]);
+	} catch (Exception $e) {
+		echo json_encode(["status" => 500, "message" => $e->getMessage()]);
+	}
+	exit;
+}
+
+//=====================================
+// GET LAB ENTRIES
+//=====================================
+if(isset($_POST["getLabEntries"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT rme.*, rm.name_raw_material, rm.unit_raw_material 
+		FROM raw_material_entries rme 
+		JOIN raw_materials rm ON rme.id_raw_material_entry = rm.id_raw_material 
+		WHERE rm.id_office_raw_material = :office 
+		ORDER BY rme.id_entry DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode([
+		'status' => 200,
+		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+	]);
+	exit;
+}
+
+//=====================================
+// GET LAB RECIPES
+//=====================================
+if(isset($_POST["getLabRecipes"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	
+	// Fetch all recipes with product title and cost
+	$stmt = $db->prepare("
+		SELECT r.*, p.title_product, p.rte_product 
+		FROM recipes r 
+		JOIN products p ON r.id_product_recipe = p.id_product 
+		WHERE r.id_office_recipe = :office 
+		ORDER BY r.id_recipe ASC
+	");
+	$stmt->execute([':office' => $id_office]);
+	$recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+	// Fetch ingredients for each recipe
+	foreach ($recipes as &$recipe) {
+		$stmtIng = $db->prepare("
+			SELECT ri.*, rm.name_raw_material, rm.unit_raw_material 
+			FROM recipe_ingredients ri 
+			JOIN raw_materials rm ON ri.id_raw_material_ingredient = rm.id_raw_material 
+			WHERE ri.id_recipe_ingredient = :id_recipe
+		");
+		$stmtIng->execute([':id_recipe' => $recipe['id_recipe']]);
+		$recipe['ingredients'] = $stmtIng->fetchAll(PDO::FETCH_ASSOC);
+	}
+	
+	echo json_encode([
+		'status' => 200,
+		'results' => $recipes
+	]);
+	exit;
+}
+
+//=====================================
+// GET LAB PRODUCTIONS
+//=====================================
+if(isset($_POST["getLabProductions"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT p.*, prod.title_product AS name_product,
+		       r.unit_batch_recipe
+		FROM productions p 
+		JOIN products prod ON p.id_product_production = prod.id_product
+		LEFT JOIN recipes r ON p.id_recipe_production = r.id_recipe
+		WHERE p.id_office_production = :office 
+		ORDER BY p.id_production DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode([
+		'status' => 200,
+		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+	]);
+	exit;
+}
+
+//=====================================
+// FINISH LAB PRODUCTION
+//=====================================
+if(isset($_POST["finishLabProduction"])){
+	$db = LocalConnection::connect();
+	try {
+		$id_production = intval($_POST['id_production']);
+		// Update status to 'pendiente_qc' so it enters the quality control queue
+		$stmt = $db->prepare("UPDATE productions SET status_production = 'pendiente_qc', end_date_production = CURDATE() WHERE id_production = :id");
+		$stmt->execute([':id' => $id_production]);
+		echo "ok";
+	} catch (Exception $e) {
+		echo "error|" . $e->getMessage();
+	}
+	exit;
+}
+
+//=====================================
+// GET LAB WAREHOUSE
+//=====================================
+if(isset($_POST["getLabWarehouse"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT 
+			p.id_product AS id_warehouse, 
+			p.title_product AS name_product, 
+			p.stock_product AS qty_warehouse, 
+			p.rte_product AS cost_warehouse,
+			(SELECT cost_purchase FROM purchases WHERE id_product_purchase = p.id_product ORDER BY id_purchase DESC LIMIT 1) AS sale_price_warehouse,
+			(SELECT COUNT(*) FROM purchases WHERE id_product_purchase = p.id_product) AS price_defined_warehouse
+		FROM products p
+		WHERE p.is_compound_product = 1 AND p.id_office_product = :office
+		ORDER BY p.id_product DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode([
+		'status' => 200,
+		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+	]);
+	exit;
+}
+
+//=====================================
+// SAVE LAB PRODUCT PRICE
+//=====================================
+if(isset($_POST["saveLabProductPrice"])){
+	$db = LocalConnection::connect();
+	try {
+		$id_product = intval($_POST['id_product']);
+		$price = floatval($_POST['price']);
+		$id_office = intval($_POST['id_office']);
+
+		// Check if a purchase record already exists for this product
+		$stmtCheck = $db->prepare("SELECT id_purchase FROM purchases WHERE id_product_purchase = :id_prod ORDER BY id_purchase DESC LIMIT 1");
+		$stmtCheck->execute([':id_prod' => $id_product]);
+		$id_purchase = $stmtCheck->fetchColumn();
+
+		if ($id_purchase) {
+			// Update existing selling price
+			$stmt = $db->prepare("UPDATE purchases SET cost_purchase = :price, date_updated_purchase = CURRENT_TIMESTAMP() WHERE id_purchase = :id_purch");
+			$stmt->execute([':price' => $price, ':id_purch' => $id_purchase]);
+		} else {
+			// Insert new selling price
+			$stmt = $db->prepare("INSERT INTO purchases (id_product_purchase, cost_purchase, id_office_purchase, qty_purchase, date_created_purchase) VALUES (:id_prod, :price, :office, 0, CURDATE())");
+			$stmt->execute([':id_prod' => $id_product, ':price' => $price, ':office' => $id_office]);
+		}
+		echo "ok";
+	} catch (Exception $e) {
+		echo "error|" . $e->getMessage();
+	}
+	exit;
+}
+
+//=====================================
+// GET LAB QC TESTS
+//=====================================
+if(isset($_POST["getLabQCTests"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	
+	// Pending QC tests (from productions)
+	$stmtPending = $db->prepare("
+		SELECT p.id_production AS id, p.id_production AS id_prod, 
+			   CONCAT('LOT-', p.id_production) AS batch_code,
+			   pr.title_product AS name_product,
+			   'Pendiente' AS result_qc,
+			   p.date_updated_production AS date_created_qc,
+			   'pendiente' AS status_qc,
+			   p.total_qty_production
+		FROM productions p
+		JOIN products pr ON p.id_product_production = pr.id_product
+		WHERE p.id_office_production = :office AND p.status_production = 'pendiente_qc'
+	");
+	$stmtPending->execute([':office' => $id_office]);
+	$pending = $stmtPending->fetchAll(PDO::FETCH_ASSOC);
+
+	// Completed QC tests
+	$stmtCompleted = $db->prepare("
+		SELECT p.id_production AS id, qc.id_qc, p.id_production AS id_prod, 
+			   CONCAT('LOT-', p.id_production) AS batch_code,
+			   pr.title_product AS name_product,
+			   qc.result_qc,
+			   qc.date_created_qc,
+			   'aprobado' AS status_qc,
+			   p.total_qty_production
+		FROM quality_checks qc
+		JOIN productions p ON qc.id_production_qc = p.id_production
+		JOIN products pr ON p.id_product_production = pr.id_product
+		WHERE qc.id_office_qc = :office
+		ORDER BY qc.id_qc DESC
+	");
+	$stmtCompleted->execute([':office' => $id_office]);
+	$completed = $stmtCompleted->fetchAll(PDO::FETCH_ASSOC);
+
+	// Merge them
+	$results = array_merge($pending, $completed);
+	
+	echo json_encode([
+		'status' => 200,
+		'results' => $results
+	]);
+	exit;
+}
+
+//=====================================
+// GET LAB DASHBOARD METRICS
+//=====================================
+if(isset($_POST["getLabDashboardMetrics"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+
+	// Count raw materials
+	$stmt1 = $db->prepare("SELECT COUNT(*) FROM raw_materials WHERE id_office_raw_material = :office");
+	$stmt1->execute([':office' => $id_office]);
+	$totalMaterials = intval($stmt1->fetchColumn());
+
+	// Count in-process productions
+	$stmt2 = $db->prepare("SELECT COUNT(*) FROM productions WHERE id_office_production = :office AND status_production IN ('proceso', 'pendiente', 'en_proceso')");
+	$stmt2->execute([':office' => $id_office]);
+	$totalInProcess = intval($stmt2->fetchColumn());
+
+	// Count quality checks
+	$stmt3 = $db->prepare("SELECT COUNT(*) FROM quality_checks WHERE id_office_qc = :office");
+	$stmt3->execute([':office' => $id_office]);
+	$qualityChecks = intval($stmt3->fetchColumn());
+
+	// Final products stock
+	$stmt4 = $db->prepare("SELECT SUM(stock_product) FROM products WHERE is_compound_product = 1 AND origin_office_product = :office");
+	$stmt4->execute([':office' => $id_office]);
+	$finalProductsStock = floatval($stmt4->fetchColumn());
+
+	// Recent activity
+	$stmt5 = $db->prepare("
+		SELECT p.id_production, p.status_production, p.total_qty_production,
+			   p.date_updated_production, pr.title_product AS name_product,
+			   a.name_admin
+		FROM productions p
+		JOIN products pr ON p.id_product_production = pr.id_product
+		LEFT JOIN admins a ON p.id_admin_production = a.id_admin
+		WHERE p.id_office_production = :office
+		ORDER BY p.id_production DESC
+		LIMIT 5
+	");
+	$stmt5->execute([':office' => $id_office]);
+	$recentActivity = $stmt5->fetchAll(PDO::FETCH_ASSOC);
+
+	echo json_encode([
+		'status' => 200,
+		'results' => [
+			'totalMaterials' => $totalMaterials,
+			'totalInProcess' => $totalInProcess,
+			'qualityChecks' => $qualityChecks,
+			'finalProductsStock' => $finalProductsStock,
+			'recentActivity' => $recentActivity
+		]
+	]);
+	exit;
+}
+
+//=====================================
+// GET LOGGED USER
+//=====================================
+if(isset($_POST["getLoggedUser"])){
+	if (session_status() === PHP_SESSION_NONE) { session_start(); }
+	if (isset($_SESSION["admin"])) {
+		$db = LocalConnection::connect();
+		$id_office = intval($_SESSION["admin"]->id_office_admin);
+		
+		$stmt = $db->prepare("SELECT * FROM offices WHERE id_office = :id");
+		$stmt->execute([':id' => $id_office]);
+		$office = $stmt->fetch(PDO::FETCH_ASSOC);
+
+		echo json_encode([
+			'status' => 200,
+			'user' => [
+				'id_admin' => intval($_SESSION["admin"]->id_admin),
+				'name_admin' => $_SESSION["admin"]->name_admin,
+				'rol_admin' => $_SESSION["admin"]->rol_admin
+			],
+			'office' => $office,
+			'token' => 'session-token'
+		]);
+	} else {
+		echo json_encode([
+			'status' => 401,
+			'message' => 'No session active'
+		]);
+	}
+	exit;
+}
+
+//=====================================
+// LOGOUT LAB USER
+//=====================================
+if(isset($_POST["logoutLabUser"])){
+	if (session_status() === PHP_SESSION_NONE) { session_start(); }
+	session_destroy();
+	echo "ok";
+	exit;
+}
+
+//=====================================
+// LOGIN LAB USER
+//=====================================
+if(isset($_POST["loginLabUser"])){
+	if (session_status() === PHP_SESSION_NONE) { session_start(); }
+	
+	$email = $_POST["email"] ?? '';
+	$password = $_POST["password"] ?? '';
+	
+	if (empty($email) || empty($password)) {
+		echo json_encode([
+			'status' => 400,
+			'message' => 'El correo y la contraseña son requeridos'
+		]);
+		exit;
+	}
+	
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("SELECT * FROM admins WHERE email_admin = :email AND status_admin = 1");
+	$stmt->execute([':email' => $email]);
+	$admin = $stmt->fetch(PDO::FETCH_OBJ);
+	
+	if ($admin) {
+		$encrypted = crypt($password, '$2a$07$azybxcags23425sdg23sdfhsd$');
+		if ($admin->password_admin === $encrypted) {
+			// Establecemos la sesión PHP como el login original
+			$_SESSION["admin"] = $admin;
+			
+			// Obtenemos la información de la sucursal
+			$id_office = intval($admin->id_office_admin);
+			$stmtOffice = $db->prepare("SELECT * FROM offices WHERE id_office = :id");
+			$stmtOffice->execute([':id' => $id_office]);
+			$office = $stmtOffice->fetch(PDO::FETCH_ASSOC);
+
+			echo json_encode([
+				'status' => 200,
+				'user' => [
+					'id_admin' => intval($admin->id_admin),
+					'name_admin' => $admin->name_admin,
+					'rol_admin' => $admin->rol_admin
+				],
+				'office' => $office,
+				'token' => $admin->token_admin
+			]);
+			exit;
+		}
+	}
+	
+	echo json_encode([
+		'status' => 401,
+		'message' => 'Correo o contraseña incorrectos, o el usuario está inactivo.'
+	]);
+	exit;
+}
+
+
+//=====================================
+// SAVE PRODUCTION (Iniciar Producción)
+//=====================================
+if(isset($_POST["saveProduction"])){
+	$db = LocalConnection::connect();
+	try {
+		$id_recipe   = intval($_POST['id_recipe']);
+		$id_product  = intval($_POST['id_product']);
+		$batches     = floatval($_POST['batches']);
+		$total_qty   = floatval($_POST['total_qty']);
+		$cif         = floatval($_POST['cif']);
+		$mo          = floatval($_POST['mo']);
+		$id_office   = intval($_POST['id_office']);
+		$id_admin    = intval($_POST['id_admin']);
+
+		// 1. Fetch recipe ingredients
+		$stmtIng = $db->prepare("
+			SELECT ri.id_raw_material_ingredient AS id_rm, ri.qty_ingredient,
+			       rm.stock_raw_material, rm.name_raw_material
+			FROM recipe_ingredients ri
+			JOIN raw_materials rm ON ri.id_raw_material_ingredient = rm.id_raw_material
+			WHERE ri.id_recipe_ingredient = :id_recipe
+		");
+		$stmtIng->execute([':id_recipe' => $id_recipe]);
+		$ingredients = $stmtIng->fetchAll(PDO::FETCH_ASSOC);
+
+		// 2. Check stock for each ingredient
+		$totalMatCost = 0;
+		foreach ($ingredients as $ing) {
+			$needed = $ing['qty_ingredient'] * $batches;
+			if ($ing['stock_raw_material'] < $needed - 0.001) {
+				echo "stock_insuficiente|" . $ing['name_raw_material'];
+				exit;
+			}
+		}
+
+		// 3. Insert production record
+		$projTotal = $totalMatCost + $mo + $cif;
+		$projUnit  = ($total_qty > 0) ? ($projTotal / $total_qty) : 0;
+
+		$stmtProd = $db->prepare("
+			INSERT INTO productions (id_recipe_production, id_product_production, batches_production,
+			total_qty_production, proj_labor_cost, proj_indirect_cost, proj_total_cost, proj_unit_cost,
+			status_production, start_date_production, id_admin_production, id_office_production,
+			date_created_production)
+			VALUES (:recipe, :product, :batches, :qty, :mo, :cif, :total, :unit, 'proceso',
+			CURDATE(), :admin, :office, CURDATE())
+		");
+		$stmtProd->execute([
+			':recipe'  => $id_recipe,
+			':product' => $id_product,
+			':batches' => $batches,
+			':qty'     => $total_qty,
+			':mo'      => $mo,
+			':cif'     => $cif,
+			':total'   => $mo + $cif,
+			':unit'    => 0,
+			':admin'   => $id_admin,
+			':office'  => $id_office
+		]);
+		$id_production = $db->lastInsertId();
+
+		// 4. Consume raw materials from stock and record costs
+		foreach ($ingredients as $ing) {
+			$needed = $ing['qty_ingredient'] * $batches;
+
+			// Get latest entry price
+			$stmtPrice = $db->prepare("
+				SELECT unit_price_entry FROM raw_material_entries
+				WHERE id_raw_material_entry = :id_rm AND status_entry = 'aprobado'
+				ORDER BY date_approved_entry DESC, id_entry DESC LIMIT 1
+			");
+			$stmtPrice->execute([':id_rm' => $ing['id_rm']]);
+			$unitPrice = floatval($stmtPrice->fetchColumn() ?: 0);
+			$subtotal  = $unitPrice * $needed;
+			$totalMatCost += $subtotal;
+
+			// Deduct from stock
+			$stmtDeduct = $db->prepare("
+				UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty
+				WHERE id_raw_material = :id_rm
+			");
+			$stmtDeduct->execute([':qty' => $needed, ':id_rm' => $ing['id_rm']]);
+
+			// Get entry id for traceability
+			$stmtEntry = $db->prepare("
+				SELECT id_entry FROM raw_material_entries
+				WHERE id_raw_material_entry = :id_rm AND status_entry = 'aprobado'
+				ORDER BY date_approved_entry DESC, id_entry DESC LIMIT 1
+			");
+			$stmtEntry->execute([':id_rm' => $ing['id_rm']]);
+			$id_entry = intval($stmtEntry->fetchColumn() ?: 0);
+
+			// Insert material cost record
+			$stmtMat = $db->prepare("
+				INSERT INTO production_material_costs
+				(id_production_mat_cost, id_raw_material_mat_cost, id_entry_used_mat_cost,
+				 qty_used_mat_cost, unit_price_at_production, total_cost_mat_cost)
+				VALUES (:prod, :rm, :entry, :qty, :price, :total)
+			");
+			$stmtMat->execute([
+				':prod'  => $id_production,
+				':rm'    => $ing['id_rm'],
+				':entry' => $id_entry,
+				':qty'   => $needed,
+				':price' => $unitPrice,
+				':total' => $subtotal
+			]);
+		}
+
+		// 5. Update production with real material cost
+		$totalCost = $totalMatCost + $mo + $cif;
+		$unitCost  = ($total_qty > 0) ? ($totalCost / $total_qty) : 0;
+		$stmtUpdate = $db->prepare("
+			UPDATE productions
+			SET real_materials_cost = :mat, real_labor_cost = :mo, real_indirect_cost = :cif,
+			    real_total_cost = :total, real_unit_cost = :unit,
+			    proj_materials_cost = :mat, proj_total_cost = :total, proj_unit_cost = :unit
+			WHERE id_production = :id
+		");
+		$stmtUpdate->execute([
+			':mat'   => $totalMatCost,
+			':mo'    => $mo,
+			':cif'   => $cif,
+			':total' => $totalCost,
+			':unit'  => $unitCost,
+			':id'    => $id_production
+		]);
+
+		echo "ok";
+	} catch (Exception $e) {
+		echo "error|" . $e->getMessage();
+	}
+	exit;
+}
+
+//=====================================
+// COMPLETE PRODUCTION (Envasado → QC)
+//=====================================
+if(isset($_POST["completeProduction"])){
+	$db = LocalConnection::connect();
+	try {
+		$id_production    = intval($_POST['id_production']);
+		$id_recipe        = intval($_POST['id_recipe']);
+		$id_product       = intval($_POST['id_product']);
+		$extra_mo         = floatval($_POST['extra_mo']);
+		$extra_cif        = floatval($_POST['extra_cif']);
+		$pkg_final_qty    = intval($_POST['pkg_final_qty']);
+		$pkg_final_name   = trim($_POST['pkg_final_name']);
+		$pkg_envase_type  = trim($_POST['pkg_envase_type']);
+		$real_bulk_qty    = $_POST['real_bulk_qty'] !== '' ? floatval($_POST['real_bulk_qty']) : null;
+		$original_bulk_qty = floatval($_POST['original_bulk_qty']);
+		$extra_mats       = json_decode($_POST['extra_mats'], true) ?: [];
+		$id_office        = intval($_POST['id_office']);
+
+		// Check packaging material stock
+		foreach ($extra_mats as $mat) {
+			$id_raw = intval($mat['id_raw']);
+			$qty    = floatval($mat['qty']);
+			$stmtCheck = $db->prepare("SELECT stock_raw_material, name_raw_material FROM raw_materials WHERE id_raw_material = :id");
+			$stmtCheck->execute([':id' => $id_raw]);
+			$rm = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+			if ($rm && $rm['stock_raw_material'] < $qty - 0.001) {
+				echo "stock_insuficiente|" . $rm['name_raw_material'];
+				exit;
+			}
+		}
+
+		// Consume packaging materials and record costs
+		$pkgMatCost = 0;
+		foreach ($extra_mats as $mat) {
+			$id_raw = intval($mat['id_raw']);
+			$qty    = floatval($mat['qty']);
+
+			$stmtPrice = $db->prepare("SELECT unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
+			$stmtPrice->execute([':id' => $id_raw]);
+			$unitPrice = floatval($stmtPrice->fetchColumn() ?: 0);
+			$subtotal  = $unitPrice * $qty;
+			$pkgMatCost += $subtotal;
+
+			$stmtDeduct = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
+			$stmtDeduct->execute([':qty' => $qty, ':id' => $id_raw]);
+
+			$stmtEntry = $db->prepare("SELECT id_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
+			$stmtEntry->execute([':id' => $id_raw]);
+			$id_entry = intval($stmtEntry->fetchColumn() ?: 0);
+
+			$stmtMat = $db->prepare("INSERT INTO production_material_costs (id_production_mat_cost, id_raw_material_mat_cost, id_entry_used_mat_cost, qty_used_mat_cost, unit_price_at_production, total_cost_mat_cost) VALUES (:prod, :rm, :entry, :qty, :price, :total)");
+			$stmtMat->execute([':prod' => $id_production, ':rm' => $id_raw, ':entry' => $id_entry, ':qty' => $qty, ':price' => $unitPrice, ':total' => $subtotal]);
+		}
+
+		// Get current production costs
+		$stmtGet = $db->prepare("SELECT real_materials_cost, real_labor_cost, real_indirect_cost FROM productions WHERE id_production = :id");
+		$stmtGet->execute([':id' => $id_production]);
+		$prod = $stmtGet->fetch(PDO::FETCH_ASSOC);
+
+		$totalMat   = floatval($prod['real_materials_cost']) + $pkgMatCost;
+		$totalMO    = floatval($prod['real_labor_cost']) + $extra_mo;
+		$totalCIF   = floatval($prod['real_indirect_cost']) + $extra_cif;
+		$totalCost  = $totalMat + $totalMO + $totalCIF;
+		$unitCost   = ($pkg_final_qty > 0) ? ($totalCost / $pkg_final_qty) : 0;
+
+		// Update production to pendiente_qc
+		$yieldVariance = ($real_bulk_qty !== null) ? ($real_bulk_qty - $original_bulk_qty) : 0;
+		$yieldVariancePct = ($original_bulk_qty > 0 && $real_bulk_qty !== null) ? (($real_bulk_qty - $original_bulk_qty) / $original_bulk_qty * 100) : 0;
+
+		$stmtUpdate = $db->prepare("
+			UPDATE productions SET
+			  status_production = 'pendiente_qc',
+			  real_materials_cost = :mat,
+			  pkg_labor_cost = :pkg_mo,
+			  pkg_indirect_cost = :pkg_cif,
+			  real_total_cost = :total,
+			  real_unit_cost = :unit,
+			  qty_packaged_production = :pkg_qty,
+			  pkg_name_production = :pkg_name,
+			  real_bulk_qty = :real_bulk,
+			  yield_variance = :variance,
+			  yield_variance_pct = :variance_pct,
+			  end_date_production = CURDATE()
+			WHERE id_production = :id
+		");
+		$stmtUpdate->execute([
+			':mat'          => $totalMat,
+			':pkg_mo'       => $extra_mo,
+			':pkg_cif'      => $extra_cif,
+			':total'        => $totalCost,
+			':unit'         => $unitCost,
+			':pkg_qty'      => $pkg_final_qty,
+			':pkg_name'     => $pkg_final_name,
+			':real_bulk'    => $real_bulk_qty,
+			':variance'     => $yieldVariance,
+			':variance_pct' => $yieldVariancePct,
+			':id'           => $id_production
+		]);
+
+		echo "ok";
+	} catch (Exception $e) {
+		echo "error|" . $e->getMessage();
+	}
+	exit;
+}
+
+//=====================================
+// GET PENDING QC (Cola de Calidad)
+//=====================================
+if(isset($_POST["getPendingQC"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT p.*, pr.title_product, pr.unit_product,
+		       r.unit_batch_recipe AS unit_recipe
+		FROM productions p
+		JOIN products pr ON p.id_product_production = pr.id_product
+		JOIN recipes r ON p.id_recipe_production = r.id_recipe
+		WHERE p.id_office_production = :office AND p.status_production = 'pendiente_qc'
+		ORDER BY p.id_production DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+	echo json_encode(array_values($rows));
+	exit;
+}
+
+//=====================================
+// GET QC HISTORY (Historial Calidad)
+//=====================================
+if(isset($_POST["getQCHistory"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT qc.*, p.total_qty_production, p.qty_packaged_production,
+		       p.status_production, pr.title_product, pr.unit_product,
+		       a.name_admin AS qc_inspector_name
+		FROM quality_checks qc
+		JOIN productions p ON qc.id_production_qc = p.id_production
+		JOIN products pr ON p.id_product_production = pr.id_product
+		LEFT JOIN admins a ON qc.id_admin_qc = a.id_admin
+		WHERE qc.id_office_qc = :office
+		ORDER BY qc.id_qc DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+	echo json_encode(array_values($rows));
+	exit;
+}
+
+//=====================================
+// SUBMIT QUALITY CHECK
+//=====================================
+if(isset($_POST["submitQualityCheck"])){
+	$db = LocalConnection::connect();
+	try {
+		$id_production = intval($_POST['id_production']);
+		$id_admin      = intval($_POST['id_admin']);
+		$id_office     = intval($_POST['id_office']);
+		$result        = $_POST['result_qc'];
+		$qty_approved  = floatval($_POST['qty_approved']);
+		$qty_rejected  = floatval($_POST['qty_rejected']);
+		$notes         = trim($_POST['notes_qc']);
+
+		// Get production info
+		$stmtProd = $db->prepare("SELECT * FROM productions WHERE id_production = :id");
+		$stmtProd->execute([':id' => $id_production]);
+		$prod = $stmtProd->fetch(PDO::FETCH_ASSOC);
+
+		if (!$prod) {
+			echo json_encode(['status' => 'error', 'message' => 'Producción no encontrada']);
+			exit;
+		}
+
+		// 1. Insert QC record
+		$stmtQC = $db->prepare("
+			INSERT INTO quality_checks
+			(id_production_qc, id_admin_qc, id_office_qc, result_qc, qty_approved_qc, qty_rejected_qc, notes_qc, date_created_qc)
+			VALUES (:prod, :admin, :office, :result, :approved, :rejected, :notes, CURDATE())
+		");
+		$stmtQC->execute([
+			':prod'     => $id_production,
+			':admin'    => $id_admin,
+			':office'   => $id_office,
+			':result'   => $result,
+			':approved' => $qty_approved,
+			':rejected' => $qty_rejected,
+			':notes'    => $notes
+		]);
+
+		// 2. Calculate real unit cost based on approved qty
+		$totalCost = floatval($prod['real_total_cost']);
+		$realUnitCost = ($qty_approved > 0) ? ($totalCost / $qty_approved) : 0;
+
+		if ($result !== 'rechazado' && $qty_approved > 0) {
+			// 3a. Set production to completado
+			$stmtDone = $db->prepare("
+				UPDATE productions SET
+				  status_production = 'completado',
+				  qty_approved_production = :approved,
+				  qty_rejected_production = :rejected,
+				  real_unit_cost = :unit_cost,
+				  result_qc_production = :result,
+				  notes_qc_production = :notes,
+				  end_date_production = CURDATE()
+				WHERE id_production = :id
+			");
+			$stmtDone->execute([
+				':approved'   => $qty_approved,
+				':rejected'   => $qty_rejected,
+				':unit_cost'  => $realUnitCost,
+				':result'     => $result,
+				':notes'      => $notes,
+				':id'         => $id_production
+			]);
+
+			// 4. Add product to final inventory (update stock in products table)
+			// Find the packaged product (by pkg_name or existing product)
+			$id_product = intval($prod['id_product_production']);
+			$stmtStock = $db->prepare("
+				UPDATE products SET stock_product = COALESCE(CAST(stock_product AS DECIMAL(10,2)), 0) + :qty,
+				rte_product = :cost
+				WHERE id_product = :id
+			");
+			$stmtStock->execute([
+				':qty'  => $qty_approved,
+				':cost' => $realUnitCost,
+				':id'   => $id_product
+			]);
+
+			echo json_encode(['status' => 'ok', 'result' => 'completado']);
+		} else {
+			// Rechazado: mark as rejected
+			$stmtRej = $db->prepare("
+				UPDATE productions SET
+				  status_production = 'rechazado',
+				  qty_approved_production = :approved,
+				  qty_rejected_production = :rejected,
+				  result_qc_production = :result,
+				  notes_qc_production = :notes,
+				  end_date_production = CURDATE()
+				WHERE id_production = :id
+			");
+			$stmtRej->execute([
+				':approved' => $qty_approved,
+				':rejected' => $qty_rejected,
+				':result'   => $result,
+				':notes'    => $notes,
+				':id'       => $id_production
+			]);
+
+			echo json_encode(['status' => 'ok', 'result' => 'rechazado']);
+		}
+	} catch (Exception $e) {
+		echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+	}
+	exit;
+}
+
+//=====================================
+// GET PRODUCTION DETAILS (Historial Detallado)
+//=====================================
+if(isset($_POST["getProductionDetails"])){
+	$db = LocalConnection::connect();
+	$id_production = intval($_POST['id_production']);
+
+	// Main production record
+	$stmtProd = $db->prepare("
+		SELECT p.*,
+		       pr.title_product, pr.unit_product,
+		       a.name_admin,
+		       r.unit_batch_recipe AS unit_product
+		FROM productions p
+		JOIN products pr ON p.id_product_production = pr.id_product
+		JOIN recipes r ON p.id_recipe_production = r.id_recipe
+		LEFT JOIN admins a ON p.id_admin_production = a.id_admin
+		WHERE p.id_production = :id
+	");
+	$stmtProd->execute([':id' => $id_production]);
+	$production = $stmtProd->fetch(PDO::FETCH_ASSOC);
+
+	// Get QC inspector name if QC exists
+	if ($production) {
+		$stmtQC = $db->prepare("
+			SELECT qc.*, a.name_admin AS qc_inspector_name
+			FROM quality_checks qc
+			LEFT JOIN admins a ON qc.id_admin_qc = a.id_admin
+			WHERE qc.id_production_qc = :id
+			ORDER BY qc.id_qc DESC LIMIT 1
+		");
+		$stmtQC->execute([':id' => $id_production]);
+		$qc = $stmtQC->fetch(PDO::FETCH_ASSOC);
+		if ($qc) {
+			$production['qc_notes'] = $qc['notes_qc'];
+			$production['qc_inspector_name'] = $qc['qc_inspector_name'];
+			$production['result_qc'] = $qc['result_qc'];
+			$production['qty_approved_qc'] = $qc['qty_approved_qc'];
+			$production['qty_rejected_qc'] = $qc['qty_rejected_qc'];
+		}
+	}
+
+	// Material costs
+	$stmtMat = $db->prepare("
+		SELECT pmc.*, rm.name_raw_material, rm.unit_raw_material
+		FROM production_material_costs pmc
+		JOIN raw_materials rm ON pmc.id_raw_material_mat_cost = rm.id_raw_material
+		WHERE pmc.id_production_mat_cost = :id
+	");
+	$stmtMat->execute([':id' => $id_production]);
+	$materials = $stmtMat->fetchAll(PDO::FETCH_ASSOC);
+
+	echo json_encode([
+		'production' => $production,
+		'materials'  => $materials
+	]);
+	exit;
+}
+
+//=====================================
+// GET LAB MATERIALS (Insumos de Envasado)
+//=====================================
+if(isset($_POST["getLabMaterials"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT id_raw_material, name_raw_material, unit_raw_material,
+		       stock_raw_material, measure_type
+		FROM raw_materials
+		WHERE id_office_raw_material = :office AND status_raw_material = 1
+		ORDER BY name_raw_material ASC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode([
+		'status' => 200,
+		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+	]);
+	exit;
+}
+
