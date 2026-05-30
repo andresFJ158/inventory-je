@@ -3043,12 +3043,20 @@ if(isset($_POST["getLoggedUser"])){
 		$stmt->execute([':id' => $id_office]);
 		$office = $stmt->fetch(PDO::FETCH_ASSOC);
 
+		$permissions = array();
+		if (!empty($_SESSION["admin"]->permissions_admin)) {
+			$permissions = json_decode(urldecode($_SESSION["admin"]->permissions_admin), true);
+		}
+
 		echo json_encode([
 			'status' => 200,
 			'user' => [
 				'id_admin' => intval($_SESSION["admin"]->id_admin),
 				'name_admin' => $_SESSION["admin"]->name_admin,
-				'rol_admin' => $_SESSION["admin"]->rol_admin
+				'rol_admin' => $_SESSION["admin"]->rol_admin,
+				'id_office_admin' => intval($_SESSION["admin"]->id_office_admin),
+				'id_warehouse_admin' => isset($_SESSION["admin"]->id_warehouse_admin) ? intval($_SESSION["admin"]->id_warehouse_admin) : 0,
+				'permissions_admin' => $permissions
 			],
 			'office' => $office,
 			'token' => 'session-token'
@@ -3058,6 +3066,46 @@ if(isset($_POST["getLoggedUser"])){
 			'status' => 401,
 			'message' => 'No session active'
 		]);
+	}
+	exit;
+}
+
+//=====================================
+// PAY POS ORDER
+//=====================================
+if(isset($_POST["payPosOrder"])){
+	if (session_status() === PHP_SESSION_NONE) { session_start(); }
+	
+	$_POST["idOrderPay"] = $_POST["idOrder"];
+	$_POST["methodPay"] = $_POST["method"];
+	$_POST["transferPay"] = $_POST["transfer"] ?? "";
+	$_POST["clientInvoice"] = $_POST["invoice"] ?? "no";
+	
+	if (!isset($_SESSION["admin"])) {
+		$db = LocalConnection::connect();
+		$sellerId = intval($_POST["sellerId"] ?? 0);
+		if ($sellerId > 0) {
+			$stmt = $db->prepare("SELECT * FROM admins WHERE id_admin = :id");
+			$stmt->execute([':id' => $sellerId]);
+			$_SESSION["admin"] = $stmt->fetch(PDO::FETCH_OBJ);
+		}
+	}
+	
+	require_once "../controllers/orders.controller.php";
+	
+	ob_start();
+	$orderCtrl = new OrdersController();
+	$orderCtrl->manageOrder();
+	$output = ob_get_clean();
+	
+	if (strpos($output, "La órden") !== false || strpos($output, "éxito") !== false || strpos($output, "completada") !== false || strpos($output, "Correcto") !== false) {
+		echo json_encode(["status" => 200, "message" => "ok"]);
+	} else {
+		$errorMsg = "Error al procesar el pago";
+		if (preg_match('/alert-danger[^>]*>([\s\S]*?)<\/div>/i', $output, $matches)) {
+			$errorMsg = trim(strip_tags($matches[1]));
+		}
+		echo json_encode(["status" => 400, "message" => $errorMsg]);
 	}
 	exit;
 }
@@ -3106,12 +3154,20 @@ if(isset($_POST["loginLabUser"])){
 			$stmtOffice->execute([':id' => $id_office]);
 			$office = $stmtOffice->fetch(PDO::FETCH_ASSOC);
 
+			$permissions = array();
+			if (!empty($admin->permissions_admin)) {
+				$permissions = json_decode(urldecode($admin->permissions_admin), true);
+			}
+
 			echo json_encode([
 				'status' => 200,
 				'user' => [
 					'id_admin' => intval($admin->id_admin),
 					'name_admin' => $admin->name_admin,
-					'rol_admin' => $admin->rol_admin
+					'rol_admin' => $admin->rol_admin,
+					'id_office_admin' => intval($admin->id_office_admin),
+					'id_warehouse_admin' => isset($admin->id_warehouse_admin) ? intval($admin->id_warehouse_admin) : 0,
+					'permissions_admin' => $permissions
 				],
 				'office' => $office,
 				'token' => $admin->token_admin

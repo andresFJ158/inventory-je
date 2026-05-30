@@ -250,17 +250,59 @@ watch(() => route.path, () => {
   fetchNotifications()
 })
 
-// Mapeo exacto de los títulos del dashboard
-const sidebarItems = computed(() => [
-  { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
-  { label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' },
-  { label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' },
-  { label: 'Entradas M.P.', to: '/entradas', icon: 'i-lucide-truck' },
-  { label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' },
-  { label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' },
-  ...(auth.role !== 'lab_worker' ? [{ label: 'Control Calidad', to: '/calidad', icon: 'i-lucide-shield-check' }] : []),
-  { label: 'Inventario Final', to: '/inventario-final', icon: 'i-lucide-boxes' }
-])
+// Mapeo exacto de los títulos del dashboard adaptado por roles
+const sidebarItems = computed(() => {
+  const role = auth.role
+  const perms = auth.permissions || {}
+
+  // Helper to verify permissions
+  const hasPerm = (pageUrl: string) => {
+    if (role === 'superadmin' || role === 'admin') return true
+    return perms[pageUrl] === 'on'
+  }
+
+  const items: any[] = []
+
+  // Módulos de Administración y POS
+  if (role === 'superadmin' || role === 'admin' || role === 'cajero' || role === 'vendedor' || role === 'editor' || role === 'despachador') {
+    if (hasPerm('pos')) items.push({ label: 'Punto de Venta POS', to: '/pos', icon: 'i-lucide-shopping-cart' })
+    if (hasPerm('sucursales')) items.push({ label: 'Sucursales', to: '/sucursales', icon: 'i-lucide-store' })
+    if (hasPerm('admins')) items.push({ label: 'Administradores', to: '/admins', icon: 'i-lucide-user-cog' })
+    if (hasPerm('clientes')) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
+    if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-tags' })
+    if (hasPerm('productos')) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
+    if (hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
+    if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
+    if (hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
+    if (hasPerm('caja')) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })
+    if (hasPerm('gastos')) items.push({ label: 'Gastos', to: '/gastos', icon: 'i-lucide-receipt' })
+    if (hasPerm('proveedores')) items.push({ label: 'Proveedores', to: '/proveedores', icon: 'i-lucide-truck' })
+    
+    // Vistas de Almacén/Distribución
+    if (role === 'despachador' || role === 'superadmin' || role === 'admin' || hasPerm('almacen')) {
+      items.push({ label: 'Almacén Principal', to: '/almacen', icon: 'i-lucide-warehouse' })
+    }
+    if (role === 'despachador' || role === 'superadmin' || role === 'admin' || hasPerm('despachos')) {
+      items.push({ label: 'Centro Despachos', to: '/despachos', icon: 'i-lucide-truck' })
+    }
+  }
+
+  // Módulos de Laboratorio
+  if (role === 'superadmin' || role === 'admin' || role === 'lab_admin' || role === 'lab_worker') {
+    items.push({ label: 'Dashboard Lab', to: '/', icon: 'i-lucide-layout-dashboard' })
+    items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
+    items.push({ label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' })
+    items.push({ label: 'Entradas M.P.', to: '/entradas', icon: 'i-lucide-truck' })
+    items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })
+    items.push({ label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' })
+    if (role !== 'lab_worker') {
+      items.push({ label: 'Control Calidad', to: '/calidad', icon: 'i-lucide-shield-check' })
+    }
+    items.push({ label: 'Inventario Final', to: '/inventario-final', icon: 'i-lucide-boxes' })
+  }
+
+  return items
+})
 </script>
 
 <template>
@@ -320,7 +362,7 @@ const sidebarItems = computed(() => [
                 {{ auth.user?.name_admin || 'Usuario Lab' }}
               </p>
               <span class="text-xs text-slate-550 dark:text-slate-400 capitalize block">
-                {{ auth.role === 'lab_admin' ? 'Administrador' : auth.role === 'lab_calidad' ? 'Control Calidad' : 'Operador' }}
+                {{ auth.role === 'superadmin' ? 'Superadmin' : auth.role === 'admin' ? 'Administrador' : auth.role === 'despachador' ? 'Despachador' : auth.role === 'cajero' ? 'Cajero' : auth.role === 'vendedor' ? 'Vendedor' : auth.role === 'lab_admin' ? 'Admin Lab' : auth.role === 'lab_calidad' ? 'Control Calidad' : 'Operador' }}
               </span>
             </div>
             <UButton

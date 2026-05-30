@@ -8,7 +8,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLogged = computed(() => !!token.value)
   const role = computed(() => user.value?.rol_admin || 'lab_worker')
-  const officeId = computed(() => office.value?.id_office || null)
+  const officeId = computed(() => office.value?.id_office || user.value?.id_office_admin || null)
+  const warehouseId = computed(() => user.value?.id_warehouse_admin || 0)
+  const permissions = computed(() => user.value?.permissions_admin || {})
 
   function setAuth(data: any) {
     user.value = data.user
@@ -29,6 +31,8 @@ export const useAuthStore = defineStore('auth', () => {
     isLogged,
     role,
     officeId,
+    warehouseId,
+    permissions,
     setAuth,
     logout
   }

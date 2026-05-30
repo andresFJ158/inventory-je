@@ -14,7 +14,8 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/': { prerender: true },
-    '/ajax/**': { proxy: 'http://localhost:8080/ajax/**' }
+    '/ajax/**': { proxy: 'http://localhost:8080/ajax/**' },
+    '/api/**': { proxy: 'http://localhost:8081/**' }
   },
 
   compatibilityDate: '2025-01-15',
