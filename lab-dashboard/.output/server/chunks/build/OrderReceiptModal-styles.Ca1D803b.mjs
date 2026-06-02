@@ -1,0 +1,8 @@
+const OrderReceiptModal_vue_vue_type_style_index_0_lang = "@media print{body *{visibility:hidden}.print-container,.print-container *{visibility:visible}.print-container{position:fixed;left:0;top:0;width:100%;margin:0;padding:20px;background-color:#fff!important;color:#000!important}.print-hide,.u-modal-overlay{display:none!important}}";
+
+const OrderReceiptModalStyles_Ca1D803b = [
+  OrderReceiptModal_vue_vue_type_style_index_0_lang
+];
+
+export { OrderReceiptModalStyles_Ca1D803b as default };
+//# sourceMappingURL=OrderReceiptModal-styles.Ca1D803b.mjs.map

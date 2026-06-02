@@ -1,0 +1,85 @@
+import { ref, computed, nextTick } from 'vue';
+
+function useNumericInput(initial = "", options = {}) {
+  const { decimals = 2, min = 0, allowEmpty = true } = options;
+  function toDisplay(val) {
+    if (val === "" || val === null || val === void 0) return "";
+    const n = typeof val === "string" ? parseFloat(String(val).replace(/\./g, "").replace(",", ".")) : val;
+    if (isNaN(n)) return "";
+    if (decimals === 0) {
+      return Math.max(min, Math.floor(n)).toLocaleString("de-DE");
+    }
+    return Math.max(min, n).toLocaleString("de-DE", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: decimals
+    });
+  }
+  function toRaw(formatted) {
+    if (!formatted) return 0;
+    const cleaned = formatted.replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(cleaned);
+    if (isNaN(n)) return 0;
+    return Math.max(min, n);
+  }
+  const display = ref(toDisplay(initial));
+  const raw = computed(() => toRaw(display.value));
+  function onKeydown(e) {
+    if (e.key === "-" || e.key === "e" || e.key === "E") {
+      e.preventDefault();
+      return;
+    }
+    const allowed = [
+      "Backspace",
+      "Delete",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Home",
+      "End",
+      ",",
+      "."
+    ];
+    if (allowed.includes(e.key) || (e.ctrlKey || e.metaKey) || /^\d$/.test(e.key)) return;
+    e.preventDefault();
+  }
+  function onInput(e) {
+    const input = e.target;
+    const cursorPos = input.selectionStart ?? 0;
+    let raw2 = input.value.replace(/[^\d,\.]/g, "");
+    raw2 = raw2.replace(/\./g, ",");
+    const parts = raw2.split(",");
+    if (parts.length > 2) {
+      raw2 = parts[0] + "," + parts.slice(1).join("");
+    }
+    let intPart = parts[0].replace(/^0+(?=\d)/, "") || "0";
+    let decPart = parts[1];
+    intPart = parseInt(intPart || "0", 10).toLocaleString("de-DE");
+    let formatted;
+    if (parts.length === 2) {
+      const trimmedDec = (decPart ?? "").slice(0, decimals);
+      formatted = `${intPart},${trimmedDec}`;
+    } else {
+      formatted = intPart === "0" && allowEmpty && !input.value ? "" : intPart;
+    }
+    if (formatted === "0" && (input.value === "" || input.value === "0")) {
+      formatted = allowEmpty ? "" : "0";
+    }
+    display.value = formatted;
+    input.value = formatted;
+    const diff = formatted.length - input.value.length;
+    const newPos = Math.max(0, cursorPos + diff);
+    nextTick(() => {
+      input.setSelectionRange(newPos, newPos);
+    });
+  }
+  function setValue(val) {
+    display.value = toDisplay(val);
+  }
+  function reset() {
+    display.value = allowEmpty ? "" : "0";
+  }
+  return { display, raw, onInput, onKeydown, setValue, reset, toRaw, toDisplay };
+}
+
+export { useNumericInput as u };
+//# sourceMappingURL=useNumericInput-Bqjo07MU.mjs.map
