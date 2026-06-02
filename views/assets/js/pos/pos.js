@@ -1,0 +1,1423 @@
+/*=============================================
+JD SLIDER
+=============================================*/
+
+$(".jd-slider").jdSlider({
+
+	wrap: '.slide-inner',
+	slideShow: 4,
+	slideToScroll: 2,
+	isLoop: true,
+	responsive: [{
+		viewSize: 768,
+		settings: {
+			slideShow: 1,
+			slideToScroll: 1
+		}
+	}]
+
+});
+
+/*=============================================
+CARGAR MÁS PRODUCTOS
+=============================================*/
+
+$(document).on("click", "#loadPageProducts", function () {
+
+	if (Number($("#currentPageProducts").val()) < Number($("#totalPagesProducts").val())) {
+
+		var nextPage = Number($("#currentPageProducts").val()) + 1;
+
+		if (Number($("#totalPagesProducts").val()) == nextPage) {
+
+			$("#loadPageProducts").addClass("d-none");
+			$("#loadPageProducts").removeClass("d-block");
+		}
+
+		$("#currentPageProducts").val(nextPage);
+
+		var limit = Number($("#limitProduct").val());
+		var startAt = (nextPage * limit) - limit;
+		var category = $("#filterByCategory").val();
+		var search = $("#searchProduct").val();
+
+		loadMoreProducts(limit, startAt, category, search);
+
+	} else {
+
+		$("#loadPageProducts").addClass("d-none");
+		$("#loadPageProducts").removeClass("d-block");
+	}
+
+})
+
+/*=============================================
+FILTRAR PRODUCTOS POR CATEGORÍAS
+=============================================*/
+
+$(document).on("click", ".loadCategory", function () {
+
+	var category = $(this).attr("idCategory");
+	$("#filterByCategory").val(category);
+
+	var limit = Number($("#limitProduct").val());
+	var startAt = 0;
+	$("#currentPageProducts").val(1);
+	var search = $("#searchProduct").val();
+
+	loadMoreProducts(limit, startAt, category, search);
+
+})
+
+/*=============================================
+FILTRAR PRODUCTOS POR BÚSQUEDA
+=============================================*/
+
+$(document).on("keyup", "#searchProduct", function () {
+
+	var search = $(this).val();
+
+	var limit = Number($("#limitProduct").val());
+	var startAt = 0;
+	$("#currentPageProducts").val(1);
+	var category = $("#filterByCategory").val();
+
+	loadMoreProducts(limit, startAt, category, search);
+})
+
+/*=============================================
+RESTORE WHOLESALE STATE
+=============================================*/
+$(document).ready(function(){
+	if(localStorage.getItem("isWholesale") == "1"){
+		$("#wholesaleSwitch").prop("checked", true);
+	}
+	
+	if ($("#orderHeader").attr("mode") == "on") {
+		calculateProducts();
+	}
+});
+
+/*=============================================
+TOGGLE WHOLESALE PRICING
+=============================================*/
+
+$(document).on("change", "#wholesaleSwitch", function () {
+	
+	var isWholesale = $(this).is(":checked") ? 1 : 0;
+	localStorage.setItem("isWholesale", isWholesale);
+
+	if ($("#orderHeader").attr("mode") == "on") {
+		var idOrder = $("#orderHeader").attr("idOrder");
+		
+		var data = new FormData();
+		data.append("toggleWholesaleCart", "yes");
+		data.append("idOrder", idOrder);
+		data.append("isWholesale", isWholesale);
+		data.append("token", localStorage.getItem("tokenAdmin"));
+		
+		fncSweetAlert("loading", "Actualizando precios...", "");
+		
+		$.ajax({
+			url: "/ajax/pos.ajax.php",
+			method: "POST",
+			data: data,
+			contentType: false,
+			cache: false,
+			processData: false,
+			success: function (response) {
+				fncSweetAlert("close", "", "");
+				window.location.reload();
+			}
+		});
+	}
+})
+
+/*=============================================
+FUNCIÓN PARA CARGAR MÁS PRODUCTOS
+=============================================*/
+
+function loadMoreProducts(limit, startAt, category, search) {
+
+	if (search == "") {
+
+		fncSweetAlert("loading", "Cargando productos...", "");
+
+	}
+
+	var data = new FormData();
+	data.append("limit", limit);
+	data.append("startAt", startAt);
+	data.append("category", category);
+	data.append("search", search);
+	data.append("idOffice", $("#idOffice").val());
+	data.append("isWholesale", $("#wholesaleSwitch").is(":checked") ? 1 : 0);
+	data.append("sellerId", $("#sellerId").val());
+	data.append("sellerRole", $("#sellerRole").val());
+
+	$.ajax({
+
+		url: "/ajax/pos.ajax.php",
+		method: "POST",
+		data: data,
+		contentType: false,
+		cache: false,
+		processData: false,
+		success: function (response) {
+
+			if (JSON.parse(response).htmlProducts != "") {
+
+				if (startAt == 0) {
+
+					$(".viewProducts").html(JSON.parse(response).htmlProducts);
+
+				} else {
+
+					$(".viewProducts").append(JSON.parse(response).htmlProducts);
+
+				}
+
+				if (JSON.parse(response).totalPagesProducts > 1 && $("#currentPageProducts").val() < JSON.parse(response).totalPagesProducts) {
+
+					$("#loadPageProducts").removeClass("d-none");
+					$("#loadPageProducts").addClass("d-block");
+
+				}
+
+				if (JSON.parse(response).totalPagesProducts <= 1 && $("#currentPageProducts").val() == 1) {
+
+					$("#loadPageProducts").addClass("d-none");
+					$("#loadPageProducts").removeClass("d-block");
+
+				}
+
+			}
+
+			fncSweetAlert("close", "", "");
+
+		}
+
+	})
+
+}
+
+
+/*=============================================
+CREAR NUEVA ÓRDEN
+=============================================*/
+
+$(document).on("click", ".newOrder", function () {
+
+	if ($("#orderHeader").attr("mode") == "on") {
+
+		if ($("#clientList").val() == "") {
+
+			fncToastr("error", "Antes de crear otra orden, agregue cliente a la orden actual");
+
+			return;
+		}
+
+	}
+
+	if ($("#idOffice").val() > 0) {
+
+		var data = new FormData();
+		data.append("order", "new");
+		data.append("idOffice", $("#idOffice").val());
+		data.append("seller", $("#seller").attr("idAdmin"));
+		data.append("token", localStorage.getItem("tokenAdmin"));
+
+		$.ajax({
+			url: "/ajax/pos.ajax.php",
+			method: "POST",
+			data: data,
+			contentType: false,
+			cache: false,
+			processData: false,
+			success: function (response) {
+
+				if (response == "current cash error") {
+
+					fncToastr("error", "No hay caja abierta el día de hoy");
+
+					return;
+
+				} else if (response == "yesterday cash error") {
+
+					fncToastr("error", "No ha cerrado caja del día anterior");
+
+					return;
+
+				} else if (response == "logout") {
+
+					fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+				} else {
+
+					if (JSON.parse(response).type == "new") {
+
+						fncToastr("success", "Orden creada con éxito");
+					}
+
+					$(".removeOrder").attr("idOrder", JSON.parse(response).transaction_order);
+
+					/*=============================================
+							Organizamos cabecera de la orden 
+							=============================================*/
+
+					$("#orderHeader").attr("mode", "on");
+					$("#orderHeader").attr("idOrder", JSON.parse(response).id_order);
+					$("#orderHeader").removeClass("bg-light");
+					$("#orderHeader").addClass("backColor");
+					$("#orderHeader h6").html("Orden # " + JSON.parse(response).transaction_order);
+
+					/*=============================================
+					Habilitamos la opción de agregar cliente 
+					=============================================*/
+
+					$("#addClient").removeClass("d-none");
+
+					/*=============================================
+					Habilitar módulo de productos añadidos
+					=============================================*/
+
+					$("#countProduct").removeClass("bg-light");
+					$("#countProduct").addClass("backColor");
+					$("#cleanListProduct").removeClass("d-none");
+					$("#cleanListProduct").attr("idOrder", JSON.parse(response).id_order);
+					$("#addProduct").html("");
+
+					/*=============================================
+					Habilitar módulo de totales
+					=============================================*/
+
+					$("#granTotal").removeClass("bg-light");
+					$("#granTotal").addClass("bg-blue");
+
+					/*=============================================
+					Habilitar métodos de pago
+					=============================================*/
+
+					$("#payMethods").show();
+
+				}
+
+			}
+
+		})
+
+	} else {
+
+		fncToastr("error", "Asignar sucursal a esta orden");
+	}
+
+})
+
+/*=============================================
+Elegir Cliente
+=============================================*/
+
+$(document).on("change", "#clientList", function () {
+
+	updateOrder();
+
+})
+
+/*=============================================
+Agregar nuevo Cliente
+=============================================*/
+
+$(document).on("click", "#addClient", function () {
+
+	$("#modalClient").modal("show");
+
+	$("#modalClient").on('shown.bs.modal', function () {
+
+		$(".alertClient").remove();
+
+		/*=============================================
+		variables formulario de cliente
+		=============================================*/
+
+		var name_client = "";
+		var surname_client = "";
+		var dni_client = "";
+		var email_client = "";
+		var phone_client = "";
+		var address_client = "";
+
+		/*=============================================
+		Capturamos cambios en el formulario de cliente
+		=============================================*/
+
+		$(".changeFormClient").change(function () {
+
+			name_client = $("#name_client").val();
+			surname_client = $("#surname_client").val();
+			dni_client = $("#dni_client").val();
+			email_client = $("#email_client").val();
+			phone_client = $("#phone_client").val();
+			address_client = $("#address_client").val();
+
+		})
+
+		/*=============================================
+		guardar formulario de cliente
+		=============================================*/
+
+		$("#btnAddClient").click(function () {
+
+			if (name_client != "" &&
+				surname_client != "" &&
+				dni_client != "" &&
+				email_client != "" &&
+				phone_client != "" &&
+				address_client != "") {
+
+				var data = new FormData();
+				data.append("name_client", name_client);
+				data.append("surname_client", surname_client);
+				data.append("dni_client", dni_client);
+				data.append("email_client", email_client);
+				data.append("phone_client", phone_client);
+				data.append("address_client", address_client);
+				data.append("idOffice", $("#idOffice").val());
+				data.append("token", localStorage.getItem("tokenAdmin"));
+
+				$.ajax({
+					url: "/ajax/pos.ajax.php",
+					method: "POST",
+					data: data,
+					contentType: false,
+					cache: false,
+					processData: false,
+					success: function (response) {
+
+						if (response == "logout") {
+
+							fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+						} else {
+
+							$("#clientList").append(`
+
+		    					<option value="${response}" selected>${name_client} ${surname_client} ${dni_client}</option>
+
+		    				 `)
+
+							$("#modalClient").modal("hide");
+
+							fncToastr("success", "El cliente se ha agregado con éxito");
+
+							updateOrder();
+
+						}
+
+					}
+
+				})
+
+
+			} else {
+
+				$(this).parent().parent().before(`<div class="alert alert-danger rounded mx-3 alertClient">No pueden ir campos vacíos </div>`)
+
+			}
+
+
+		})
+
+	})
+
+
+})
+
+/*=============================================
+Agregar Producto
+=============================================*/
+
+$(document).on("click", ".addProductPos", function () {
+
+	fncSweetAlert("loading", "Cargando producto...", "");
+
+	/*=============================================
+	Subir el scroll a la parte superior
+	=============================================*/
+
+	$("html, body").animate({
+
+		scrollTop: 0
+
+	}, 100);
+
+	if ($("#orderHeader").attr("mode") == "on") {
+
+		if ($("#clientList").val() == "") {
+
+			fncToastr("error", "Antes de agregar producto elige un cliente");
+
+			return;
+		}
+
+		var idProduct = $(this).attr("idProduct");
+		var $input = $(".showQuantity_" + idProduct);
+		if ($input.length > 0) {
+			let current = Number($input.val());
+			let stock = Number($input.attr("stock"));
+			if (current + 1 <= stock) {
+				$input.val(current + 1);
+				changeQuantity(idProduct);
+				fncSweetAlert("close", "", "");
+			} else {
+				fncSweetAlert("close", "", "");
+				fncToastr("error", "La cantidad es mayor al stock existente");
+			}
+			return;
+		}
+
+		var data = new FormData();
+		data.append("idProduct", idProduct);
+		data.append("idOrder", $("#orderHeader").attr("idOrder"));
+		data.append("idClient", $("#clientList").val());
+		data.append("seller", $("#seller").attr("idAdmin"));
+		data.append("idOffice", $("#idOffice").val());
+		data.append("token", localStorage.getItem("tokenAdmin"));
+		data.append("isWholesale", $("#wholesaleSwitch").is(":checked") ? 1 : 0);
+
+		$.ajax({
+
+			url: "/ajax/pos.ajax.php",
+			method: "POST",
+			data: data,
+			contentType: false,
+			cache: false,
+			processData: false,
+			success: function (response) {
+
+				fncSweetAlert("close", "", "");
+
+				if (response == "error stock") {
+
+					fncToastr("error", "El producto no posee stock");
+
+				} else if (response == "logout") {
+
+					fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+				} else if (response == "product exist") {
+
+					fncToastr("error", "El producto ya está agregado a la orden");
+
+				} else {
+
+					/*=============================================
+					Pintar en el HTML el producto agregado
+					=============================================*/
+
+					$("#addProduct").append(response);
+
+					/*=============================================
+					Calcular los totales de la orden
+					=============================================*/
+
+					calculateProducts();
+
+				}
+
+			}
+
+		})
+
+	} else {
+
+		fncToastr("error", "Antes de agregar producto genere una orden");
+	}
+
+})
+
+/*=============================================
+Manipular Cantidad con botones
+=============================================*/
+
+$(document).on("click", ".btnQty", function () {
+
+	/*=============================================
+	Capturar id del producto
+	=============================================*/
+
+	var key = $(this).attr("key");
+	var stock = $(this).attr("stock");
+
+	/*=============================================
+	Disminuir cantidad
+	=============================================*/
+
+	if ($(this).attr("type") == "btnMin") {
+
+		if (Number($(".showQuantity_" + key).val()) > 1) {
+
+			$(".showQuantity_" + key).val(Number($(".showQuantity_" + key).val()) - 1);
+
+		}
+
+	}
+
+	/*=============================================
+	Aumentar cantidad
+	=============================================*/
+	if ($(this).attr("type") == "btnMax") {
+
+		let $input = $(".showQuantity_" + key);
+		let current = Number($input.val());
+
+		if (current + 1 <= Number(stock)) {
+			$input.val(current + 1);
+		} else {
+			fncToastr("error", "La cantidad es mayor al stock existente");
+		}
+	}
+
+	changeQuantity(key);
+
+
+})
+
+/*=============================================
+Manipular Cantidad manualmente
+=============================================*/
+$(document).on("change", ".showQuantity", function () {
+
+	let key = $(this).attr("key");
+	let stock = Number($(this).attr("stock"));
+	let val = Number($(this).val());
+
+	if (val < 1) {
+		$(this).val(1);
+		fncToastr("error", "No puede ingresar número inferior a 1");
+		return;
+	}
+
+	if (val > stock) {
+		$(this).val(stock);
+		fncToastr("error", "La cantidad es mayor al stock existente");
+		return;
+	}
+
+	changeQuantity(key);
+
+});
+
+
+
+/*=============================================
+Cambio de cantidad
+=============================================*/
+
+function changeQuantity(key) {
+
+	/*=============================================
+	Capturamos descuento
+	=============================================*/
+
+	var discount = Number($(".deleteSale_" + key).attr("discountSale"));
+
+	/*=============================================
+	Actualizamos subtotal
+	=============================================*/
+	var qty = Number($(".showQuantity_" + key).val());
+	var elemPrice = $(".pricePurchase_" + key);
+	var basePrice = Number(elemPrice.attr("basePrice"));
+	var wholesalePrice = Number(elemPrice.attr("wholesalePrice"));
+	var wholesaleQty = Number(elemPrice.attr("wholesaleQty"));
+	var appliedPriceType = elemPrice.attr("appliedPriceType");
+
+	var unitPrice = basePrice;
+
+	if(appliedPriceType == "manual"){
+		// Mantener precio sobrescrito manualmente
+		unitPrice = Number(elemPrice.attr("originalPricePurchase"));
+	} else {
+		// Cálculo automático mayoreo
+		var isWholesaleSwitch = $("#wholesaleSwitch").is(":checked") ? 1 : 0;
+		if ((isWholesaleSwitch == 1 || (wholesaleQty > 0 && qty >= wholesaleQty)) && wholesalePrice > 0 && discount <= 0) {
+			unitPrice = wholesalePrice;
+		}
+		
+		// Aplicar descuento del producto si existe y no se aplicó mayoreo
+		// (La regla actual dice que descuento y mayoreo no se mezclan, o se aplica al base)
+		if(discount > 0){
+			unitPrice = unitPrice - (unitPrice * (discount / 100));
+		}
+		
+		// Actualizar el atributo para mantener consistencia
+		elemPrice.attr("originalPricePurchase", unitPrice);
+	}
+
+	var pricePurchase = unitPrice * qty;
+	elemPrice.attr("pricePurchase", pricePurchase);
+	elemPrice.html(money(pricePurchase.toFixed(2)));
+
+	/*=============================================
+	Actualizamos cantidad y subtotal en base de datos
+	=============================================*/
+
+	var data = new FormData();
+
+	data.append("idSaleUpdate", $(".deleteSale_" + key).attr("idSale"));
+	data.append("qtySale", $(".showQuantity_" + key).val());
+	data.append("subtotalSale", pricePurchase);
+	data.append("token", localStorage.getItem("tokenAdmin"));
+
+	$.ajax({
+
+		url: "/ajax/pos.ajax.php",
+		method: "POST",
+		data: data,
+		contentType: false,
+		cache: false,
+		processData: false,
+		success: function (response) {
+
+			if (response == "logout") {
+
+				fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+			} else {
+
+				/*=============================================
+				Calculamos Productos
+				=============================================*/
+
+				calculateProducts();
+
+			}
+
+		}
+
+	})
+
+}
+
+
+/*=============================================
+Eliminar producto de la orden
+=============================================*/
+
+$(document).on("click", ".deleteSale", function () {
+
+	var idSale = $(this).attr("idSale");
+	var elem = $(this);
+
+	fncSweetAlert("confirm", "¿Está seguro de borrar este producto?", "").then(resp => {
+
+		if (resp) {
+
+			var data = new FormData();
+			data.append("idSaleDelete", idSale);
+			data.append("token", localStorage.getItem("tokenAdmin"));
+
+			$.ajax({
+
+				url: "/ajax/pos.ajax.php",
+				method: "POST",
+				data: data,
+				contentType: false,
+				cache: false,
+				processData: false,
+				success: function (response) {
+
+					if (response == "logout") {
+
+						fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+					} else if (response == "error") {
+
+						fncToastr("error", "El producto no se puede remover");
+
+					} else {
+
+						fncToastr("success", "El producto se ha removido correctamente");
+
+						$(elem).parent().parent().remove();
+
+						calculateProducts();
+					}
+				}
+
+			})
+
+		}
+
+	})
+
+})
+
+/*=============================================
+Limpiar productos añadidos
+=============================================*/
+
+$(document).on("click", "#cleanListProduct", function () {
+
+	if ($("#addProduct tr").length == 0) {
+
+		fncToastr("error", "No hay productos a remover");
+		return;
+
+	}
+
+	var idOrderSale = $(this).attr("idOrder");
+
+	fncSweetAlert("confirm", "¿Está seguro de borrar estos productos añadidos?", "").then(resp => {
+
+		if (resp) {
+
+			fncSweetAlert("loading", "Eliminando productos...", "");
+
+			var data = new FormData();
+			data.append("idOrderSale", idOrderSale);
+			data.append("token", localStorage.getItem("tokenAdmin"));
+
+			$.ajax({
+
+				url: "/ajax/pos.ajax.php",
+				method: "POST",
+				data: data,
+				contentType: false,
+				cache: false,
+				processData: false,
+				success: function (response) {
+
+					fncSweetAlert("close", "", "");
+
+					if (response == "error") {
+
+						fncToastr("error", "Los productos no se pueden remover");
+
+					} else if (response == "logout") {
+
+						fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+					} else {
+
+						fncToastr("success", "Los productos se han removido correctamente");
+
+						$("#addProduct").html('');
+
+						calculateProducts();
+					}
+
+				}
+			})
+
+		}
+
+	})
+
+})
+
+/*=============================================
+Cálculos de productos
+=============================================*/
+
+function calculateProducts() {
+
+	/*=============================================
+	Contabilizamos el total de productos
+	=============================================*/
+
+	var showQuantity = $(".showQuantity");
+	var totalQty = 0;
+
+	showQuantity.each((i) => {
+
+		totalQty += Number($(showQuantity[i]).val());
+
+	})
+
+	$("#countProduct").html(totalQty);
+
+	/*=============================================
+	Contabilizamos los subtotales
+	=============================================*/
+
+	var pricePurchase = $(".pricePurchase");
+	var totalPricePurchase = 0;
+
+	pricePurchase.each((i) => {
+
+		totalPricePurchase += Number($(pricePurchase[i]).attr("pricePurchase"));
+
+	})
+
+	/*=============================================
+	Subtotal
+	=============================================*/
+
+	$("#subtotal").attr("subtotal", Math.round(totalPricePurchase).toFixed(2));
+	$("#subtotal").html(money(Math.round(totalPricePurchase).toFixed(2)));
+
+	/*=============================================
+	Contabilizamos los descuentos e impuestos
+	=============================================*/
+
+	var deleteSale = $(".deleteSale");
+	var calculateDiscount = 0;
+	var totalPriceDiscount = 0;
+	var calculateTax = 0;
+	var totalPriceTax = 0;
+
+	deleteSale.each((i) => {
+
+		calculateDiscount = Number($(pricePurchase[i]).attr("pricePurchase")) * (Number($(deleteSale[i]).attr("discountSale")) / 100);
+		totalPriceDiscount += calculateDiscount;
+
+		if (Number($(deleteSale[i]).attr("discountSale")) > 0) {
+
+			calculateTax = (Number($(pricePurchase[i]).attr("pricePurchase")) - Number(calculateDiscount)) * (Number($(deleteSale[i]).attr("taxSale")) / 100);
+
+		} else {
+
+			calculateTax = Number($(pricePurchase[i]).attr("pricePurchase")) * (Number($(deleteSale[i]).attr("taxSale")) / 100);
+		}
+
+
+		totalPriceTax += calculateTax;
+	})
+
+
+	/*=============================================
+	Descuento
+	=============================================*/
+
+	$("#discount").attr("discount", Math.round(totalPriceDiscount).toFixed(2));
+	$("#discount").html(money(Math.round(totalPriceDiscount).toFixed(2)));
+
+	/*=============================================
+	Impuesto
+	=============================================*/
+
+	$("#tax").attr("tax", Math.round(totalPriceTax).toFixed(2));
+	$("#tax").html(money(Math.round(totalPriceTax).toFixed(2)));
+
+	/*=============================================
+	Gran Total
+	=============================================*/
+
+	var total = Number($("#subtotal").attr("subtotal")) - Number($("#discount").attr("discount")) + Number($("#tax").attr("tax"));
+
+	$("#granTotal span").attr("granTotal", Math.round(total).toFixed(2));
+	$("#granTotal span").html(money(Math.round(total).toFixed(2)));
+
+	/*=============================================
+	Actualizar Órden
+	=============================================*/
+
+	updateOrder();
+
+}
+
+/*=============================================
+Actualizar cambios en la orden
+=============================================*/
+
+function updateOrder() {
+
+	if ($("#orderHeader").attr("mode") == "on") {
+
+		var idOrder = $("#orderHeader").attr("idOrder");
+		var idClient = $("#clientList").val();
+		var subtotalOrder = $("#subtotal").attr("subtotal");
+		var discountOrder = $("#discount").attr("discount");
+		var taxOrder = $("#tax").attr("tax");
+		var totalOrder = $("#granTotal span").attr("granTotal");
+
+		var data = new FormData();
+		data.append("idOrderUpdate", idOrder);
+		data.append("idClient", idClient);
+		data.append("subtotalOrder", subtotalOrder);
+		data.append("discountOrder", discountOrder);
+		data.append("taxOrder", taxOrder);
+		data.append("totalOrder", totalOrder);
+		data.append("token", localStorage.getItem("tokenAdmin"));
+
+		$.ajax({
+			url: "/ajax/pos.ajax.php",
+			method: "POST",
+			data: data,
+			contentType: false,
+			cache: false,
+			processData: false,
+			success: function (response) {
+
+				if (response == "logout") {
+
+					fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+				}
+
+			}
+
+		})
+
+
+	}
+
+}
+
+/*=============================================
+ELIMINAR ÓRDEN
+=============================================*/
+
+$(document).on("click", ".removeOrder", function () {
+
+	var idOrder = $(this).attr("idOrder");
+
+	fncSweetAlert("confirm", "¿Está seguro de remover esta orden?", "").then(resp => {
+
+		if (resp) {
+
+			fncSweetAlert("loading", "Eliminando Orden...", "");
+
+			var data = new FormData();
+			data.append("idOrderDelete", idOrder);
+			data.append("token", localStorage.getItem("tokenAdmin"));
+
+			$.ajax({
+
+				url: "/ajax/pos.ajax.php",
+				method: "POST",
+				data: data,
+				contentType: false,
+				cache: false,
+				processData: false,
+				success: function (response) {
+
+					fncSweetAlert("close", "", "");
+
+					if (response == "error") {
+
+						fncToastr("error", "La orden no se puede remover");
+
+					} else if (response == "logout") {
+
+						fncSweetAlert("error", "Token vencido, debe iniciar sesión nuevamente", setTimeout(() => { window.location = "/logout"; }, 1250));
+
+					} else {
+
+						fncSweetAlert("success", "La orden se ha removido con éxito", setTimeout(() => location.reload(), 1250));
+					}
+
+
+				}
+			})
+		}
+
+	})
+
+})
+
+/*=============================================
+Ventana Modal de pagos
+=============================================*/
+
+$(document).on("click", ".payMethod", function () {
+
+	if ($("#addProduct tr").length == 0) {
+
+		fncToastr("error", "No hay productos añadidos");
+		return;
+	}
+
+	var method = $(this).attr("method");
+
+	$("#modalPayMethod").modal("show");
+
+	$("#modalPayMethod").on('shown.bs.modal', function () {
+
+		$("#idOrderPay").val($("#orderHeader").attr("idOrder"));
+		$("#methodPay").val(method);
+
+		/*=============================================
+		Ocultar todos los métodos
+		=============================================*/
+
+		var allMethods = $(".allMethods");
+
+		allMethods.each((i) => {
+
+			$(allMethods[i]).hide();
+		})
+
+		/*=============================================
+		Activar formulario efectivo
+		=============================================*/
+
+		if (method == "efectivo") {
+
+			$("#typePay").html("en efectivo");
+
+			$("#methodCash").show();
+
+			$("#totalPayCash").val($("#granTotal span").attr("granTotal"));
+
+			/*=============================================
+			Mostrar la diferencia
+			=============================================*/
+
+			$(document).on("change", "#cashPay", function () {
+
+				var total = Number($("#granTotal span").attr("granTotal"));
+				var cash = Number($(this).val());
+
+				$("#returnPay").val((cash - total).toFixed(2));
+
+				if (cash - total < 0) {
+
+					$("#returnPay").after(`<div class="alert alert-danger rounded mt-3 alertReturn">El monto a devolver no puede ser negativo</div>`)
+
+				} else {
+
+					$(".alertReturn").remove();
+				}
+
+			})
+
+			$("#idTransferPay").attr("required", false);
+		}
+
+		/*=============================================
+		Activar formulario transferencia
+		=============================================*/
+
+		if (method == "transferencia") {
+
+			$("#typePay").html("con transferencia");
+
+			$("#methodTransfer").show();
+
+			$("#totalPayTransfer").val($("#granTotal span").attr("granTotal"));
+
+			$("#idTransferPay").attr("required", true);
+
+			/*=============================================
+			Guardar el Id de la Transferencia
+			=============================================*/
+
+			$(document).on("change", "#idTransferPay", function () {
+
+				$("#transferPay").val($(this).val());
+
+			})
+
+
+		}
+
+		/*=============================================
+		Activar formulario Tarjeta
+		=============================================*/
+
+		if (method == "tarjeta") {
+
+			$("#typePay").html("con tarjeta");
+
+			$("#methodCard").show();
+
+			$("#totalPayCard").val($("#granTotal span").attr("granTotal"));
+
+			$("#idTransferPay").attr("required", false);
+
+		}
+
+
+	})
+
+
+
+})
+
+/*=============================================
+Enviar formulario de pago por AJAX
+=============================================*/
+
+$(document).on("submit", "#formPayMethod", function (e) {
+
+	e.preventDefault();
+
+	// Validar que el método de pago tenga los datos necesarios
+	var method = $("#methodPay").val();
+	var transferPay = $("#transferPay").val();
+
+	if (method == "transferencia" && (!transferPay || transferPay == "")) {
+		fncToastr("error", "Debe ingresar el ID de la transferencia");
+		return;
+	}
+
+	if (method == "efectivo") {
+		var cashPay = Number($("#cashPay").val());
+		var totalPay = Number($("#totalPayCash").val());
+
+		if (!cashPay || cashPay < totalPay) {
+			fncToastr("error", "El efectivo recibido debe ser mayor o igual al total a pagar");
+			return;
+		}
+	}
+
+	// Cerrar el modal
+	$("#modalPayMethod").modal("hide");
+
+	// Mostrar loading
+	fncMatPreloader("on");
+	fncSweetAlert("loading", "Procesando la orden...", "");
+
+	var data = new FormData();
+	data.append("idOrderPay", $("#idOrderPay").val());
+	data.append("methodPay", $("#methodPay").val());
+	data.append("transferPay", $("#transferPay").val() || "");
+	data.append("clientInvoice", $("#clientInvoice").is(":checked") ? "yes" : "no");
+
+    $.ajax({
+    	url: "/pos",
+    	method: "POST",
+    	data: data,
+    	contentType: false,
+    	cache: false,
+    	processData: false,
+    	timeout: 120000,
+    	success: function (response) {
+    		// POST /pos devuelve la página HTML completa; el primer <script> suele ser
+    		// configuración (p. ej. Tailwind), no el bloque de manageOrder(). Buscamos el
+    		// script que apaga el preloader tras procesar el pago.
+    		function findPosPayCompletionScript(html) {
+    			var re = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+    			var m;
+    			var lastMatch = null;
+    			function isPosPayScript(body) {
+    				if (body.indexOf("POS_ORDER_PAY_RESULT") === -1) {
+    					return false;
+    				}
+    				var hasPreloaderOff =
+    					body.indexOf('fncMatPreloader("off")') !== -1 ||
+    					body.indexOf("fncMatPreloader('off')") !== -1;
+    				var hasAlert =
+    					body.indexOf("fncSweetAlert") !== -1 || body.indexOf("Swal.fire") !== -1;
+    				return hasPreloaderOff && hasAlert;
+    			}
+    			while ((m = re.exec(html)) !== null) {
+    				if (isPosPayScript(m[1])) {
+    					lastMatch = m[1];
+    				}
+    			}
+    			return lastMatch;
+    		}
+
+    		var payScript = findPosPayCompletionScript(response);
+    		if (payScript) {
+    			setTimeout(function () {
+    				if (typeof resetPosInterface === "function") {
+    					resetPosInterface();
+    				}
+    			}, 500);
+    			try {
+    				eval(payScript);
+    			} catch (e) {
+    				fncMatPreloader("off");
+    				fncSweetAlert("close", "", "");
+    				fncSweetAlert("error", "Error al aplicar la respuesta del servidor. Intenta de nuevo.", "");
+    			}
+    			return;
+    		}
+
+    		fncMatPreloader("off");
+    		fncSweetAlert("close", "", "");
+    		fncSweetAlert("error", "Respuesta inesperada del servidor. Intenta de nuevo.", "");
+    	},
+    	error: function (jqXHR, textStatus) {
+    		fncMatPreloader("off");
+    		fncSweetAlert("close", "", "");
+    		if (textStatus === "timeout") {
+    			fncSweetAlert("error", "Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.", "");
+    		} else {
+    			fncSweetAlert("error", "Ocurrió un error al procesar la orden", "");
+    		}
+    		},
+    		complete: function () {
+    			// La respuesta de POST /pos es HTML completo; si no se ejecutó el script correcto
+    			// (caché antigua, etc.), el preloader y Swal.loading pueden quedar colgados.
+    			if (typeof fncMatPreloader === "function") {
+    				fncMatPreloader("off");
+    			}
+    			setTimeout(function () {
+    				if (typeof Swal !== "undefined" && typeof Swal.isLoading === "function" && Swal.isLoading()) {
+    					if (typeof fncSweetAlert === "function") {
+    						fncSweetAlert("close", "", "");
+    					} else {
+    						Swal.close();
+    					}
+    				}
+    			}, 0);
+    		}
+    });
+
+
+	return false;
+});
+
+/*=============================================
+Función para limpiar/resetear la interfaz del POS
+=============================================*/
+
+function resetPosInterface() {
+
+	// Limpiar la cabecera de la orden
+	$("#orderHeader").attr("mode", "off");
+	$("#orderHeader").attr("idOrder", "");
+	$("#orderHeader").removeClass("backColor");
+	$("#orderHeader").addClass("bg-light");
+	$("#orderHeader h6").html("Orden # 0000000000");
+
+	// Ocultar opción de agregar cliente
+	$("#addClient").addClass("d-none");
+
+	// Limpiar lista de productos
+	$("#addProduct").html("");
+
+	// Resetear contador de productos
+	$("#countProduct").removeClass("backColor");
+	$("#countProduct").addClass("bg-light");
+	$("#countProduct").html("0");
+
+	// Ocultar botón de limpiar lista
+	$("#cleanListProduct").addClass("d-none");
+
+	// Resetear totales
+	$("#subtotal").attr("subtotal", "0");
+	if (typeof money === "function") {
+		$("#subtotal").html(money("0.00"));
+	} else {
+		$("#subtotal").html("Bs 0.00");
+	}
+	$("#discount").attr("discount", "0");
+	if (typeof money === "function") {
+		$("#discount").html(money("0.00"));
+	} else {
+		$("#discount").html("Bs 0.00");
+	}
+	$("#tax").attr("tax", "0");
+	if (typeof money === "function") {
+		$("#tax").html(money("0.00"));
+	} else {
+		$("#tax").html("Bs 0.00");
+	}
+	$("#granTotal span").attr("granTotal", "0");
+	if (typeof money === "function") {
+		$("#granTotal span").html(money("0.00"));
+	} else {
+		$("#granTotal span").html("Bs 0.00");
+	}
+	$("#granTotal").removeClass("bg-blue");
+	$("#granTotal").addClass("bg-light");
+
+	// Ocultar métodos de pago
+	$("#payMethods").hide();
+
+	// Limpiar selector de cliente
+	$("#clientList").val("");
+
+	// Limpiar formulario de pago
+	if ($("#formPayMethod").length > 0) {
+		$("#formPayMethod")[0].reset();
+	}
+	$("#cashPay").val("");
+	$("#returnPay").val("");
+	$("#idTransferPay").val("");
+	$("#transferPay").val("");
+	$("#clientInvoice").prop("checked", false);
+	$(".alertReturn").remove();
+
+}
+
+/*=============================================
+Remover alertas del POS
+=============================================*/
+
+if ($(".alertPos").length > 0) {
+
+	setTimeout(() => {
+
+		$(".alertPos").remove();
+
+	}, 10000)
+}
+/*=============================================
+MODIFICAR PRECIO MANUALMENTE
+=============================================*/
+$(document).on('click', '.editPriceSale', function(){
+	let idSale = $(this).attr('idSale');
+	let idProduct = $(this).attr('idProduct');
+	let currentPrice = $(this).attr('currentPrice');
+	
+	$('#overrideIdSale').val(idSale);
+	$('#overrideIdProduct').val(idProduct);
+	$('#overrideOriginalPrice').val(currentPrice);
+	$('#overrideNewPrice').val('');
+	$('#overrideReason').val('');
+	
+	$('#modalOverridePrice').modal('show');
+});
+
+$('#formOverridePrice').submit(function(e){
+	e.preventDefault();
+	
+	let idSale = $('#overrideIdSale').val();
+	let idProduct = $('#overrideIdProduct').val();
+	let originalPrice = $('#overrideOriginalPrice').val();
+	let newPrice = $('#overrideNewPrice').val();
+	let reason = $('#overrideReason').val();
+	let qty = $('.showQuantity_' + idProduct).val();
+	
+	let data = new FormData();
+	data.append('overridePriceCart', 'yes');
+	data.append('idSaleOverride', idSale);
+	data.append('idProductOverride', idProduct);
+	data.append('idOrderOverride', $('#orderHeader').attr('idOrder'));
+	data.append('originalPriceOverride', originalPrice);
+	data.append('newPriceOverride', newPrice);
+	data.append('reasonOverride', reason);
+	data.append('qtyOverride', qty);
+	data.append('token', localStorage.getItem('tokenAdmin'));
+	data.append('seller', $('#seller').attr('idAdmin'));
+	
+	fncSweetAlert('loading', 'Guardando cambios...', '');
+	
+	$.ajax({
+		url: '/ajax/pos.ajax.php',
+		method: 'POST',
+		data: data,
+		contentType: false,
+		cache: false,
+		processData: false,
+		success: function(response){
+			if(response == 'ok'){
+				$('#modalOverridePrice').modal('hide');
+				fncToastr('success', 'El precio se ha modificado correctamente');
+				
+				// Update the UI
+				let pricePurchaseElem = $('.pricePurchase_'+idProduct);
+				let newSubtotal = Number(newPrice) * Number(qty);
+				
+				pricePurchaseElem.attr('originalPricePurchase', newPrice);
+				pricePurchaseElem.attr('pricePurchase', newSubtotal);
+				pricePurchaseElem.attr('appliedPriceType', 'manual');
+				pricePurchaseElem.html(money(newSubtotal.toFixed(2)));
+				
+				calculateProducts();
+				fncSweetAlert('close', '', '');
+			} else if(response == 'logout'){
+				fncSweetAlert('error', 'Token vencido, debe iniciar sesión nuevamente', setTimeout(() => { window.location = '/logout'; }, 1250));
+			} else {
+				fncToastr('error', 'Ha ocurrido un error al modificar el precio');
+			}
+		}
+	});
+});
+

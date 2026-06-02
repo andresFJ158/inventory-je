@@ -1,0 +1,27 @@
+# Desactiva listado de directorios (ok)
+Options -Indexes -MultiViews
+
+RewriteEngine On
+
+# (Si tu API vive en /api o subcarpeta, descomenta y ajusta)
+# RewriteBase /api/
+
+# Responder correctamente las preflight OPTIONS (CORS)
+RewriteCond %{REQUEST_METHOD} =OPTIONS
+RewriteRule ^ - [R=200,L]
+
+# Enruta todo a index.php si no es un archivo real
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Pasar Authorization a PHP (Bearer / JWT)
+SetEnvIf Authorization .+ HTTP_AUTHORIZATION=$0
+
+# CORS y caché
+<IfModule mod_headers.c>
+  Header always set Access-Control-Allow-Origin "*"
+  Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+  Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key"
+  Header set Cache-Control "max-age=0,no-store"
+</IfModule>

@@ -1,0 +1,83 @@
+services:
+  db:
+    image: mariadb:11.4
+    container_name: pos-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: u228744577_pos
+    ports:
+      - "3310:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./api.pos/u228744577_pos.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./api.pos
+      dockerfile: Dockerfile
+    container_name: pos-api
+    restart: unless-stopped
+    environment:
+      DB_HOST: db                                                         
+      DB_PORT: 3306
+      DB_NAME: u228744577_pos
+      DB_USER: root
+      DB_PASS: root
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pos-frontend
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://api
+      API_AUTHORIZATION: gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: u228744577_pos
+      DB_USER: root
+      DB_PASS: root
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "8080:80"
+    volumes:
+      - ./views/assets/files:/var/www/html/views/assets/files
+      - ./views:/var/www/html/views
+      - ./controllers:/var/www/html/controllers
+      - ./models:/var/www/html/models
+      - ./ajax:/var/www/html/ajax
+      - ./index.php:/var/www/html/index.php
+
+  nuxt:
+    build:
+      context: ./lab-dashboard
+      dockerfile: Dockerfile
+    container_name: pos-nuxt
+    restart: unless-stopped
+    environment:
+      PROXY_AJAX_URL: http://frontend/ajax/**
+      PROXY_API_URL: http://api/**
+    depends_on:
+      api:
+        condition: service_started
+      frontend:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:

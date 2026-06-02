@@ -1,0 +1,789 @@
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useAuthStore } from '~/stores/auth'
+import { useNumericInput } from '~/composables/useNumericInput'
+
+function getLocalDate(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+const auth = useAuthStore()
+
+const entries = ref<any[]>([])
+const loading = ref(true)
+const apiBase = '/ajax/pos.ajax.php'
+
+// Catálogo de materiales/insumos cargado desde el backend
+const materials = ref<any[]>([])
+const loadingMaterials = ref(false)
+
+// Proveedores unificados
+const suppliers = ref<any[]>([])
+const NO_SUPPLIER_VALUE = '__none__'
+async function fetchSuppliers() {
+  const res = await $fetch<any>(apiBase, {
+    method: 'POST',
+    body: new URLSearchParams({ getSuppliers: 'ok', type: 'materias_primas' }).toString(),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  }).catch(() => null)
+  const d = typeof res === 'string' ? JSON.parse(res) : res
+  suppliers.value = d?.status === 200 ? d.results : []
+}
+
+const supplierOptions = computed(() => [
+  { value: NO_SUPPLIER_VALUE, label: 'Sin proveedor' },
+  ...suppliers.value.map(s => ({
+    value: String(s.id_supplier),
+    label: (s.supplier_name || '').replace(/\+/g, ' ')
+  }))
+])
+
+// Filtros de la tabla
+const filterType = ref<'todos' | 'ingreso' | 'egreso'>('todos')
+const filterCategory = ref<'todos' | 'mp' | 'insumo'>('todos')
+const searchQuery = ref('')
+
+// Estado para el modal de Registrar Ingreso (Entrada)
+const isCreateOpen = ref(false)
+const qtyInput = useNumericInput('', { decimals: 3, min: 0 })
+const newEntry = ref({
+  id_raw_material: '',
+  lot_number: '',
+  id_supplier: '',
+  date: getLocalDate()
+})
+
+// Estado para el modal de Registrar Egreso (Baja)
+const isAdjustmentOpen = ref(false)
+const adjType = ref<'mp' | 'insumo'>('mp')
+const adjQtyInput = useNumericInput('', { decimals: 3, min: 0 })
+const newAdjustment = ref({
+  id_raw_material: '',
+  concept: 'merma',
+  notes: ''
+})
+
+const conceptOptions = [
+  { value: 'merma', label: 'Merma de Proceso' },
+  { value: 'vencimiento', label: 'Vencimiento de Producto' },
+  { value: 'rotura', label: 'Rotura / Daño Físico' },
+  { value: 'ajuste', label: 'Ajuste de Inventario (Conteo)' },
+  { value: 'otro', label: 'Otro Concepto' }
+]
+
+const conceptLabels: Record<string, string> = {
+  merma: 'Merma de Proceso',
+  vencimiento: 'Vencimiento',
+  rotura: 'Rotura / Daño',
+  ajuste: 'Ajuste de Conteo',
+  otro: 'Otro Concepto'
+}
+
+// Listas filtradas para los formularios
+const rawMaterialsList = computed(() => materials.value.filter(m => !m.is_insumo || m.is_insumo === 0 || m.is_insumo === '0'))
+const insumosList = computed(() => materials.value.filter(m => m.is_insumo === 1 || m.is_insumo === '1'))
+
+const filteredAdjMaterials = computed(() => {
+  return adjType.value === 'mp' ? rawMaterialsList.value : insumosList.value
+})
+
+const selectedMaterialForEntry = computed(() => {
+  return materials.value.find(m => String(m.id_raw_material) === String(newEntry.value.id_raw_material))
+})
+
+const selectedMaterialForAdj = computed(() => {
+  return materials.value.find(m => String(m.id_raw_material) === String(newAdjustment.value.id_raw_material))
+})
+
+// Filtrado de la bitácora principal
+const filteredEntries = computed(() => {
+  let list = entries.value
+
+  if (filterType.value !== 'todos') {
+    list = list.filter(e => e.type === filterType.value)
+  }
+
+  if (filterCategory.value !== 'todos') {
+    const wantInsumo = filterCategory.value === 'insumo'
+    list = list.filter(e => {
+      const isIns = e.is_insumo === 1 || e.is_insumo === '1'
+      return wantInsumo ? isIns : !isIns
+    })
+  }
+
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(e =>
+      e.item.toLowerCase().includes(q) ||
+      e.doc.toLowerCase().includes(q) ||
+      (e.supplier && e.supplier.toLowerCase().includes(q)) ||
+      (e.concept && e.concept.toLowerCase().includes(q))
+    )
+  }
+
+  return list
+})
+
+async function fetchMaterials() {
+  loadingMaterials.value = true
+  try {
+    const response = await $fetch<any>(apiBase, {
+      method: 'POST',
+      body: new URLSearchParams({
+        getLabMaterials: 'ok',
+        id_office: String(auth.officeId || 6)
+      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    if (data.status === 200) {
+      materials.value = data.results
+    }
+  } catch (error) {
+    console.error('Error fetching materials:', error)
+  } finally {
+    loadingMaterials.value = false
+  }
+}
+
+async function fetchEntries() {
+  loading.value = true
+  try {
+    const response = await $fetch<any>(apiBase, {
+      method: 'POST',
+      body: new URLSearchParams({
+        getLabEntries: 'ok',
+        id_office: String(auth.officeId || 6)
+      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    if (data.status === 200) {
+      entries.value = data.results.map((e: any) => ({
+        id: e.id_entry,
+        doc: e.lot_number_entry || ('ENT-' + e.id_entry),
+        id_raw_material: e.id_raw_material_entry,
+        item: e.name_raw_material || 'ID: ' + e.id_raw_material_entry,
+        qty: parseFloat(e.qty_entry) || 0,
+        unit: e.unit_raw_material || 'u',
+        date: e.date_created_entry || e.date_entry,
+        status: e.status_entry || 'pendiente',
+        type: e.type_entry || 'ingreso',
+        concept: e.concept_entry || '',
+        notes: e.notes_entry || '',
+        is_insumo: e.is_insumo || 0,
+        supplier: e.supplier_entry || ''
+      }))
+    } else {
+      entries.value = []
+    }
+  } catch (error) {
+    console.error('Error fetching entries:', error)
+    entries.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// Estado para el modal de Aprobación de Costo (Ingresos)
+const isPriceModalOpen = ref(false)
+const selectedEntryForApproval = ref<any>(null)
+const priceInput = useNumericInput('', { decimals: 2, min: 0 })
+
+const priceLabel = computed(() => {
+  const unit = selectedEntryForApproval.value?.unit
+  if (!unit) return 'Precio de Compra (Bs)'
+  const uLower = unit.toLowerCase()
+  if (uLower === 'kg') return 'Precio por Kilogramo (Bs/kg)'
+  if (uLower === 'g') return 'Precio por Gramo (Bs/g)'
+  if (uLower === 'l') return 'Precio por Litro (Bs/L)'
+  if (uLower === 'ml') return 'Precio por Mililitro (Bs/ml)'
+  if (uLower === 'und' || uLower === 'u') return 'Precio por Unidad (Bs/und)'
+  return `Precio por ${unit} (Bs/${unit})`
+})
+
+const approvalTotal = computed(() => {
+  const qty = parseFloat(String(selectedEntryForApproval.value?.qty)) || 0
+  return (qty * priceInput.raw.value).toFixed(2)
+})
+
+function confirmEntry(entry: any) {
+  if (auth.role !== 'lab_admin') {
+    alert('Solo el administrador puede aprobar y asignar precios a los ingresos.')
+    return
+  }
+  selectedEntryForApproval.value = entry
+  priceInput.reset()
+  isPriceModalOpen.value = true
+}
+
+async function submitApprovalPrice() {
+  if (!selectedEntryForApproval.value) return
+  const price = priceInput.raw.value
+  if (price <= 0) {
+    alert('El precio debe ser mayor a 0.')
+    return
+  }
+  const entry = selectedEntryForApproval.value
+  const qty = parseFloat(entry.qty) || 0
+  const total = qty * price
+
+  try {
+    const response = await $fetch<any>(apiBase, {
+      method: 'POST',
+      body: new URLSearchParams({
+        approveRawMaterialEntry: 'ok',
+        id_entry: String(entry.id),
+        id_raw_material: String(entry.id_raw_material),
+        qty: String(qty),
+        price: String(price),
+        total: String(total),
+        id_admin: String(auth.user?.id_admin || 1)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+
+    const resText = typeof response === 'string' ? response.trim() : JSON.stringify(response)
+    if (resText === 'ok') {
+      isPriceModalOpen.value = false
+      await fetchEntries()
+      await fetchMaterials() // Actualiza existencias locales
+    } else {
+      alert('Error al confirmar ingreso: ' + resText)
+    }
+  } catch (error: any) {
+    console.error('Error confirming entry:', error)
+    alert('Error al conectar con el servidor: ' + (error.message || error))
+  }
+}
+
+async function handleOpenCreateModal() {
+  await Promise.all([fetchMaterials(), fetchSuppliers()])
+  newEntry.value = {
+    id_raw_material: '',
+    lot_number: '',
+    id_supplier: '',
+    date: getLocalDate()
+  }
+  qtyInput.reset()
+  isCreateOpen.value = true
+}
+
+async function handleSaveEntry() {
+  const qty = qtyInput.raw.value
+  if (!newEntry.value.id_raw_material || qty <= 0 || !newEntry.value.date) {
+    alert('Completa los campos obligatorios. La cantidad debe ser mayor a 0.')
+    return
+  }
+
+  try {
+    const response = await $fetch<any>(apiBase, {
+      method: 'POST',
+      body: new URLSearchParams({
+        saveLabEntry: 'ok',
+        id_raw_material_entry: String(newEntry.value.id_raw_material),
+        qty_entry: String(qty),
+        lot_number_entry: String(newEntry.value.lot_number),
+        supplier_entry: newEntry.value.id_supplier === NO_SUPPLIER_VALUE ? '' : String(suppliers.value.find(s => String(s.id_supplier) === String(newEntry.value.id_supplier))?.supplier_name || ''),
+        id_supplier_entry: newEntry.value.id_supplier === NO_SUPPLIER_VALUE ? '' : String(newEntry.value.id_supplier),
+        date_entry: String(newEntry.value.date),
+        id_admin_entry: String(auth.user?.id_admin || 1)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    if (data.status === 200) {
+      isCreateOpen.value = false
+      await fetchEntries()
+    } else {
+      alert('Error al guardar la entrada de materia prima: ' + (data.results || data.message || JSON.stringify(data)))
+    }
+  } catch (error: any) {
+    console.error('Error saving entry:', error)
+    alert('Error al conectar con el servidor: ' + (error.message || error))
+    isCreateOpen.value = false
+  }
+}
+
+async function handleOpenAdjModal() {
+  await fetchMaterials()
+  adjType.value = 'mp'
+  adjQtyInput.reset()
+  newAdjustment.value = {
+    id_raw_material: '',
+    concept: 'merma',
+    notes: ''
+  }
+  isAdjustmentOpen.value = true
+}
+
+async function handleSaveAdjustment() {
+  const qty = adjQtyInput.raw.value
+  const material = selectedMaterialForAdj.value
+  if (!newAdjustment.value.id_raw_material || qty <= 0) {
+    alert('Completa los campos obligatorios. La cantidad debe ser mayor a 0.')
+    return
+  }
+
+  if (material && parseFloat(material.stock_raw_material) < qty) {
+    alert(`Stock insuficiente de "${material.name_raw_material}" para dar de baja. Stock actual: ${parseFloat(material.stock_raw_material).toFixed(2)} ${material.unit_raw_material}`)
+    return
+  }
+
+  if (!confirm(`¿Confirmar la baja de ${qty} ${material?.unit_raw_material || ''} de "${material?.name_raw_material}" por concepto de "${conceptLabels[newAdjustment.value.concept]}"?\nEsta operación descontará stock inmediatamente.`)) return
+
+  try {
+    const response = await $fetch<any>(apiBase, {
+      method: 'POST',
+      body: new URLSearchParams({
+        saveLabAdjustment: 'ok',
+        id_raw_material: String(newAdjustment.value.id_raw_material),
+        qty: String(qty),
+        concept: String(newAdjustment.value.concept),
+        notes: String(newAdjustment.value.notes),
+        id_admin: String(auth.user?.id_admin || 1)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    if (data.status === 200) {
+      isAdjustmentOpen.value = false
+      await fetchEntries()
+      await fetchMaterials()
+    } else {
+      alert('Error al registrar la baja: ' + (data.message || JSON.stringify(data)))
+    }
+  } catch (error: any) {
+    console.error('Error saving adjustment:', error)
+    alert('Error al conectar con el servidor: ' + (error.message || error))
+    isAdjustmentOpen.value = false
+  }
+}
+
+onMounted(() => {
+  fetchEntries()
+})
+</script>
+
+<template>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+          <UIcon
+            name="i-lucide-arrow-left-right"
+            class="text-green-500"
+          />
+          Movimientos de Stock: Ingreso / Egreso
+        </h1>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">
+          Historial de entradas de proveedores y egresos por bajas de inventario del laboratorio.
+        </p>
+      </div>
+      
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <UButton
+          icon="i-lucide-plus"
+          color="success"
+          size="md"
+          class="font-bold! flex-1 md:flex-initial"
+          @click="handleOpenCreateModal"
+        >
+          Registrar Ingreso
+        </UButton>
+        <UButton
+          icon="i-lucide-minus"
+          color="amber"
+          size="md"
+          class="font-bold! flex-1 md:flex-initial"
+          @click="handleOpenAdjModal"
+        >
+          Registrar Baja / Egreso
+        </UButton>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <div class="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-4 rounded-xl shadow-sm flex flex-col sm:flex-row gap-4 justify-between items-center">
+      <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+        <!-- Filtro Tipo de Movimiento -->
+        <div class="flex flex-col gap-1 w-32">
+          <label class="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-550">Movimiento</label>
+          <select v-model="filterType" class="py-1.5 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 focus:outline-none">
+            <option value="todos">Todos</option>
+            <option value="ingreso">Ingresos (+)</option>
+            <option value="egreso">Bajas (-)</option>
+          </select>
+        </div>
+
+        <!-- Filtro Categoria de Item -->
+        <div class="flex flex-col gap-1 w-36">
+          <label class="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-550">Categoría</label>
+          <select v-model="filterCategory" class="py-1.5 px-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 focus:outline-none">
+            <option value="todos">Todos</option>
+            <option value="mp">Materia Prima</option>
+            <option value="insumo">Insumos</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Buscador -->
+      <UInput
+        v-model="searchQuery"
+        icon="i-lucide-search"
+        placeholder="Buscar lote, insumo, proveedor..."
+        size="sm"
+        class="w-full sm:w-72"
+      />
+    </div>
+
+    <!-- Tabla -->
+    <div class="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-sm">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-800/80 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800 dark:text-white tracking-wide">
+          Historial de Transacciones ({{ filteredEntries.length }})
+        </h3>
+      </div>
+      <div class="overflow-x-auto">
+        <div v-if="loading" class="p-8 text-center text-slate-500 dark:text-slate-400">
+          <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin mx-auto text-green-500 mb-2" />
+          Cargando registros de movimientos...
+        </div>
+        <div v-else-if="filteredEntries.length === 0" class="text-center p-8 text-slate-500">
+          No se encontraron movimientos registrados con los filtros seleccionados.
+        </div>
+        <table v-else class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+          <thead class="bg-slate-50 dark:bg-slate-900/60 text-xs font-bold uppercase tracking-wider text-slate-550 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800/80">
+            <tr>
+              <th class="px-6 py-4">Tipo</th>
+              <th class="px-6 py-4">Elemento</th>
+              <th class="px-6 py-4">Lote / Factura</th>
+              <th class="px-6 py-4">Cantidad</th>
+              <th class="px-6 py-4">Fecha</th>
+              <th class="px-6 py-4">Estado / Concepto</th>
+              <th v-if="auth.role === 'lab_admin'" class="px-6 py-4 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60">
+            <tr v-for="entry in filteredEntries" :key="entry.id" class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-all duration-150">
+              <!-- Tipo Movimiento Badge -->
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span v-if="entry.type === 'ingreso'" class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20">
+                  <UIcon name="i-lucide-arrow-up-right" class="w-3.5 h-3.5" /> Ingreso
+                </span>
+                <span v-else class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/20">
+                  <UIcon name="i-lucide-arrow-down-left" class="w-3.5 h-3.5" /> Baja
+                </span>
+              </td>
+
+              <!-- Elemento y Categoría -->
+              <td class="px-6 py-4">
+                <div class="font-bold text-slate-800 dark:text-white uppercase tracking-wide">
+                  {{ entry.item }}
+                </div>
+                <div class="mt-0.5 flex items-center gap-1">
+                  <span v-if="entry.is_insumo === 1 || entry.is_insumo === '1'" class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">
+                    INSUMO
+                  </span>
+                  <span v-else class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300">
+                    MATERIA PRIMA
+                  </span>
+                  <span v-if="entry.supplier" class="text-xxs text-slate-400 truncate max-w-xs font-medium">
+                    Prov: {{ entry.supplier }}
+                  </span>
+                  <span v-if="entry.notes && entry.type === 'egreso'" class="text-xxs text-slate-400 truncate max-w-xs italic">
+                    "{{ entry.notes }}"
+                  </span>
+                </div>
+              </td>
+
+              <!-- Lote -->
+              <td class="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
+                {{ entry.doc }}
+              </td>
+
+              <!-- Cantidad -->
+              <td class="px-6 py-4 font-mono font-bold text-sm" :class="entry.type === 'ingreso' ? 'text-slate-800 dark:text-slate-200' : 'text-amber-600 dark:text-amber-400'">
+                {{ entry.type === 'ingreso' ? '+' : '-' }}{{ entry.qty.toFixed(2) }}
+                <span class="text-xs text-slate-500 dark:text-slate-400 font-sans font-normal ml-0.5">{{ entry.unit }}</span>
+              </td>
+
+              <!-- Fecha -->
+              <td class="px-6 py-4 text-slate-550 dark:text-slate-400">
+                {{ entry.date }}
+              </td>
+
+              <!-- Estado / Concepto -->
+              <td class="px-6 py-4">
+                <!-- Para Ingresos -->
+                <div v-if="entry.type === 'ingreso'">
+                  <span v-if="entry.status === 'recibido' || entry.status === 'confirmado' || entry.status === 'aprobado'" class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/10 text-green-600 dark:text-green-300 border border-green-500/20">
+                    Recibido
+                  </span>
+                  <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/20 animate-pulse">
+                    Pendiente
+                  </span>
+                </div>
+                <!-- Para Egresos -->
+                <div v-else>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-550/20 uppercase tracking-wider">
+                    {{ conceptLabels[entry.concept] || entry.concept || 'Baja' }}
+                  </span>
+                </div>
+              </td>
+
+              <!-- Acciones Administrador -->
+              <td v-if="auth.role === 'lab_admin'" class="px-6 py-4 text-center">
+                <div v-if="entry.type === 'ingreso' && entry.status === 'pendiente'">
+                  <UButton label="Confirmar Ingreso" color="success" size="xs" class="font-bold!" @click="confirmEntry(entry)" />
+                </div>
+                <div v-else-if="entry.type === 'ingreso'">
+                  <span class="text-xs text-slate-400 dark:text-slate-550 font-bold uppercase">Aprobada</span>
+                </div>
+                <div v-else>
+                  <span class="text-xs text-slate-400 dark:text-slate-550 font-bold uppercase">-</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal REGISTRAR INGRESO (UModal v-model:open) -->
+    <UModal v-model:open="isCreateOpen">
+      <template #content>
+        <div class="w-full p-6 space-y-4 text-slate-900 dark:text-white bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 text-green-600 dark:text-green-400">
+            <h3 class="text-lg font-bold tracking-wide flex items-center gap-2">
+              <UIcon name="i-lucide-plus" class="w-5 h-5" /> Registrar Ingreso de Stock (Entrada)
+            </h3>
+            <UButton icon="i-lucide-x" variant="ghost" color="neutral" size="sm" @click="isCreateOpen = false" />
+          </div>
+
+          <form class="space-y-4" @submit.prevent="handleSaveEntry">
+            <!-- Selección de Elemento -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Materia Prima / Insumo</label>
+              <select v-model="newEntry.id_raw_material" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                <option value="">Seleccione...</option>
+                <optgroup label="Materias Primas">
+                  <option v-for="m in rawMaterialsList" :key="m.id_raw_material" :value="m.id_raw_material">
+                    {{ m.name_raw_material }} ({{ m.unit_raw_material }})
+                  </option>
+                </optgroup>
+                <optgroup label="Insumos (Envases, etiquetas, etc.)">
+                  <option v-for="m in insumosList" :key="m.id_raw_material" :value="m.id_raw_material">
+                    {{ m.name_raw_material }} ({{ m.unit_raw_material }})
+                  </option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Cantidad -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Cantidad Recibida</label>
+              <div class="relative rounded-lg shadow-sm">
+                <input
+                  :value="qtyInput.display.value"
+                  type="text"
+                  inputmode="decimal"
+                  :disabled="!newEntry.id_raw_material"
+                  :placeholder="newEntry.id_raw_material ? '0,000' : 'Elige un elemento primero'"
+                  class="block w-full py-2.5 px-3 pr-12 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:opacity-50"
+                  @input="qtyInput.onInput($event as InputEvent)"
+                  @keydown="qtyInput.onKeydown($event as KeyboardEvent)"
+                >
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 text-sm font-bold">
+                  {{ selectedMaterialForEntry?.unit_raw_material || '--' }}
+                </div>
+              </div>
+              <p v-if="qtyInput.raw.value > 0" class="mt-1 text-xs text-green-600 dark:text-green-400 font-mono">
+                = {{ qtyInput.raw.value.toLocaleString('de-DE', { maximumFractionDigits: 3 }) }} {{ selectedMaterialForEntry?.unit_raw_material || '' }}
+              </p>
+            </div>
+
+            <!-- Lote -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Número de Lote / Factura</label>
+              <input v-model="newEntry.lot_number" type="text" placeholder="Lote o Factura" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+            </div>
+
+            <!-- Proveedor (selector unificado) -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Proveedor</label>
+              <USelect
+                v-model="newEntry.id_supplier"
+                :items="supplierOptions"
+                placeholder="Seleccionar proveedor..."
+                class="w-full"
+              />
+              <NuxtLink to="/proveedores" class="text-xs text-green-600 hover:underline mt-1 block">
+                + Gestionar proveedores
+              </NuxtLink>
+            </div>
+
+            <!-- Fecha -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Fecha de Llegada</label>
+              <input v-model="newEntry.date" type="date" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-850 pt-4 mt-6">
+              <UButton label="Cancelar" variant="ghost" color="neutral" @click="isCreateOpen = false" />
+              <UButton type="submit" label="Registrar Entrada" color="success" class="font-bold!" />
+            </div>
+          </form>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Modal REGISTRAR EGRESO / BAJA (UModal v-model:open) -->
+    <UModal v-model:open="isAdjustmentOpen">
+      <template #content>
+        <div class="w-full p-6 space-y-4 text-slate-900 dark:text-white bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 text-amber-500">
+            <h3 class="text-lg font-bold tracking-wide flex items-center gap-2">
+              <UIcon name="i-lucide-minus" class="w-5 h-5" /> Registrar Baja / Ajuste (Egreso)
+            </h3>
+            <UButton icon="i-lucide-x" variant="ghost" color="neutral" size="sm" @click="isAdjustmentOpen = false" />
+          </div>
+
+          <form class="space-y-4" @submit.prevent="handleSaveAdjustment">
+            <!-- Selector Tipo de Item -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Tipo de Elemento</label>
+              <div class="grid grid-cols-2 gap-2 text-sm font-medium">
+                <label class="flex items-center justify-center gap-2 py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer transition-all" :class="adjType === 'mp' ? 'bg-green-500/10 text-green-600 border-green-500/30 font-bold' : 'bg-slate-50 dark:bg-slate-900'">
+                  <input type="radio" v-model="adjType" value="mp" class="hidden" @change="newAdjustment.id_raw_material = ''">
+                  Materia Prima
+                </label>
+                <label class="flex items-center justify-center gap-2 py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer transition-all" :class="adjType === 'insumo' ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 font-bold' : 'bg-slate-50 dark:bg-slate-900'">
+                  <input type="radio" v-model="adjType" value="insumo" class="hidden" @change="newAdjustment.id_raw_material = ''">
+                  Insumo
+                </label>
+              </div>
+            </div>
+
+            <!-- Selección de Elemento -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                Seleccionar {{ adjType === 'mp' ? 'Materia Prima' : 'Insumo' }}
+              </label>
+              <select v-model="newAdjustment.id_raw_material" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                <option value="">Seleccione...</option>
+                <option v-for="m in filteredAdjMaterials" :key="m.id_raw_material" :value="m.id_raw_material">
+                  {{ m.name_raw_material }} (Stock: {{ parseFloat(m.stock_raw_material).toFixed(2) }} {{ m.unit_raw_material }})
+                </option>
+              </select>
+            </div>
+
+            <!-- Cantidad a retirar -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Cantidad a Dar de Baja</label>
+              <div class="relative rounded-lg shadow-sm">
+                <input
+                  :value="adjQtyInput.display.value"
+                  type="text"
+                  inputmode="decimal"
+                  :disabled="!newAdjustment.id_raw_material"
+                  :placeholder="newAdjustment.id_raw_material ? '0,000' : 'Elige elemento primero'"
+                  class="block w-full py-2.5 px-3 pr-12 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:opacity-50"
+                  @input="adjQtyInput.onInput($event as InputEvent)"
+                  @keydown="adjQtyInput.onKeydown($event as KeyboardEvent)"
+                >
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 dark:text-slate-500 text-sm font-bold">
+                  {{ selectedMaterialForAdj?.unit_raw_material || '--' }}
+                </div>
+              </div>
+              
+              <!-- Info de Stock Actual y Stock Final -->
+              <div v-if="selectedMaterialForAdj" class="mt-2 text-xs flex justify-between font-mono bg-slate-50 dark:bg-slate-950/40 p-2 rounded border border-slate-200 dark:border-slate-850">
+                <span class="text-slate-500">Stock Actual: {{ parseFloat(selectedMaterialForAdj.stock_raw_material).toFixed(2) }} {{ selectedMaterialForAdj.unit_raw_material }}</span>
+                <span :class="parseFloat(selectedMaterialForAdj.stock_raw_material) - adjQtyInput.raw.value >= 0 ? 'text-green-600 dark:text-green-400 font-bold' : 'text-rose-500 font-bold'">
+                  Quedará: {{ (parseFloat(selectedMaterialForAdj.stock_raw_material) - adjQtyInput.raw.value).toFixed(2) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Concepto de Baja -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Concepto / Motivo de Baja</label>
+              <select v-model="newAdjustment.concept" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                <option v-for="c in conceptOptions" :key="c.value" :value="c.value">
+                  {{ c.label }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Observaciones -->
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Observaciones / Detalles</label>
+              <UTextarea v-model="newAdjustment.notes" placeholder="Describa brevemente el motivo específico (lote vencido, frasco quebrado, etc.)..." rows="3" />
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-855 pt-4 mt-6">
+              <UButton label="Cancelar" variant="ghost" color="neutral" @click="isAdjustmentOpen = false" />
+              <UButton type="submit" label="Registrar Baja de Stock" color="amber" class="font-bold!" :disabled="!newAdjustment.id_raw_material || adjQtyInput.raw.value <= 0 || (selectedMaterialForAdj && parseFloat(selectedMaterialForAdj.stock_raw_material) < adjQtyInput.raw.value)" />
+            </div>
+          </form>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Modal Aprobación Costo Ingreso (UModal v-model:open) -->
+    <UModal v-model:open="isPriceModalOpen">
+      <template #content>
+        <div class="w-full max-w-sm p-6 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-xl shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800">
+          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white tracking-wide">
+              Asignar Costo de Compra
+            </h3>
+            <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isPriceModalOpen = false" />
+          </div>
+
+          <div class="space-y-4">
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Lote: <span class="font-bold text-slate-700 dark:text-slate-200">{{ selectedEntryForApproval?.doc }}</span> | Insumo: <span class="font-bold text-slate-700 dark:text-slate-200 uppercase">{{ selectedEntryForApproval?.item }}</span>
+            </p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Cantidad Recibida: <span class="font-bold text-slate-700 dark:text-slate-200">{{ selectedEntryForApproval?.qty }} {{ selectedEntryForApproval?.unit }}</span>
+            </p>
+
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ priceLabel }}</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 text-sm font-bold pointer-events-none">Bs.</span>
+                <input
+                  :value="priceInput.display.value"
+                  type="text"
+                  inputmode="decimal"
+                  placeholder="0,00"
+                  class="block w-full py-2.5 pl-10 pr-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                  :class="{ 'border-rose-400': priceInput.raw.value <= 0 && priceInput.display.value !== '' }"
+                  @input="priceInput.onInput($event as InputEvent)"
+                  @keydown="priceInput.onKeydown($event as KeyboardEvent)"
+                >
+              </div>
+              <p v-if="priceInput.raw.value > 0" class="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">
+                Total: <span class="font-bold text-green-600 dark:text-green-400">Bs. {{ Number(approvalTotal).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+              </p>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4 mt-6">
+              <UButton label="Cancelar" variant="ghost" color="neutral" @click="isPriceModalOpen = false" />
+              <UButton label="Aprobar Ingreso" color="success" class="font-bold!" :disabled="priceInput.raw.value <= 0" @click="submitApprovalPrice" />
+            </div>
+          </div>
+        </div>
+      </template>
+    </UModal>
+  </div>
+</template>

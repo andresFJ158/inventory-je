@@ -1,0 +1,124 @@
+Created At: 2026-06-01T20:49:44Z
+Completed At: 2026-06-01T20:49:44Z
+File Path: `file:///Users/andresfernandez/dev/inventory-je-master/views/assets/css/dashboard/dashboard.css`
+Total Lines: 626
+Total Bytes: 15418
+Showing lines 1 to 626
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: /*=============================================
+2: Interfaz Dashboard - Premium Modern Design
+3: =============================================*/
+4: 
+5: @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+6: 
+7: :root {
+8:   --sidebar-width: 220px;
+9:   --sidebar-collapsed-width: 80px;
+10:   --sidebar-bg: #ffffff;
+11:   --sidebar-accent: rgba(46, 125, 50, 0.08);
+12:   --sidebar-active: linear-gradient(135deg, #2e7d32 0%, #00897b 100%);
+13:   --sidebar-text: #1c2b1e;
+14:   --sidebar-text-muted: #6b7280;
+15:   --sidebar-border: #ecf3ec;
+16:   --nav-bg: rgba(255,255,255,0.9);
+17:   --nav-blur: blur(24px);
+18:   --card-bg: #ffffff;
+19:   --card-shadow: 0 10px 30px -10px rgba(46, 125, 50, 0.15), 0 4px 10px -5px rgba(0, 0, 0, 0.04);
+20:   --card-radius: 32px;
+21:   --body-bg: #f4f7f4;
+22:   --primary: #2e7d32;
+23:   --dark-green: #1c2b1e;
+24:   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+25: }
+26: 
+27: body, p, span, div, h1, h2, h3, h4, h5, h6,
+28: a, input, button, select, textarea, label, td, th, li {
+29:   font-family: 'Sora', -apple-system, BlinkMacSystemFont, sans-serif;
+30: }
+31: 
+32: body {
+33:   background-color: var(--body-bg) !important;
+34:   color: var(--dark-green);
+35:   -webkit-font-smoothing: antialiased;
+36: }
+37: 
+38: h1, h2, h3, .h1, .h2, .h3 {
+39:   font-weight: 800 !important;
+40:   letter-spacing: -0.04em !important;
+41:   color: var(--dark-green) !important;
+42: }
+43: 
+44: .text-uppercase-wide {
+45:   text-transform: upp
+<truncated 14904 bytes>
+57:   font-size: 0.9rem !important;
+558:   padding: 12px 28px !important;
+559: }
+560: 
+561: .swal2-icon {
+562:   border-width: 3px !important;
+563:   scale: 0.8;
+564: }
+565: 
+566: .swal2-icon.swal2-success {
+567:   border-color: #2e7d32 !important;
+568:   color: #2e7d32 !important;
+569: }
+570: 
+571: .swal2-icon.swal2-success .swal2-success-ring {
+572:   border-color: rgba(46, 125, 50, 0.2) !important;
+573: }
+574: 
+575: .swal2-icon.swal2-success [class^='swal2-success-line'] {
+576:   background-color: #2e7d32 !important;
+577: }
+578: 
+579: .swal2-timer-progress-bar {
+580:   background: linear-gradient(90deg, #2e7d32, #00897b) !important;
+581: }
+582: 
+583: /* Toastr / Toast Styles */
+584: .swal2-toast {
+585:   border-radius: 16px !important;
+586:   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+587:   padding: 12px 16px !important;
+588:   border: 1px solid var(--sidebar-border) !important;
+589: }
+590: 
+591: .swal2-toast .swal2-title {
+592:   font-size: 0.875rem !important;
+593:   font-weight: 700 !important;
+594:   margin: 0 !important;
+595: }
+596: 
+597: /* Material Preloader */
+598: .load-bar {
+599:   background-color: #ecf3ec !important;
+600: }
+601: .load-bar .bar {
+602:   background-color: var(--primary) !important;
+603: }
+604: 
+605: 
+606: .swal2-close {
+607:   border-radius: 50% !important;
+608:   transition: var(--transition) !important;
+609:   color: var(--sidebar-text-muted) !important;
+610:   font-size: 1.2rem !important;
+611:   outline: none !important;
+612:   box-shadow: none !important;
+613: }
+614: 
+615: .swal2-close:hover {
+616:   background: var(--sidebar-accent) !important;
+617:   color: var(--primary) !important;
+618: }
+619: 
+620: /* Toast Close Button adjustment */
+621: .swal2-toast .swal2-close {
+622:   font-size: 1rem !important;
+623:   margin: 0 !important;
+624:   padding: 4px !important;
+625: }
+626: 
+The above content shows the entire, complete file contents of the requested file.

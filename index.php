@@ -1,0 +1,29 @@
+<?php 
+
+/*=============================================
+Depurar Errores y Zona Horaria
+=============================================*/
+
+date_default_timezone_set('America/La_Paz');
+define('DIR',__DIR__);
+
+ini_set("display_errors", 0);
+ini_set("log_errors", 0);
+ini_set("error_log", DIR."/php_error_log");
+
+/*=============================================
+Requerimientos
+=============================================*/
+
+require_once "controllers/template.controller.php";
+require_once "controllers/curl.controller.php";
+require_once "extensions/vendor/autoload.php";
+
+/*=============================================
+Plantilla
+=============================================*/
+
+$index = new TemplateController();
+$index -> index();
+
+?>
