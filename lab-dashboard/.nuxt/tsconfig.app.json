@@ -128,7 +128,7 @@
         "./color-mode-options.mjs"
       ],
       "#app-manifest": [
-        "./manifest/meta/a11d8490-61ad-4e2f-8c1d-469f6b2a4d78.json"
+        "./manifest/meta/21bc0f3d-76ce-4a08-9309-6bd869799063"
       ],
       "#components": [
         "./components"
@@ -185,6 +185,7 @@
   ],
   "exclude": [
     "../node_modules",
+    "../../node_modules",
     "../node_modules/nuxt/node_modules",
     "../node_modules/@nuxt/eslint/node_modules",
     "../node_modules/@nuxt/ui/node_modules",

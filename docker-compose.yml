@@ -29,6 +29,8 @@ services:
       DB_NAME: u228744577_pos
       DB_USER: root
       DB_PASS: root
+      API_BASE_URL: http://localhost
+      API_AUTHORIZATION: gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy
     depends_on:
       db:
         condition: service_healthy
@@ -42,18 +44,15 @@ services:
     container_name: pos-frontend
     restart: unless-stopped
     environment:
-      API_BASE_URL: http://api
-      API_AUTHORIZATION: gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_NAME: u228744577_pos
-      DB_USER: root
-      DB_PASS: root
+      PROXY_API_URL: http://api/**
+      PROXY_AJAX_URL: http://api/ajax/**
+      PORT: 3000
+      HOST: 0.0.0.0
     depends_on:
       api:
         condition: service_started
     ports:
-      - "8080:80"
+      - "8080:3000"
 
 volumes:
   db_data:

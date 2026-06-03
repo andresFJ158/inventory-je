@@ -25,6 +25,7 @@ class TemplateController{
 		$host = $_SERVER["HTTP_HOST"];
 		$script = $_SERVER["SCRIPT_NAME"];
 		$dir = str_replace("/index.php", "", $script);
+		$dir = str_replace(array("/ajax", "/api.pos"), "", $dir);
 		
 		return $protocol . "://" . $host . $dir . "/";
 
@@ -134,6 +135,8 @@ class TemplateController{
 
 	static public function returnThumbnailList($value){
 
+		$path = '';
+
 		// Normalizar link_file para que use la ruta local si el dominio falla
 		$link = $value->link_file;
 		if (strpos($link, "/views/assets/files/") !== false) {
@@ -212,6 +215,8 @@ class TemplateController{
 	=============================================*/
 
 	static public function returnThumbnailGrid($value){
+
+		$path = '';
 
 		// Normalizar link_file para que use la ruta local si el dominio falla
 		$link = $value->link_file;
@@ -292,7 +297,6 @@ class TemplateController{
 
 	static public function genPassword($length){
 
-		$password = "";
 		$chain = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 		$password = substr(str_shuffle($chain),0,$length);
@@ -375,7 +379,6 @@ class TemplateController{
 
 	static public function genNumCode($length){
 
-		$numCode = "";
 		$chain = "111222333444555666777888999";
 
 		$numCode = substr(str_shuffle($chain),0,$length);

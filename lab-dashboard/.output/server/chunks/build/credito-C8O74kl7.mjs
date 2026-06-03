@@ -1,0 +1,1207 @@
+import { _ as _sfc_main$1 } from './Card-BV4DIQLA.mjs';
+import { I as useAuthStore, a6 as useToast, g as _sfc_main$h, i as _sfc_main$c, h as _sfc_main$6 } from './server.mjs';
+import { _ as _sfc_main$2 } from './Badge-LaytOPGg.mjs';
+import { _ as _sfc_main$3 } from './Modal-ulV1aY0B.mjs';
+import { _ as _sfc_main$4 } from './FormField-H4QVgNpC.mjs';
+import { _ as _sfc_main$5 } from './Select-Bk-d3PfC.mjs';
+import { _ as _sfc_main$7 } from './Textarea-DVGiVqM_.mjs';
+import { defineComponent, ref, computed, mergeProps, withCtx, unref, createVNode, toDisplayString, createTextVNode, openBlock, createBlock, createCommentVNode, Fragment, renderList, useSSRContext } from 'vue';
+import { ssrRenderAttrs, ssrRenderComponent, ssrInterpolate, ssrRenderClass, ssrRenderList, ssrRenderAttr } from 'vue/server-renderer';
+import { u as useApi, f as formatBob, d as decodeText } from './format-BJg6KQs-.mjs';
+import '../_/nitro.mjs';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:url';
+import '@iconify/utils';
+import 'node:crypto';
+import 'consola';
+import 'node:path';
+import 'pinia';
+import 'vue-router';
+import '@vue/shared';
+import '@iconify/vue';
+import 'tailwindcss/colors';
+import '@vueuse/core';
+import '@vueuse/shared';
+import 'tailwind-variants';
+import '@iconify/utils/lib/css/icon';
+import '@floating-ui/vue';
+import 'aria-hidden';
+import '../routes/renderer.mjs';
+import 'vue-bundle-renderer/runtime';
+import 'unhead/server';
+import 'devalue';
+import 'unhead/utils';
+import './overlay-6I-jXWFz.mjs';
+
+const _sfc_main = /* @__PURE__ */ defineComponent({
+  __name: "credito",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const auth = useAuthStore();
+    const toast = useToast();
+    const api = useApi();
+    const credits = ref([]);
+    const clients = ref([]);
+    const loading = ref(true);
+    const tab = ref("activos");
+    const createModal = ref(false);
+    const newCredit = ref({ id_client: "", amount: "", due_date: "", notes: "" });
+    const creating = ref(false);
+    const detailModal = ref(false);
+    const selectedCredit = ref(null);
+    const payments = ref([]);
+    const loadingPayments = ref(false);
+    const newPayment = ref({ amount: "", method: "efectivo", reference: "" });
+    const proofFile = ref(null);
+    const paying = ref(false);
+    function onProofChange(e) {
+      const files = e.target.files;
+      proofFile.value = files && files.length ? files[0] : null;
+    }
+    const decode = decodeText;
+    const fmt = formatBob;
+    function daysDiff(dateStr) {
+      if (!dateStr) return null;
+      const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 864e5);
+      return diff;
+    }
+    const filteredCredits = computed(() => credits.value.filter((c) => tab.value === "activos" ? c.status_credit !== "pagado" : c.status_credit === "pagado"));
+    async function fetchCredits() {
+      loading.value = true;
+      const d = await api.ajax({ getCredits: "ok", id_office: auth.officeId || 0 });
+      credits.value = d?.status === 200 ? d.results : [];
+      loading.value = false;
+    }
+    async function createCredit() {
+      if (!newCredit.value.id_client || !newCredit.value.amount) return;
+      creating.value = true;
+      const d = await api.ajax({
+        createCredit: "ok",
+        id_client: newCredit.value.id_client,
+        id_office: auth.officeId || 0,
+        id_admin: auth.user?.id_admin || 0,
+        amount: newCredit.value.amount,
+        due_date: newCredit.value.due_date,
+        notes: newCredit.value.notes
+      });
+      if (d?.status === 200) {
+        toast.add({ title: "Crédito creado", color: "success" });
+        createModal.value = false;
+        newCredit.value = { id_client: "", amount: "", due_date: "", notes: "" };
+        await fetchCredits();
+      }
+      creating.value = false;
+    }
+    async function openDetail(credit) {
+      selectedCredit.value = credit;
+      detailModal.value = true;
+      loadingPayments.value = true;
+      const d = await api.ajax({ getCreditPayments: "ok", id_credit: credit.id_credit });
+      payments.value = d?.status === 200 ? d.results : [];
+      loadingPayments.value = false;
+    }
+    async function addPayment() {
+      if (!newPayment.value.amount || !selectedCredit.value) return;
+      paying.value = true;
+      const fd = new FormData();
+      fd.append("addCreditPayment", "ok");
+      fd.append("id_credit", String(selectedCredit.value.id_credit));
+      fd.append("amount", newPayment.value.amount);
+      fd.append("method", newPayment.value.method);
+      fd.append("reference", newPayment.value.reference);
+      fd.append("id_admin", String(auth.user?.id_admin || 0));
+      if (proofFile.value) fd.append("proof", proofFile.value);
+      const d = await api.ajaxForm(fd);
+      if (d?.status === 200) {
+        selectedCredit.value.balance_credit = d.new_balance;
+        selectedCredit.value.status_credit = d.new_status;
+        newPayment.value = { amount: "", method: "efectivo", reference: "" };
+        proofFile.value = null;
+        await openDetail(selectedCredit.value);
+        await fetchCredits();
+        toast.add({ title: "Abono registrado", color: "success" });
+        if (d.file_warning) toast.add({ title: "Comprobante no adjuntado", description: d.file_warning, color: "warning" });
+      }
+      paying.value = false;
+    }
+    const totalBalance = computed(() => credits.value.filter((c) => c.status_credit !== "pagado").reduce((a, c) => a + parseFloat(c.balance_credit || 0), 0));
+    const overdue = computed(() => credits.value.filter((c) => c.status_credit !== "pagado" && c.due_date_credit && daysDiff(c.due_date_credit) < 0));
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_UCard = _sfc_main$1;
+      const _component_UIcon = _sfc_main$h;
+      const _component_UButton = _sfc_main$c;
+      const _component_UBadge = _sfc_main$2;
+      const _component_UModal = _sfc_main$3;
+      const _component_UFormField = _sfc_main$4;
+      const _component_USelect = _sfc_main$5;
+      const _component_UInput = _sfc_main$6;
+      const _component_UTextarea = _sfc_main$7;
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "space-y-6" }, _attrs))}><div class="grid grid-cols-1 sm:grid-cols-3 gap-4">`);
+      _push(ssrRenderComponent(_component_UCard, { class: "bg-gradient-to-br from-amber-500 to-orange-500 border-0 shadow-lg" }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<div class="flex justify-between items-center text-white"${_scopeId}><div${_scopeId}><p class="text-amber-100 text-xs font-bold uppercase tracking-wider"${_scopeId}>Total por Cobrar</p><h2 class="text-2xl font-black mt-1"${_scopeId}>${ssrInterpolate(unref(fmt)(totalBalance.value))}</h2></div>`);
+            _push2(ssrRenderComponent(_component_UIcon, {
+              name: "i-lucide-credit-card",
+              class: "w-10 h-10 text-white/30"
+            }, null, _parent2, _scopeId));
+            _push2(`</div>`);
+          } else {
+            return [
+              createVNode("div", { class: "flex justify-between items-center text-white" }, [
+                createVNode("div", null, [
+                  createVNode("p", { class: "text-amber-100 text-xs font-bold uppercase tracking-wider" }, "Total por Cobrar"),
+                  createVNode("h2", { class: "text-2xl font-black mt-1" }, toDisplayString(unref(fmt)(totalBalance.value)), 1)
+                ]),
+                createVNode(_component_UIcon, {
+                  name: "i-lucide-credit-card",
+                  class: "w-10 h-10 text-white/30"
+                })
+              ])
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(ssrRenderComponent(_component_UCard, null, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<p class="text-slate-500 text-xs font-bold uppercase"${_scopeId}>Créditos Activos</p><h2 class="text-2xl font-black text-slate-800 dark:text-white mt-1"${_scopeId}>${ssrInterpolate(credits.value.filter((c) => c.status_credit === "activo").length)}</h2>`);
+          } else {
+            return [
+              createVNode("p", { class: "text-slate-500 text-xs font-bold uppercase" }, "Créditos Activos"),
+              createVNode("h2", { class: "text-2xl font-black text-slate-800 dark:text-white mt-1" }, toDisplayString(credits.value.filter((c) => c.status_credit === "activo").length), 1)
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(ssrRenderComponent(_component_UCard, {
+        class: overdue.value.length > 0 ? "border-rose-300 dark:border-rose-700" : ""
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<p class="${ssrRenderClass([overdue.value.length > 0 ? "text-rose-500" : "text-slate-500", "text-xs font-bold uppercase"])}"${_scopeId}>Créditos Vencidos</p><h2 class="${ssrRenderClass([overdue.value.length > 0 ? "text-rose-600" : "text-slate-800 dark:text-white", "text-2xl font-black mt-1"])}"${_scopeId}>${ssrInterpolate(overdue.value.length)}</h2>`);
+          } else {
+            return [
+              createVNode("p", {
+                class: ["text-xs font-bold uppercase", overdue.value.length > 0 ? "text-rose-500" : "text-slate-500"]
+              }, "Créditos Vencidos", 2),
+              createVNode("h2", {
+                class: ["text-2xl font-black mt-1", overdue.value.length > 0 ? "text-rose-600" : "text-slate-800 dark:text-white"]
+              }, toDisplayString(overdue.value.length), 3)
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div>`);
+      _push(ssrRenderComponent(_component_UCard, null, {
+        header: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<div class="flex justify-between items-center flex-wrap gap-3"${_scopeId}><div class="flex gap-2"${_scopeId}>`);
+            _push2(ssrRenderComponent(_component_UButton, {
+              color: tab.value === "activos" ? "primary" : "neutral",
+              variant: "soft",
+              size: "sm",
+              onClick: ($event) => tab.value = "activos"
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(`Activos / Vencidos`);
+                } else {
+                  return [
+                    createTextVNode("Activos / Vencidos")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(ssrRenderComponent(_component_UButton, {
+              color: tab.value === "pagados" ? "primary" : "neutral",
+              variant: "soft",
+              size: "sm",
+              onClick: ($event) => tab.value = "pagados"
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(`Pagados`);
+                } else {
+                  return [
+                    createTextVNode("Pagados")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(`</div>`);
+            _push2(ssrRenderComponent(_component_UButton, {
+              color: "primary",
+              icon: "i-lucide-plus",
+              size: "sm",
+              onClick: ($event) => createModal.value = true
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(`Nuevo Crédito`);
+                } else {
+                  return [
+                    createTextVNode("Nuevo Crédito")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(`</div>`);
+          } else {
+            return [
+              createVNode("div", { class: "flex justify-between items-center flex-wrap gap-3" }, [
+                createVNode("div", { class: "flex gap-2" }, [
+                  createVNode(_component_UButton, {
+                    color: tab.value === "activos" ? "primary" : "neutral",
+                    variant: "soft",
+                    size: "sm",
+                    onClick: ($event) => tab.value = "activos"
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode("Activos / Vencidos")
+                    ]),
+                    _: 1
+                  }, 8, ["color", "onClick"]),
+                  createVNode(_component_UButton, {
+                    color: tab.value === "pagados" ? "primary" : "neutral",
+                    variant: "soft",
+                    size: "sm",
+                    onClick: ($event) => tab.value = "pagados"
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode("Pagados")
+                    ]),
+                    _: 1
+                  }, 8, ["color", "onClick"])
+                ]),
+                createVNode(_component_UButton, {
+                  color: "primary",
+                  icon: "i-lucide-plus",
+                  size: "sm",
+                  onClick: ($event) => createModal.value = true
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode("Nuevo Crédito")
+                  ]),
+                  _: 1
+                }, 8, ["onClick"])
+              ])
+            ];
+          }
+        }),
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            if (loading.value) {
+              _push2(`<div class="flex justify-center py-10"${_scopeId}>`);
+              _push2(ssrRenderComponent(_component_UIcon, {
+                name: "i-lucide-loader-2",
+                class: "w-7 h-7 animate-spin text-green-500"
+              }, null, _parent2, _scopeId));
+              _push2(`</div>`);
+            } else if (filteredCredits.value.length === 0) {
+              _push2(`<div class="text-center py-10 text-slate-400 text-sm"${_scopeId}>Sin registros</div>`);
+            } else {
+              _push2(`<!---->`);
+            }
+            _push2(`<div class="block sm:hidden space-y-3"${_scopeId}><!--[-->`);
+            ssrRenderList(filteredCredits.value, (c) => {
+              _push2(`<div class="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3"${_scopeId}><div class="flex items-start justify-between gap-2"${_scopeId}><div${_scopeId}><p class="font-bold text-slate-800 dark:text-white text-sm"${_scopeId}>${ssrInterpolate(unref(decode)(c.name_client))} ${ssrInterpolate(unref(decode)(c.surname_client || ""))}</p>`);
+              if (c.nit_client) {
+                _push2(`<p class="text-xs text-slate-400"${_scopeId}>NIT: ${ssrInterpolate(c.nit_client)}</p>`);
+              } else {
+                _push2(`<!---->`);
+              }
+              _push2(`</div>`);
+              _push2(ssrRenderComponent(_component_UBadge, {
+                color: c.status_credit === "pagado" ? "success" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "error" : "warning",
+                variant: "subtle",
+                size: "xs"
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(`${ssrInterpolate(c.status_credit === "pagado" ? "Pagado" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "Vencido" : "Activo")}`);
+                  } else {
+                    return [
+                      createTextVNode(toDisplayString(c.status_credit === "pagado" ? "Pagado" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "Vencido" : "Activo"), 1)
+                    ];
+                  }
+                }),
+                _: 2
+              }, _parent2, _scopeId));
+              _push2(`</div><div class="grid grid-cols-2 gap-2 text-sm"${_scopeId}><div${_scopeId}><p class="text-xs text-slate-400"${_scopeId}>Monto</p><p class="font-mono font-semibold"${_scopeId}>${ssrInterpolate(unref(fmt)(parseFloat(c.amount_credit)))}</p></div><div${_scopeId}><p class="text-xs text-slate-400"${_scopeId}>Saldo</p><p class="${ssrRenderClass([parseFloat(c.balance_credit) > 0 ? "text-amber-600" : "text-emerald-600", "font-mono font-bold"])}"${_scopeId}>${ssrInterpolate(unref(fmt)(parseFloat(c.balance_credit)))}</p></div></div>`);
+              if (c.due_date_credit) {
+                _push2(`<div class="text-xs text-slate-500"${_scopeId}> Vence: ${ssrInterpolate(c.due_date_credit)} `);
+                if (daysDiff(c.due_date_credit) < 0) {
+                  _push2(`<span class="text-rose-500 ml-1"${_scopeId}>(${ssrInterpolate(Math.abs(daysDiff(c.due_date_credit)))} días vencido)</span>`);
+                } else {
+                  _push2(`<!---->`);
+                }
+                _push2(`</div>`);
+              } else {
+                _push2(`<!---->`);
+              }
+              _push2(ssrRenderComponent(_component_UButton, {
+                size: "xs",
+                color: "primary",
+                variant: "soft",
+                icon: "i-lucide-receipt",
+                block: "",
+                onClick: ($event) => openDetail(c)
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(`Ver / Abonar`);
+                  } else {
+                    return [
+                      createTextVNode("Ver / Abonar")
+                    ];
+                  }
+                }),
+                _: 2
+              }, _parent2, _scopeId));
+              _push2(`</div>`);
+            });
+            _push2(`<!--]--></div><div class="hidden sm:block overflow-x-auto"${_scopeId}><table class="w-full text-sm text-left"${_scopeId}><thead${_scopeId}><tr class="border-b border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-900"${_scopeId}><th class="px-4 py-3"${_scopeId}>Cliente</th><th class="px-4 py-3"${_scopeId}>Monto</th><th class="px-4 py-3"${_scopeId}>Saldo</th><th class="px-4 py-3 hidden md:table-cell"${_scopeId}>Vencimiento</th><th class="px-4 py-3"${_scopeId}>Estado</th><th class="px-4 py-3 text-right"${_scopeId}>Acción</th></tr></thead><tbody${_scopeId}><!--[-->`);
+            ssrRenderList(filteredCredits.value, (c) => {
+              _push2(`<tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40"${_scopeId}><td class="px-4 py-3 font-semibold text-slate-800 dark:text-white"${_scopeId}>${ssrInterpolate(unref(decode)(c.name_client))} ${ssrInterpolate(unref(decode)(c.surname_client || ""))} `);
+              if (c.nit_client) {
+                _push2(`<p class="text-xs text-slate-400 font-normal"${_scopeId}>NIT: ${ssrInterpolate(c.nit_client)}</p>`);
+              } else {
+                _push2(`<!---->`);
+              }
+              _push2(`</td><td class="px-4 py-3 font-mono text-slate-700 dark:text-slate-300"${_scopeId}>${ssrInterpolate(unref(fmt)(parseFloat(c.amount_credit)))}</td><td class="${ssrRenderClass([parseFloat(c.balance_credit) > 0 ? "text-amber-600" : "text-emerald-600", "px-4 py-3 font-mono font-bold"])}"${_scopeId}>${ssrInterpolate(unref(fmt)(parseFloat(c.balance_credit)))}</td><td class="px-4 py-3 hidden md:table-cell text-slate-600 dark:text-slate-400"${_scopeId}>`);
+              if (c.due_date_credit) {
+                _push2(`<span${_scopeId}>${ssrInterpolate(c.due_date_credit)} `);
+                if (daysDiff(c.due_date_credit) < 0) {
+                  _push2(`<span class="text-rose-500 text-xs block"${_scopeId}>${ssrInterpolate(Math.abs(daysDiff(c.due_date_credit)))} días vencido</span>`);
+                } else if (daysDiff(c.due_date_credit) <= 7) {
+                  _push2(`<span class="text-amber-500 text-xs block"${_scopeId}>Vence en ${ssrInterpolate(daysDiff(c.due_date_credit))} días</span>`);
+                } else {
+                  _push2(`<!---->`);
+                }
+                _push2(`</span>`);
+              } else {
+                _push2(`<span class="text-slate-400"${_scopeId}>—</span>`);
+              }
+              _push2(`</td><td class="px-4 py-3"${_scopeId}>`);
+              _push2(ssrRenderComponent(_component_UBadge, {
+                color: c.status_credit === "pagado" ? "success" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "error" : "warning",
+                variant: "subtle",
+                size: "xs"
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(`${ssrInterpolate(c.status_credit === "pagado" ? "Pagado" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "Vencido" : "Activo")}`);
+                  } else {
+                    return [
+                      createTextVNode(toDisplayString(c.status_credit === "pagado" ? "Pagado" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "Vencido" : "Activo"), 1)
+                    ];
+                  }
+                }),
+                _: 2
+              }, _parent2, _scopeId));
+              _push2(`</td><td class="px-4 py-3 text-right"${_scopeId}>`);
+              _push2(ssrRenderComponent(_component_UButton, {
+                size: "xs",
+                color: "primary",
+                variant: "soft",
+                icon: "i-lucide-receipt",
+                onClick: ($event) => openDetail(c)
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(`Ver / Abonar`);
+                  } else {
+                    return [
+                      createTextVNode("Ver / Abonar")
+                    ];
+                  }
+                }),
+                _: 2
+              }, _parent2, _scopeId));
+              _push2(`</td></tr>`);
+            });
+            _push2(`<!--]--></tbody></table></div>`);
+          } else {
+            return [
+              loading.value ? (openBlock(), createBlock("div", {
+                key: 0,
+                class: "flex justify-center py-10"
+              }, [
+                createVNode(_component_UIcon, {
+                  name: "i-lucide-loader-2",
+                  class: "w-7 h-7 animate-spin text-green-500"
+                })
+              ])) : filteredCredits.value.length === 0 ? (openBlock(), createBlock("div", {
+                key: 1,
+                class: "text-center py-10 text-slate-400 text-sm"
+              }, "Sin registros")) : createCommentVNode("", true),
+              createVNode("div", { class: "block sm:hidden space-y-3" }, [
+                (openBlock(true), createBlock(Fragment, null, renderList(filteredCredits.value, (c) => {
+                  return openBlock(), createBlock("div", {
+                    key: c.id_credit,
+                    class: "bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3"
+                  }, [
+                    createVNode("div", { class: "flex items-start justify-between gap-2" }, [
+                      createVNode("div", null, [
+                        createVNode("p", { class: "font-bold text-slate-800 dark:text-white text-sm" }, toDisplayString(unref(decode)(c.name_client)) + " " + toDisplayString(unref(decode)(c.surname_client || "")), 1),
+                        c.nit_client ? (openBlock(), createBlock("p", {
+                          key: 0,
+                          class: "text-xs text-slate-400"
+                        }, "NIT: " + toDisplayString(c.nit_client), 1)) : createCommentVNode("", true)
+                      ]),
+                      createVNode(_component_UBadge, {
+                        color: c.status_credit === "pagado" ? "success" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "error" : "warning",
+                        variant: "subtle",
+                        size: "xs"
+                      }, {
+                        default: withCtx(() => [
+                          createTextVNode(toDisplayString(c.status_credit === "pagado" ? "Pagado" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "Vencido" : "Activo"), 1)
+                        ]),
+                        _: 2
+                      }, 1032, ["color"])
+                    ]),
+                    createVNode("div", { class: "grid grid-cols-2 gap-2 text-sm" }, [
+                      createVNode("div", null, [
+                        createVNode("p", { class: "text-xs text-slate-400" }, "Monto"),
+                        createVNode("p", { class: "font-mono font-semibold" }, toDisplayString(unref(fmt)(parseFloat(c.amount_credit))), 1)
+                      ]),
+                      createVNode("div", null, [
+                        createVNode("p", { class: "text-xs text-slate-400" }, "Saldo"),
+                        createVNode("p", {
+                          class: ["font-mono font-bold", parseFloat(c.balance_credit) > 0 ? "text-amber-600" : "text-emerald-600"]
+                        }, toDisplayString(unref(fmt)(parseFloat(c.balance_credit))), 3)
+                      ])
+                    ]),
+                    c.due_date_credit ? (openBlock(), createBlock("div", {
+                      key: 0,
+                      class: "text-xs text-slate-500"
+                    }, [
+                      createTextVNode(" Vence: " + toDisplayString(c.due_date_credit) + " ", 1),
+                      daysDiff(c.due_date_credit) < 0 ? (openBlock(), createBlock("span", {
+                        key: 0,
+                        class: "text-rose-500 ml-1"
+                      }, "(" + toDisplayString(Math.abs(daysDiff(c.due_date_credit))) + " días vencido)", 1)) : createCommentVNode("", true)
+                    ])) : createCommentVNode("", true),
+                    createVNode(_component_UButton, {
+                      size: "xs",
+                      color: "primary",
+                      variant: "soft",
+                      icon: "i-lucide-receipt",
+                      block: "",
+                      onClick: ($event) => openDetail(c)
+                    }, {
+                      default: withCtx(() => [
+                        createTextVNode("Ver / Abonar")
+                      ]),
+                      _: 1
+                    }, 8, ["onClick"])
+                  ]);
+                }), 128))
+              ]),
+              createVNode("div", { class: "hidden sm:block overflow-x-auto" }, [
+                createVNode("table", { class: "w-full text-sm text-left" }, [
+                  createVNode("thead", null, [
+                    createVNode("tr", { class: "border-b border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-900" }, [
+                      createVNode("th", { class: "px-4 py-3" }, "Cliente"),
+                      createVNode("th", { class: "px-4 py-3" }, "Monto"),
+                      createVNode("th", { class: "px-4 py-3" }, "Saldo"),
+                      createVNode("th", { class: "px-4 py-3 hidden md:table-cell" }, "Vencimiento"),
+                      createVNode("th", { class: "px-4 py-3" }, "Estado"),
+                      createVNode("th", { class: "px-4 py-3 text-right" }, "Acción")
+                    ])
+                  ]),
+                  createVNode("tbody", null, [
+                    (openBlock(true), createBlock(Fragment, null, renderList(filteredCredits.value, (c) => {
+                      return openBlock(), createBlock("tr", {
+                        key: c.id_credit,
+                        class: "border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                      }, [
+                        createVNode("td", { class: "px-4 py-3 font-semibold text-slate-800 dark:text-white" }, [
+                          createTextVNode(toDisplayString(unref(decode)(c.name_client)) + " " + toDisplayString(unref(decode)(c.surname_client || "")) + " ", 1),
+                          c.nit_client ? (openBlock(), createBlock("p", {
+                            key: 0,
+                            class: "text-xs text-slate-400 font-normal"
+                          }, "NIT: " + toDisplayString(c.nit_client), 1)) : createCommentVNode("", true)
+                        ]),
+                        createVNode("td", { class: "px-4 py-3 font-mono text-slate-700 dark:text-slate-300" }, toDisplayString(unref(fmt)(parseFloat(c.amount_credit))), 1),
+                        createVNode("td", {
+                          class: ["px-4 py-3 font-mono font-bold", parseFloat(c.balance_credit) > 0 ? "text-amber-600" : "text-emerald-600"]
+                        }, toDisplayString(unref(fmt)(parseFloat(c.balance_credit))), 3),
+                        createVNode("td", { class: "px-4 py-3 hidden md:table-cell text-slate-600 dark:text-slate-400" }, [
+                          c.due_date_credit ? (openBlock(), createBlock("span", { key: 0 }, [
+                            createTextVNode(toDisplayString(c.due_date_credit) + " ", 1),
+                            daysDiff(c.due_date_credit) < 0 ? (openBlock(), createBlock("span", {
+                              key: 0,
+                              class: "text-rose-500 text-xs block"
+                            }, toDisplayString(Math.abs(daysDiff(c.due_date_credit))) + " días vencido", 1)) : daysDiff(c.due_date_credit) <= 7 ? (openBlock(), createBlock("span", {
+                              key: 1,
+                              class: "text-amber-500 text-xs block"
+                            }, "Vence en " + toDisplayString(daysDiff(c.due_date_credit)) + " días", 1)) : createCommentVNode("", true)
+                          ])) : (openBlock(), createBlock("span", {
+                            key: 1,
+                            class: "text-slate-400"
+                          }, "—"))
+                        ]),
+                        createVNode("td", { class: "px-4 py-3" }, [
+                          createVNode(_component_UBadge, {
+                            color: c.status_credit === "pagado" ? "success" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "error" : "warning",
+                            variant: "subtle",
+                            size: "xs"
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode(toDisplayString(c.status_credit === "pagado" ? "Pagado" : c.due_date_credit && daysDiff(c.due_date_credit) < 0 ? "Vencido" : "Activo"), 1)
+                            ]),
+                            _: 2
+                          }, 1032, ["color"])
+                        ]),
+                        createVNode("td", { class: "px-4 py-3 text-right" }, [
+                          createVNode(_component_UButton, {
+                            size: "xs",
+                            color: "primary",
+                            variant: "soft",
+                            icon: "i-lucide-receipt",
+                            onClick: ($event) => openDetail(c)
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode("Ver / Abonar")
+                            ]),
+                            _: 1
+                          }, 8, ["onClick"])
+                        ])
+                      ]);
+                    }), 128))
+                  ])
+                ])
+              ])
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(ssrRenderComponent(_component_UModal, {
+        open: createModal.value,
+        "onUpdate:open": ($event) => createModal.value = $event,
+        title: "Nuevo Crédito"
+      }, {
+        body: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<div class="space-y-4 p-1"${_scopeId}>`);
+            _push2(ssrRenderComponent(_component_UFormField, { label: "Cliente *" }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(_component_USelect, {
+                    modelValue: newCredit.value.id_client,
+                    "onUpdate:modelValue": ($event) => newCredit.value.id_client = $event,
+                    items: clients.value.map((c) => ({ value: String(c.id_client), label: `${unref(decode)(c.name_client)} ${unref(decode)(c.surname_client || "")} · ${c.dni_client}` })),
+                    placeholder: "Seleccionar cliente",
+                    class: "w-full"
+                  }, null, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(_component_USelect, {
+                      modelValue: newCredit.value.id_client,
+                      "onUpdate:modelValue": ($event) => newCredit.value.id_client = $event,
+                      items: clients.value.map((c) => ({ value: String(c.id_client), label: `${unref(decode)(c.name_client)} ${unref(decode)(c.surname_client || "")} · ${c.dni_client}` })),
+                      placeholder: "Seleccionar cliente",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue", "items"])
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(ssrRenderComponent(_component_UFormField, { label: "Monto del Crédito (Bs.) *" }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(_component_UInput, {
+                    modelValue: newCredit.value.amount,
+                    "onUpdate:modelValue": ($event) => newCredit.value.amount = $event,
+                    type: "number",
+                    step: "any",
+                    min: "0",
+                    placeholder: "0.00",
+                    class: "w-full"
+                  }, null, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(_component_UInput, {
+                      modelValue: newCredit.value.amount,
+                      "onUpdate:modelValue": ($event) => newCredit.value.amount = $event,
+                      type: "number",
+                      step: "any",
+                      min: "0",
+                      placeholder: "0.00",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(ssrRenderComponent(_component_UFormField, { label: "Fecha de Vencimiento" }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(_component_UInput, {
+                    modelValue: newCredit.value.due_date,
+                    "onUpdate:modelValue": ($event) => newCredit.value.due_date = $event,
+                    type: "date",
+                    class: "w-full"
+                  }, null, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(_component_UInput, {
+                      modelValue: newCredit.value.due_date,
+                      "onUpdate:modelValue": ($event) => newCredit.value.due_date = $event,
+                      type: "date",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(ssrRenderComponent(_component_UFormField, { label: "Notas" }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(_component_UTextarea, {
+                    modelValue: newCredit.value.notes,
+                    "onUpdate:modelValue": ($event) => newCredit.value.notes = $event,
+                    rows: "2",
+                    placeholder: "Concepto del crédito...",
+                    class: "w-full"
+                  }, null, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(_component_UTextarea, {
+                      modelValue: newCredit.value.notes,
+                      "onUpdate:modelValue": ($event) => newCredit.value.notes = $event,
+                      rows: "2",
+                      placeholder: "Concepto del crédito...",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(`</div>`);
+          } else {
+            return [
+              createVNode("div", { class: "space-y-4 p-1" }, [
+                createVNode(_component_UFormField, { label: "Cliente *" }, {
+                  default: withCtx(() => [
+                    createVNode(_component_USelect, {
+                      modelValue: newCredit.value.id_client,
+                      "onUpdate:modelValue": ($event) => newCredit.value.id_client = $event,
+                      items: clients.value.map((c) => ({ value: String(c.id_client), label: `${unref(decode)(c.name_client)} ${unref(decode)(c.surname_client || "")} · ${c.dni_client}` })),
+                      placeholder: "Seleccionar cliente",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue", "items"])
+                  ]),
+                  _: 1
+                }),
+                createVNode(_component_UFormField, { label: "Monto del Crédito (Bs.) *" }, {
+                  default: withCtx(() => [
+                    createVNode(_component_UInput, {
+                      modelValue: newCredit.value.amount,
+                      "onUpdate:modelValue": ($event) => newCredit.value.amount = $event,
+                      type: "number",
+                      step: "any",
+                      min: "0",
+                      placeholder: "0.00",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                  ]),
+                  _: 1
+                }),
+                createVNode(_component_UFormField, { label: "Fecha de Vencimiento" }, {
+                  default: withCtx(() => [
+                    createVNode(_component_UInput, {
+                      modelValue: newCredit.value.due_date,
+                      "onUpdate:modelValue": ($event) => newCredit.value.due_date = $event,
+                      type: "date",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                  ]),
+                  _: 1
+                }),
+                createVNode(_component_UFormField, { label: "Notas" }, {
+                  default: withCtx(() => [
+                    createVNode(_component_UTextarea, {
+                      modelValue: newCredit.value.notes,
+                      "onUpdate:modelValue": ($event) => newCredit.value.notes = $event,
+                      rows: "2",
+                      placeholder: "Concepto del crédito...",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                  ]),
+                  _: 1
+                })
+              ])
+            ];
+          }
+        }),
+        footer: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<div class="flex justify-end gap-3"${_scopeId}>`);
+            _push2(ssrRenderComponent(_component_UButton, {
+              color: "neutral",
+              variant: "ghost",
+              onClick: ($event) => createModal.value = false
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(`Cancelar`);
+                } else {
+                  return [
+                    createTextVNode("Cancelar")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(ssrRenderComponent(_component_UButton, {
+              color: "primary",
+              loading: creating.value,
+              onClick: createCredit
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(`Crear Crédito`);
+                } else {
+                  return [
+                    createTextVNode("Crear Crédito")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(`</div>`);
+          } else {
+            return [
+              createVNode("div", { class: "flex justify-end gap-3" }, [
+                createVNode(_component_UButton, {
+                  color: "neutral",
+                  variant: "ghost",
+                  onClick: ($event) => createModal.value = false
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode("Cancelar")
+                  ]),
+                  _: 1
+                }, 8, ["onClick"]),
+                createVNode(_component_UButton, {
+                  color: "primary",
+                  loading: creating.value,
+                  onClick: createCredit
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode("Crear Crédito")
+                  ]),
+                  _: 1
+                }, 8, ["loading"])
+              ])
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(ssrRenderComponent(_component_UModal, {
+        open: detailModal.value,
+        "onUpdate:open": ($event) => detailModal.value = $event,
+        title: "Estado de Cuenta",
+        ui: { body: "max-h-[70vh] overflow-y-auto" }
+      }, {
+        body: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            if (selectedCredit.value) {
+              _push2(`<div class="space-y-4 p-1"${_scopeId}><div class="grid grid-cols-2 gap-3 text-sm"${_scopeId}><div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3"${_scopeId}><p class="text-slate-400 text-xs"${_scopeId}>Monto Original</p><p class="font-bold text-lg"${_scopeId}>${ssrInterpolate(unref(fmt)(parseFloat(selectedCredit.value.amount_credit)))}</p></div><div class="${ssrRenderClass(["rounded-lg p-3", parseFloat(selectedCredit.value.balance_credit) > 0 ? "bg-amber-50 dark:bg-amber-900/20" : "bg-emerald-50 dark:bg-emerald-900/20"])}"${_scopeId}><p class="${ssrRenderClass([parseFloat(selectedCredit.value.balance_credit) > 0 ? "text-amber-500" : "text-emerald-500", "text-xs"])}"${_scopeId}>Saldo Pendiente</p><p class="${ssrRenderClass([parseFloat(selectedCredit.value.balance_credit) > 0 ? "text-amber-600" : "text-emerald-600", "font-black text-xl"])}"${_scopeId}>${ssrInterpolate(unref(fmt)(parseFloat(selectedCredit.value.balance_credit)))}</p></div></div><div${_scopeId}><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2"${_scopeId}>Historial de Abonos</p>`);
+              if (loadingPayments.value) {
+                _push2(`<div class="text-center py-3"${_scopeId}>`);
+                _push2(ssrRenderComponent(_component_UIcon, {
+                  name: "i-lucide-loader-2",
+                  class: "w-5 h-5 animate-spin text-green-500 mx-auto"
+                }, null, _parent2, _scopeId));
+                _push2(`</div>`);
+              } else {
+                _push2(`<div class="space-y-1.5"${_scopeId}><!--[-->`);
+                ssrRenderList(payments.value, (p) => {
+                  _push2(`<div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm gap-2"${_scopeId}><div class="min-w-0"${_scopeId}><p class="font-semibold text-slate-700 dark:text-slate-200"${_scopeId}>${ssrInterpolate(p.date_created_payment)}</p><p class="text-xs text-slate-400 capitalize truncate"${_scopeId}>${ssrInterpolate(p.method_payment)}${ssrInterpolate(p.reference_payment ? ` · ${p.reference_payment}` : "")}</p></div><div class="flex items-center gap-2 shrink-0"${_scopeId}>`);
+                  if (p.file_payment) {
+                    _push2(`<a${ssrRenderAttr("href", `/${p.file_payment}`)} target="_blank" class="text-primary-600 hover:text-primary-700 text-xs font-medium flex items-center gap-0.5" title="Ver comprobante"${_scopeId}>`);
+                    _push2(ssrRenderComponent(_component_UIcon, {
+                      name: "i-lucide-receipt",
+                      class: "w-4 h-4"
+                    }, null, _parent2, _scopeId));
+                    _push2(` Ver </a>`);
+                  } else {
+                    _push2(`<!---->`);
+                  }
+                  _push2(`<span class="font-bold font-mono text-emerald-600"${_scopeId}>+${ssrInterpolate(unref(fmt)(parseFloat(p.amount_payment)))}</span></div></div>`);
+                });
+                _push2(`<!--]-->`);
+                if (payments.value.length === 0) {
+                  _push2(`<div class="text-center py-3 text-slate-400 text-sm"${_scopeId}>Sin abonos registrados</div>`);
+                } else {
+                  _push2(`<!---->`);
+                }
+                _push2(`</div>`);
+              }
+              _push2(`</div>`);
+              if (selectedCredit.value.status_credit !== "pagado") {
+                _push2(`<div class="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3"${_scopeId}><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider"${_scopeId}>Registrar Abono</p><div class="grid grid-cols-2 gap-2"${_scopeId}>`);
+                _push2(ssrRenderComponent(_component_UFormField, { label: "Monto (Bs.) *" }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(ssrRenderComponent(_component_UInput, {
+                        modelValue: newPayment.value.amount,
+                        "onUpdate:modelValue": ($event) => newPayment.value.amount = $event,
+                        type: "number",
+                        step: "any",
+                        min: "0",
+                        max: selectedCredit.value.balance_credit,
+                        class: "w-full"
+                      }, null, _parent3, _scopeId2));
+                    } else {
+                      return [
+                        createVNode(_component_UInput, {
+                          modelValue: newPayment.value.amount,
+                          "onUpdate:modelValue": ($event) => newPayment.value.amount = $event,
+                          type: "number",
+                          step: "any",
+                          min: "0",
+                          max: selectedCredit.value.balance_credit,
+                          class: "w-full"
+                        }, null, 8, ["modelValue", "onUpdate:modelValue", "max"])
+                      ];
+                    }
+                  }),
+                  _: 1
+                }, _parent2, _scopeId));
+                _push2(ssrRenderComponent(_component_UFormField, { label: "Método" }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(ssrRenderComponent(_component_USelect, {
+                        modelValue: newPayment.value.method,
+                        "onUpdate:modelValue": ($event) => newPayment.value.method = $event,
+                        items: [{ value: "efectivo", label: "Efectivo" }, { value: "qr", label: "QR" }, { value: "transferencia", label: "Transferencia" }],
+                        class: "w-full"
+                      }, null, _parent3, _scopeId2));
+                    } else {
+                      return [
+                        createVNode(_component_USelect, {
+                          modelValue: newPayment.value.method,
+                          "onUpdate:modelValue": ($event) => newPayment.value.method = $event,
+                          items: [{ value: "efectivo", label: "Efectivo" }, { value: "qr", label: "QR" }, { value: "transferencia", label: "Transferencia" }],
+                          class: "w-full"
+                        }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                      ];
+                    }
+                  }),
+                  _: 1
+                }, _parent2, _scopeId));
+                _push2(`</div>`);
+                _push2(ssrRenderComponent(_component_UFormField, { label: "Referencia / N° de operación" }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(ssrRenderComponent(_component_UInput, {
+                        modelValue: newPayment.value.reference,
+                        "onUpdate:modelValue": ($event) => newPayment.value.reference = $event,
+                        placeholder: "Número de operación...",
+                        class: "w-full"
+                      }, null, _parent3, _scopeId2));
+                    } else {
+                      return [
+                        createVNode(_component_UInput, {
+                          modelValue: newPayment.value.reference,
+                          "onUpdate:modelValue": ($event) => newPayment.value.reference = $event,
+                          placeholder: "Número de operación...",
+                          class: "w-full"
+                        }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                      ];
+                    }
+                  }),
+                  _: 1
+                }, _parent2, _scopeId));
+                _push2(ssrRenderComponent(_component_UFormField, {
+                  label: "Comprobante de pago (imagen/PDF)",
+                  help: "Respaldo del abono. Máx 5MB."
+                }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(`<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-300"${_scopeId2}>`);
+                    } else {
+                      return [
+                        createVNode("input", {
+                          type: "file",
+                          accept: "image/jpeg,image/png,image/webp,application/pdf",
+                          class: "block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-300",
+                          onChange: onProofChange
+                        }, null, 32)
+                      ];
+                    }
+                  }),
+                  _: 1
+                }, _parent2, _scopeId));
+                if (proofFile.value) {
+                  _push2(`<p class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1"${_scopeId}>`);
+                  _push2(ssrRenderComponent(_component_UIcon, {
+                    name: "i-lucide-paperclip",
+                    class: "w-3.5 h-3.5"
+                  }, null, _parent2, _scopeId));
+                  _push2(` ${ssrInterpolate(proofFile.value.name)}</p>`);
+                } else {
+                  _push2(`<!---->`);
+                }
+                _push2(ssrRenderComponent(_component_UButton, {
+                  color: "primary",
+                  block: "",
+                  loading: paying.value,
+                  icon: "i-lucide-plus",
+                  onClick: addPayment
+                }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(`Registrar Abono`);
+                    } else {
+                      return [
+                        createTextVNode("Registrar Abono")
+                      ];
+                    }
+                  }),
+                  _: 1
+                }, _parent2, _scopeId));
+                _push2(`</div>`);
+              } else {
+                _push2(`<div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center"${_scopeId}>`);
+                _push2(ssrRenderComponent(_component_UIcon, {
+                  name: "i-lucide-check-circle",
+                  class: "w-7 h-7 text-emerald-500 mx-auto mb-1"
+                }, null, _parent2, _scopeId));
+                _push2(`<p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300"${_scopeId}>Crédito completamente pagado</p></div>`);
+              }
+              _push2(`</div>`);
+            } else {
+              _push2(`<!---->`);
+            }
+          } else {
+            return [
+              selectedCredit.value ? (openBlock(), createBlock("div", {
+                key: 0,
+                class: "space-y-4 p-1"
+              }, [
+                createVNode("div", { class: "grid grid-cols-2 gap-3 text-sm" }, [
+                  createVNode("div", { class: "bg-slate-50 dark:bg-slate-800 rounded-lg p-3" }, [
+                    createVNode("p", { class: "text-slate-400 text-xs" }, "Monto Original"),
+                    createVNode("p", { class: "font-bold text-lg" }, toDisplayString(unref(fmt)(parseFloat(selectedCredit.value.amount_credit))), 1)
+                  ]),
+                  createVNode("div", {
+                    class: ["rounded-lg p-3", parseFloat(selectedCredit.value.balance_credit) > 0 ? "bg-amber-50 dark:bg-amber-900/20" : "bg-emerald-50 dark:bg-emerald-900/20"]
+                  }, [
+                    createVNode("p", {
+                      class: ["text-xs", parseFloat(selectedCredit.value.balance_credit) > 0 ? "text-amber-500" : "text-emerald-500"]
+                    }, "Saldo Pendiente", 2),
+                    createVNode("p", {
+                      class: ["font-black text-xl", parseFloat(selectedCredit.value.balance_credit) > 0 ? "text-amber-600" : "text-emerald-600"]
+                    }, toDisplayString(unref(fmt)(parseFloat(selectedCredit.value.balance_credit))), 3)
+                  ], 2)
+                ]),
+                createVNode("div", null, [
+                  createVNode("p", { class: "text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2" }, "Historial de Abonos"),
+                  loadingPayments.value ? (openBlock(), createBlock("div", {
+                    key: 0,
+                    class: "text-center py-3"
+                  }, [
+                    createVNode(_component_UIcon, {
+                      name: "i-lucide-loader-2",
+                      class: "w-5 h-5 animate-spin text-green-500 mx-auto"
+                    })
+                  ])) : (openBlock(), createBlock("div", {
+                    key: 1,
+                    class: "space-y-1.5"
+                  }, [
+                    (openBlock(true), createBlock(Fragment, null, renderList(payments.value, (p) => {
+                      return openBlock(), createBlock("div", {
+                        key: p.id_payment,
+                        class: "flex justify-between items-center bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm gap-2"
+                      }, [
+                        createVNode("div", { class: "min-w-0" }, [
+                          createVNode("p", { class: "font-semibold text-slate-700 dark:text-slate-200" }, toDisplayString(p.date_created_payment), 1),
+                          createVNode("p", { class: "text-xs text-slate-400 capitalize truncate" }, toDisplayString(p.method_payment) + toDisplayString(p.reference_payment ? ` · ${p.reference_payment}` : ""), 1)
+                        ]),
+                        createVNode("div", { class: "flex items-center gap-2 shrink-0" }, [
+                          p.file_payment ? (openBlock(), createBlock("a", {
+                            key: 0,
+                            href: `/${p.file_payment}`,
+                            target: "_blank",
+                            class: "text-primary-600 hover:text-primary-700 text-xs font-medium flex items-center gap-0.5",
+                            title: "Ver comprobante"
+                          }, [
+                            createVNode(_component_UIcon, {
+                              name: "i-lucide-receipt",
+                              class: "w-4 h-4"
+                            }),
+                            createTextVNode(" Ver ")
+                          ], 8, ["href"])) : createCommentVNode("", true),
+                          createVNode("span", { class: "font-bold font-mono text-emerald-600" }, "+" + toDisplayString(unref(fmt)(parseFloat(p.amount_payment))), 1)
+                        ])
+                      ]);
+                    }), 128)),
+                    payments.value.length === 0 ? (openBlock(), createBlock("div", {
+                      key: 0,
+                      class: "text-center py-3 text-slate-400 text-sm"
+                    }, "Sin abonos registrados")) : createCommentVNode("", true)
+                  ]))
+                ]),
+                selectedCredit.value.status_credit !== "pagado" ? (openBlock(), createBlock("div", {
+                  key: 0,
+                  class: "border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3"
+                }, [
+                  createVNode("p", { class: "text-xs font-semibold text-slate-500 uppercase tracking-wider" }, "Registrar Abono"),
+                  createVNode("div", { class: "grid grid-cols-2 gap-2" }, [
+                    createVNode(_component_UFormField, { label: "Monto (Bs.) *" }, {
+                      default: withCtx(() => [
+                        createVNode(_component_UInput, {
+                          modelValue: newPayment.value.amount,
+                          "onUpdate:modelValue": ($event) => newPayment.value.amount = $event,
+                          type: "number",
+                          step: "any",
+                          min: "0",
+                          max: selectedCredit.value.balance_credit,
+                          class: "w-full"
+                        }, null, 8, ["modelValue", "onUpdate:modelValue", "max"])
+                      ]),
+                      _: 1
+                    }),
+                    createVNode(_component_UFormField, { label: "Método" }, {
+                      default: withCtx(() => [
+                        createVNode(_component_USelect, {
+                          modelValue: newPayment.value.method,
+                          "onUpdate:modelValue": ($event) => newPayment.value.method = $event,
+                          items: [{ value: "efectivo", label: "Efectivo" }, { value: "qr", label: "QR" }, { value: "transferencia", label: "Transferencia" }],
+                          class: "w-full"
+                        }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                      ]),
+                      _: 1
+                    })
+                  ]),
+                  createVNode(_component_UFormField, { label: "Referencia / N° de operación" }, {
+                    default: withCtx(() => [
+                      createVNode(_component_UInput, {
+                        modelValue: newPayment.value.reference,
+                        "onUpdate:modelValue": ($event) => newPayment.value.reference = $event,
+                        placeholder: "Número de operación...",
+                        class: "w-full"
+                      }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                    ]),
+                    _: 1
+                  }),
+                  createVNode(_component_UFormField, {
+                    label: "Comprobante de pago (imagen/PDF)",
+                    help: "Respaldo del abono. Máx 5MB."
+                  }, {
+                    default: withCtx(() => [
+                      createVNode("input", {
+                        type: "file",
+                        accept: "image/jpeg,image/png,image/webp,application/pdf",
+                        class: "block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-300",
+                        onChange: onProofChange
+                      }, null, 32)
+                    ]),
+                    _: 1
+                  }),
+                  proofFile.value ? (openBlock(), createBlock("p", {
+                    key: 0,
+                    class: "text-xs text-green-600 dark:text-green-400 flex items-center gap-1"
+                  }, [
+                    createVNode(_component_UIcon, {
+                      name: "i-lucide-paperclip",
+                      class: "w-3.5 h-3.5"
+                    }),
+                    createTextVNode(" " + toDisplayString(proofFile.value.name), 1)
+                  ])) : createCommentVNode("", true),
+                  createVNode(_component_UButton, {
+                    color: "primary",
+                    block: "",
+                    loading: paying.value,
+                    icon: "i-lucide-plus",
+                    onClick: addPayment
+                  }, {
+                    default: withCtx(() => [
+                      createTextVNode("Registrar Abono")
+                    ]),
+                    _: 1
+                  }, 8, ["loading"])
+                ])) : (openBlock(), createBlock("div", {
+                  key: 1,
+                  class: "bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center"
+                }, [
+                  createVNode(_component_UIcon, {
+                    name: "i-lucide-check-circle",
+                    class: "w-7 h-7 text-emerald-500 mx-auto mb-1"
+                  }),
+                  createVNode("p", { class: "text-sm font-semibold text-emerald-700 dark:text-emerald-300" }, "Crédito completamente pagado")
+                ]))
+              ])) : createCommentVNode("", true)
+            ];
+          }
+        }),
+        footer: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(ssrRenderComponent(_component_UButton, {
+              color: "neutral",
+              variant: "ghost",
+              onClick: ($event) => detailModal.value = false
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(`Cerrar`);
+                } else {
+                  return [
+                    createTextVNode("Cerrar")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+          } else {
+            return [
+              createVNode(_component_UButton, {
+                color: "neutral",
+                variant: "ghost",
+                onClick: ($event) => detailModal.value = false
+              }, {
+                default: withCtx(() => [
+                  createTextVNode("Cerrar")
+                ]),
+                _: 1
+              }, 8, ["onClick"])
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div>`);
+    };
+  }
+});
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("pages/credito.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+
+export { _sfc_main as default };
+//# sourceMappingURL=credito-C8O74kl7.mjs.map

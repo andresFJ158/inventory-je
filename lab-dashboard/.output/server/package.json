@@ -37,7 +37,7 @@
     "entities": "7.0.1",
     "estree-walker": "2.0.2",
     "hookable": "6.1.1",
-    "perfect-debounce": "2.1.0",
+    "perfect-debounce": "1.0.0",
     "pinia": "3.0.4",
     "source-map-js": "1.2.1",
     "tailwind-merge": "3.6.0",

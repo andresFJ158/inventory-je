@@ -1,0 +1,471 @@
+import { I as useAuthStore, a6 as useToast, i as _sfc_main$c, g as _sfc_main$h, h as _sfc_main$6 } from './server.mjs';
+import { _ as _sfc_main$1 } from './Card-BV4DIQLA.mjs';
+import { _ as _sfc_main$2 } from './Badge-LaytOPGg.mjs';
+import { _ as _sfc_main$3 } from './Slideover-CbDvT2J_.mjs';
+import { _ as _sfc_main$4 } from './Select-Bk-d3PfC.mjs';
+import { _ as _sfc_main$5 } from './FormField-H4QVgNpC.mjs';
+import { defineComponent, ref, mergeProps, withCtx, createTextVNode, createVNode, toDisplayString, openBlock, createBlock, Fragment, renderList, createCommentVNode, useSSRContext } from 'vue';
+import { ssrRenderAttrs, ssrRenderComponent, ssrRenderList, ssrInterpolate } from 'vue/server-renderer';
+import '../_/nitro.mjs';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:url';
+import '@iconify/utils';
+import 'node:crypto';
+import 'consola';
+import 'node:path';
+import 'pinia';
+import 'vue-router';
+import '@vue/shared';
+import '@iconify/vue';
+import 'tailwindcss/colors';
+import '@vueuse/core';
+import '@vueuse/shared';
+import 'tailwind-variants';
+import '@iconify/utils/lib/css/icon';
+import '@floating-ui/vue';
+import 'aria-hidden';
+import '../routes/renderer.mjs';
+import 'vue-bundle-renderer/runtime';
+import 'unhead/server';
+import 'devalue';
+import 'unhead/utils';
+import './overlay-6I-jXWFz.mjs';
+
+const ajaxBase = "/ajax/pos.ajax.php";
+const _sfc_main = /* @__PURE__ */ defineComponent({
+  __name: "combos",
+  __ssrInlineRender: true,
+  setup(__props) {
+    useAuthStore();
+    const toast = useToast();
+    const apiHeaders = { Authorization: "gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy" };
+    const products = ref([]);
+    const combos = ref([]);
+    const loading = ref(true);
+    const slideOpen = ref(false);
+    const editingCombo = ref(null);
+    const comboItems = ref([]);
+    const loadingItems = ref(false);
+    const newItem = ref({ id_product: "", qty: 1 });
+    const savingItem = ref(false);
+    function decode(s) {
+      return s ? decodeURIComponent(s).replace(/\+/g, " ") : "";
+    }
+    async function fetchCombos() {
+      loading.value = true;
+      const d = await $fetch("/api/products?linkTo=is_compound_product&equalTo=1", { headers: apiHeaders }).catch(() => null);
+      combos.value = d?.status === 200 ? d.results || [] : [];
+      loading.value = false;
+    }
+    async function openCombo(combo) {
+      editingCombo.value = combo;
+      slideOpen.value = true;
+      loadingItems.value = true;
+      const res = await $fetch(ajaxBase, {
+        method: "POST",
+        body: new URLSearchParams({ getComboItems: "ok", id_combo: String(combo.id_product) }).toString(),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      }).catch(() => null);
+      const d = typeof res === "string" ? JSON.parse(res) : res;
+      comboItems.value = d?.status === 200 ? d.results : [];
+      loadingItems.value = false;
+    }
+    async function addItem() {
+      if (!newItem.value.id_product || newItem.value.qty <= 0) return;
+      savingItem.value = true;
+      const res = await $fetch(ajaxBase, {
+        method: "POST",
+        body: new URLSearchParams({ saveComboItem: "ok", id_combo: String(editingCombo.value.id_product), id_product: newItem.value.id_product, qty: String(newItem.value.qty) }).toString(),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      }).catch(() => null);
+      const d = typeof res === "string" ? JSON.parse(res) : res;
+      if (d?.status === 200) {
+        newItem.value = { id_product: "", qty: 1 };
+        await openCombo(editingCombo.value);
+        toast.add({ title: "Componente agregado", color: "success" });
+      }
+      savingItem.value = false;
+    }
+    async function deleteItem(id) {
+      await $fetch(ajaxBase, { method: "POST", body: new URLSearchParams({ deleteComboItem: "ok", id_combo_item: String(id) }).toString(), headers: { "Content-Type": "application/x-www-form-urlencoded" } }).catch(() => null);
+      await openCombo(editingCombo.value);
+    }
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_UButton = _sfc_main$c;
+      const _component_UIcon = _sfc_main$h;
+      const _component_UCard = _sfc_main$1;
+      const _component_UBadge = _sfc_main$2;
+      const _component_USlideover = _sfc_main$3;
+      const _component_USelect = _sfc_main$4;
+      const _component_UFormField = _sfc_main$5;
+      const _component_UInput = _sfc_main$6;
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "space-y-6" }, _attrs))}><div class="flex items-center justify-between"><div><p class="text-sm text-slate-500 dark:text-slate-400">Gestiona los productos compuestos (combos). El inventario de cada componente se descuenta al vender el combo.</p></div>`);
+      _push(ssrRenderComponent(_component_UButton, {
+        icon: "i-lucide-refresh-cw",
+        variant: "ghost",
+        color: "neutral",
+        size: "sm",
+        onClick: fetchCombos
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`Actualizar`);
+          } else {
+            return [
+              createTextVNode("Actualizar")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div>`);
+      if (loading.value) {
+        _push(`<div class="flex justify-center py-20">`);
+        _push(ssrRenderComponent(_component_UIcon, {
+          name: "i-lucide-loader-2",
+          class: "w-8 h-8 animate-spin text-green-500"
+        }, null, _parent));
+        _push(`</div>`);
+      } else if (combos.value.length === 0) {
+        _push(`<div class="text-center py-16">`);
+        _push(ssrRenderComponent(_component_UIcon, {
+          name: "i-lucide-package",
+          class: "w-12 h-12 mx-auto text-slate-300 mb-4"
+        }, null, _parent));
+        _push(`<h3 class="font-semibold text-slate-600 dark:text-slate-300">Sin combos registrados</h3><p class="text-sm text-slate-400 mt-1">Crea un producto con la opción <strong>is_compound_product = 1</strong> desde el módulo de Productos, luego regresa aquí para agregar sus componentes.</p>`);
+        _push(ssrRenderComponent(_component_UButton, {
+          to: "/productos",
+          class: "mt-4",
+          color: "primary",
+          icon: "i-lucide-box"
+        }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`Ir a Productos`);
+            } else {
+              return [
+                createTextVNode("Ir a Productos")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div>`);
+      } else {
+        _push(`<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><!--[-->`);
+        ssrRenderList(combos.value, (combo) => {
+          _push(ssrRenderComponent(_component_UCard, {
+            key: combo.id_product,
+            class: "cursor-pointer hover:border-purple-400 dark:hover:border-purple-600 transition-colors",
+            onClick: ($event) => openCombo(combo)
+          }, {
+            default: withCtx((_, _push2, _parent2, _scopeId) => {
+              if (_push2) {
+                _push2(`<div class="flex items-center gap-3"${_scopeId}><div class="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 flex items-center justify-center shrink-0"${_scopeId}>`);
+                _push2(ssrRenderComponent(_component_UIcon, {
+                  name: "i-lucide-package",
+                  class: "w-6 h-6 text-purple-500"
+                }, null, _parent2, _scopeId));
+                _push2(`</div><div class="min-w-0"${_scopeId}><h3 class="font-bold text-slate-800 dark:text-white truncate"${_scopeId}>${ssrInterpolate(decode(combo.title_product))}</h3><p class="text-xs text-slate-500"${_scopeId}>SKU: ${ssrInterpolate(combo.sku_product)}</p></div></div><div class="mt-3 flex items-center justify-between"${_scopeId}>`);
+                _push2(ssrRenderComponent(_component_UBadge, {
+                  color: "purple",
+                  variant: "subtle"
+                }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(`Combo`);
+                    } else {
+                      return [
+                        createTextVNode("Combo")
+                      ];
+                    }
+                  }),
+                  _: 2
+                }, _parent2, _scopeId));
+                _push2(ssrRenderComponent(_component_UButton, {
+                  size: "xs",
+                  variant: "ghost",
+                  color: "neutral",
+                  icon: "i-lucide-settings-2"
+                }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(`Editar componentes`);
+                    } else {
+                      return [
+                        createTextVNode("Editar componentes")
+                      ];
+                    }
+                  }),
+                  _: 2
+                }, _parent2, _scopeId));
+                _push2(`</div>`);
+              } else {
+                return [
+                  createVNode("div", { class: "flex items-center gap-3" }, [
+                    createVNode("div", { class: "w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 flex items-center justify-center shrink-0" }, [
+                      createVNode(_component_UIcon, {
+                        name: "i-lucide-package",
+                        class: "w-6 h-6 text-purple-500"
+                      })
+                    ]),
+                    createVNode("div", { class: "min-w-0" }, [
+                      createVNode("h3", { class: "font-bold text-slate-800 dark:text-white truncate" }, toDisplayString(decode(combo.title_product)), 1),
+                      createVNode("p", { class: "text-xs text-slate-500" }, "SKU: " + toDisplayString(combo.sku_product), 1)
+                    ])
+                  ]),
+                  createVNode("div", { class: "mt-3 flex items-center justify-between" }, [
+                    createVNode(_component_UBadge, {
+                      color: "purple",
+                      variant: "subtle"
+                    }, {
+                      default: withCtx(() => [
+                        createTextVNode("Combo")
+                      ]),
+                      _: 1
+                    }),
+                    createVNode(_component_UButton, {
+                      size: "xs",
+                      variant: "ghost",
+                      color: "neutral",
+                      icon: "i-lucide-settings-2"
+                    }, {
+                      default: withCtx(() => [
+                        createTextVNode("Editar componentes")
+                      ]),
+                      _: 1
+                    })
+                  ])
+                ];
+              }
+            }),
+            _: 2
+          }, _parent));
+        });
+        _push(`<!--]--></div>`);
+      }
+      _push(ssrRenderComponent(_component_USlideover, {
+        open: slideOpen.value,
+        "onUpdate:open": ($event) => slideOpen.value = $event,
+        title: editingCombo.value ? `Componentes: ${decode(editingCombo.value.title_product)}` : "Combo"
+      }, {
+        body: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<div class="space-y-4 p-1"${_scopeId}>`);
+            if (loadingItems.value) {
+              _push2(`<div class="flex justify-center py-8"${_scopeId}>`);
+              _push2(ssrRenderComponent(_component_UIcon, {
+                name: "i-lucide-loader-2",
+                class: "w-6 h-6 animate-spin text-green-500"
+              }, null, _parent2, _scopeId));
+              _push2(`</div>`);
+            } else {
+              _push2(`<!--[--><div class="space-y-2"${_scopeId}><!--[-->`);
+              ssrRenderList(comboItems.value, (item) => {
+                _push2(`<div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2.5"${_scopeId}><div${_scopeId}><p class="text-sm font-semibold text-slate-800 dark:text-white"${_scopeId}>${ssrInterpolate(decode(item.title_product))}</p><p class="text-xs text-slate-500"${_scopeId}>${ssrInterpolate(item.sku_product)} · ${ssrInterpolate(item.unit_product)}</p></div><div class="flex items-center gap-2"${_scopeId}>`);
+                _push2(ssrRenderComponent(_component_UBadge, {
+                  color: "neutral",
+                  variant: "soft"
+                }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(`× ${ssrInterpolate(item.qty_combo_item)}`);
+                    } else {
+                      return [
+                        createTextVNode("× " + toDisplayString(item.qty_combo_item), 1)
+                      ];
+                    }
+                  }),
+                  _: 2
+                }, _parent2, _scopeId));
+                _push2(ssrRenderComponent(_component_UButton, {
+                  icon: "i-lucide-trash",
+                  color: "error",
+                  variant: "ghost",
+                  size: "xs",
+                  onClick: ($event) => deleteItem(item.id_combo_item)
+                }, null, _parent2, _scopeId));
+                _push2(`</div></div>`);
+              });
+              _push2(`<!--]-->`);
+              if (comboItems.value.length === 0) {
+                _push2(`<div class="text-center py-4 text-slate-400 text-sm"${_scopeId}>Sin componentes aún</div>`);
+              } else {
+                _push2(`<!---->`);
+              }
+              _push2(`</div><div class="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3"${_scopeId}><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider"${_scopeId}>Agregar Componente</p>`);
+              _push2(ssrRenderComponent(_component_USelect, {
+                modelValue: newItem.value.id_product,
+                "onUpdate:modelValue": ($event) => newItem.value.id_product = $event,
+                items: products.value.filter((p) => p.is_compound_product != 1).map((p) => ({ value: String(p.id_product), label: `${decode(p.title_product)} (${p.sku_product})` })),
+                placeholder: "Seleccionar producto...",
+                class: "w-full"
+              }, null, _parent2, _scopeId));
+              _push2(`<div class="flex gap-2 items-center"${_scopeId}>`);
+              _push2(ssrRenderComponent(_component_UFormField, {
+                label: "Cantidad",
+                class: "flex-1"
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(ssrRenderComponent(_component_UInput, {
+                      modelValue: newItem.value.qty,
+                      "onUpdate:modelValue": ($event) => newItem.value.qty = $event,
+                      modelModifiers: { number: true },
+                      type: "number",
+                      step: "0.5",
+                      min: "0.1",
+                      class: "w-full"
+                    }, null, _parent3, _scopeId2));
+                  } else {
+                    return [
+                      createVNode(_component_UInput, {
+                        modelValue: newItem.value.qty,
+                        "onUpdate:modelValue": ($event) => newItem.value.qty = $event,
+                        modelModifiers: { number: true },
+                        type: "number",
+                        step: "0.5",
+                        min: "0.1",
+                        class: "w-full"
+                      }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                    ];
+                  }
+                }),
+                _: 1
+              }, _parent2, _scopeId));
+              _push2(ssrRenderComponent(_component_UButton, {
+                class: "mt-5",
+                color: "primary",
+                icon: "i-lucide-plus",
+                loading: savingItem.value,
+                onClick: addItem
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(`Agregar`);
+                  } else {
+                    return [
+                      createTextVNode("Agregar")
+                    ];
+                  }
+                }),
+                _: 1
+              }, _parent2, _scopeId));
+              _push2(`</div></div><div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3"${_scopeId}><p class="text-xs text-amber-700 dark:text-amber-300"${_scopeId}> Al vender este combo, el sistema descontará automáticamente el inventario de cada componente en las cantidades definidas aquí. </p></div><!--]-->`);
+            }
+            _push2(`</div>`);
+          } else {
+            return [
+              createVNode("div", { class: "space-y-4 p-1" }, [
+                loadingItems.value ? (openBlock(), createBlock("div", {
+                  key: 0,
+                  class: "flex justify-center py-8"
+                }, [
+                  createVNode(_component_UIcon, {
+                    name: "i-lucide-loader-2",
+                    class: "w-6 h-6 animate-spin text-green-500"
+                  })
+                ])) : (openBlock(), createBlock(Fragment, { key: 1 }, [
+                  createVNode("div", { class: "space-y-2" }, [
+                    (openBlock(true), createBlock(Fragment, null, renderList(comboItems.value, (item) => {
+                      return openBlock(), createBlock("div", {
+                        key: item.id_combo_item,
+                        class: "flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2.5"
+                      }, [
+                        createVNode("div", null, [
+                          createVNode("p", { class: "text-sm font-semibold text-slate-800 dark:text-white" }, toDisplayString(decode(item.title_product)), 1),
+                          createVNode("p", { class: "text-xs text-slate-500" }, toDisplayString(item.sku_product) + " · " + toDisplayString(item.unit_product), 1)
+                        ]),
+                        createVNode("div", { class: "flex items-center gap-2" }, [
+                          createVNode(_component_UBadge, {
+                            color: "neutral",
+                            variant: "soft"
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode("× " + toDisplayString(item.qty_combo_item), 1)
+                            ]),
+                            _: 2
+                          }, 1024),
+                          createVNode(_component_UButton, {
+                            icon: "i-lucide-trash",
+                            color: "error",
+                            variant: "ghost",
+                            size: "xs",
+                            onClick: ($event) => deleteItem(item.id_combo_item)
+                          }, null, 8, ["onClick"])
+                        ])
+                      ]);
+                    }), 128)),
+                    comboItems.value.length === 0 ? (openBlock(), createBlock("div", {
+                      key: 0,
+                      class: "text-center py-4 text-slate-400 text-sm"
+                    }, "Sin componentes aún")) : createCommentVNode("", true)
+                  ]),
+                  createVNode("div", { class: "border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3" }, [
+                    createVNode("p", { class: "text-xs font-semibold text-slate-500 uppercase tracking-wider" }, "Agregar Componente"),
+                    createVNode(_component_USelect, {
+                      modelValue: newItem.value.id_product,
+                      "onUpdate:modelValue": ($event) => newItem.value.id_product = $event,
+                      items: products.value.filter((p) => p.is_compound_product != 1).map((p) => ({ value: String(p.id_product), label: `${decode(p.title_product)} (${p.sku_product})` })),
+                      placeholder: "Seleccionar producto...",
+                      class: "w-full"
+                    }, null, 8, ["modelValue", "onUpdate:modelValue", "items"]),
+                    createVNode("div", { class: "flex gap-2 items-center" }, [
+                      createVNode(_component_UFormField, {
+                        label: "Cantidad",
+                        class: "flex-1"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode(_component_UInput, {
+                            modelValue: newItem.value.qty,
+                            "onUpdate:modelValue": ($event) => newItem.value.qty = $event,
+                            modelModifiers: { number: true },
+                            type: "number",
+                            step: "0.5",
+                            min: "0.1",
+                            class: "w-full"
+                          }, null, 8, ["modelValue", "onUpdate:modelValue"])
+                        ]),
+                        _: 1
+                      }),
+                      createVNode(_component_UButton, {
+                        class: "mt-5",
+                        color: "primary",
+                        icon: "i-lucide-plus",
+                        loading: savingItem.value,
+                        onClick: addItem
+                      }, {
+                        default: withCtx(() => [
+                          createTextVNode("Agregar")
+                        ]),
+                        _: 1
+                      }, 8, ["loading"])
+                    ])
+                  ]),
+                  createVNode("div", { class: "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3" }, [
+                    createVNode("p", { class: "text-xs text-amber-700 dark:text-amber-300" }, " Al vender este combo, el sistema descontará automáticamente el inventario de cada componente en las cantidades definidas aquí. ")
+                  ])
+                ], 64))
+              ])
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div>`);
+    };
+  }
+});
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("pages/combos.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+
+export { _sfc_main as default };
+//# sourceMappingURL=combos-CYhO9FUB.mjs.map
