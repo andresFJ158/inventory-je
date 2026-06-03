@@ -136,7 +136,9 @@ class GetController{
 
 		}
 
-		echo json_encode($json, http_response_code($json["status"]));
+		// Usar HTTP status 200 para evitar errores de red/Fetch en Nuxt al retornar listas vacías,
+		// manteniendo el status 404 interno en el JSON para compatibilidad con lógica PHP/backend.
+		echo json_encode($json, http_response_code(200));
 
 	}
 

@@ -2565,10 +2565,10 @@ if (isset($_POST["transferStockBetweenOffices"])) {
 			$id_sub = $sub['id_sub_warehouse'];
 		}
 
-		// Insert warehouse_assignment record with type 'traspaso'
+		// Insert warehouse_assignment record with type 'despacho'
 		$stmtAssign = $db->prepare("
 			INSERT INTO warehouse_assignments (id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, type_assignment, notes_assignment, date_created_assignment)
-			VALUES (:id_sub, :id_prod, :qty, :disp, 'traspaso', :notes, NOW())
+			VALUES (:id_sub, :id_prod, :qty, :disp, 'despacho', :notes, NOW())
 		");
 		$stmtAssign->execute([
 			':id_sub' => $id_sub,
@@ -3599,6 +3599,14 @@ if(isset($_POST["getLoggedUser"])){
 	if (isset($_SESSION["admin"])) {
 		$db = LocalConnection::connect();
 		$id_office = intval($_SESSION["admin"]->id_office_admin);
+		if ($id_office === 0 && isset($_SESSION["admin"]->id_warehouse_admin) && intval($_SESSION["admin"]->id_warehouse_admin) > 0) {
+			$stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh");
+			$stmtWH->execute([':wh' => intval($_SESSION["admin"]->id_warehouse_admin)]);
+			$whOffice = $stmtWH->fetchColumn();
+			if ($whOffice) {
+				$id_office = intval($whOffice);
+			}
+		}
 		
 		$stmt = $db->prepare("SELECT * FROM offices WHERE id_office = :id");
 		$stmt->execute([':id' => $id_office]);
@@ -3709,8 +3717,16 @@ if(isset($_POST["loginLabUser"])){
 			// Establecemos la sesión PHP como el login original
 			$_SESSION["admin"] = $admin;
 			
-			// Obtenemos la información de la sucursal
 			$id_office = intval($admin->id_office_admin);
+			if ($id_office === 0 && isset($admin->id_warehouse_admin) && intval($admin->id_warehouse_admin) > 0) {
+				$stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh");
+				$stmtWH->execute([':wh' => intval($admin->id_warehouse_admin)]);
+				$whOffice = $stmtWH->fetchColumn();
+				if ($whOffice) {
+					$id_office = intval($whOffice);
+				}
+			}
+			
 			$stmtOffice = $db->prepare("SELECT * FROM offices WHERE id_office = :id");
 			$stmtOffice->execute([':id' => $id_office]);
 			$office = $stmtOffice->fetch(PDO::FETCH_ASSOC);

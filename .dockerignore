@@ -2,3 +2,6 @@ api.pos
 .git
 .gitignore
 **/.DS_Store
+lab-dashboard/node_modules
+lab-dashboard/.nuxt
+

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__."/models/connection.php";
 
 $db = Connection::connect();

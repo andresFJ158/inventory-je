@@ -113,16 +113,16 @@ SET wa.id_product_assignment = m.canonical_id
 WHERE wa.id_product_assignment != m.canonical_id;
 
 -- Actualizar product_offers
-UPDATE product_offers po
-INNER JOIN `_product_id_map` m ON po.id_product_offer_ref = m.old_id
-SET po.id_product_offer_ref = m.canonical_id
-WHERE po.id_product_offer_ref != m.canonical_id;
+-- UPDATE product_offers po
+-- INNER JOIN `_product_id_map` m ON po.id_product_offer_ref = m.old_id
+-- SET po.id_product_offer_ref = m.canonical_id
+-- WHERE po.id_product_offer_ref != m.canonical_id;
 
 -- Actualizar price_tiers
-UPDATE price_tiers pt
-INNER JOIN `_product_id_map` m ON pt.id_product_tier = m.old_id
-SET pt.id_product_tier = m.canonical_id
-WHERE pt.id_product_tier != m.canonical_id;
+-- UPDATE price_tiers pt
+-- INNER JOIN `_product_id_map` m ON pt.id_product_tier = m.old_id
+-- SET pt.id_product_tier = m.canonical_id
+-- WHERE pt.id_product_tier != m.canonical_id;
 
 -- =============================================
 -- PASO 5: Eliminar filas duplicadas de products
