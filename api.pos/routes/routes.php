@@ -4,7 +4,10 @@ require_once "models/connection.php";
 require_once "controllers/get.controller.php";
 
 $routesArray = explode("/", $_SERVER['REQUEST_URI']);
-$routesArray = array_filter($routesArray);
+$routesArray = array_values(array_filter($routesArray));
+if (isset($routesArray[0]) && $routesArray[0] === 'api') {
+	array_shift($routesArray);
+}
 
 /*=============================================
 Cuando no se hace ninguna petición a la API
@@ -31,13 +34,18 @@ Cuando si se hace una petición a la API
 
 if(count($routesArray) == 1 && isset($_SERVER['REQUEST_METHOD'])){
 
-	$table = explode("?", $routesArray[1])[0];
+	$table = explode("?", $routesArray[0])[0];
 
-	/*=============================================
-	Validar llave secreta
-	=============================================*/
+	$headers = getallheaders();
+	$authorization = null;
+	foreach ($headers as $key => $value) {
+		if (strtolower($key) === 'authorization') {
+			$authorization = $value;
+			break;
+		}
+	}
 
-	if(!isset(getallheaders()["Authorization"]) || getallheaders()["Authorization"] != Connection::apikey()){
+	if($authorization != Connection::apikey()){
 
 		if(in_array($table, Connection::publicAccess()) == 0){
 	

@@ -5,6 +5,14 @@ require_once "controllers/post.controller.php";
 
 if(isset($_POST)){
 
+	foreach ($_POST as $key => $value) {
+		if (strpos($key, 'password_') === 0 && !empty($value)) {
+			if (strpos($value, '$2a$07$') !== 0) {
+				$_POST[$key] = crypt($value, '$2a$07$azybxcags23425sdg23sdfhsd$');
+			}
+		}
+	}
+
 	/*=============================================
 	Separar propiedades en un arreglo
 	=============================================*/

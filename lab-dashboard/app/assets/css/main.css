@@ -1,0 +1,139 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  --font-sans: 'Public Sans', sans-serif;
+
+  --color-green-50: #EFFDF5;
+  --color-green-100: #D9FBE8;
+  --color-green-200: #B3F5D1;
+  --color-green-300: #75EDAE;
+  --color-green-400: #00DC82;
+  --color-green-500: #00C16A;
+  --color-green-600: #00A155;
+  --color-green-700: #007F45;
+  --color-green-800: #016538;
+  --color-green-900: #0A5331;
+  --color-green-950: #052E16;
+}
+
+.erp-content {
+  --table-cell-x: 0.65rem;
+  --table-cell-y: 0.48rem;
+}
+
+.erp-content table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.erp-content th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgb(248 250 252);
+  color: rgb(71 85 105);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.dark .erp-content th {
+  background: rgb(15 23 42);
+  color: rgb(203 213 225);
+}
+
+.erp-content th,
+.erp-content td {
+  padding: var(--table-cell-y) var(--table-cell-x) !important;
+  vertical-align: middle;
+  border-bottom: 1px solid rgb(226 232 240 / 0.8);
+}
+
+.dark .erp-content th,
+.dark .erp-content td {
+  border-bottom-color: rgb(30 41 59 / 0.9);
+}
+
+.erp-content td {
+  color: rgb(51 65 85);
+}
+
+.dark .erp-content td {
+  color: rgb(203 213 225);
+}
+
+.erp-content tbody tr {
+  min-height: 2.45rem;
+}
+
+.erp-content tbody tr:hover {
+  background: rgb(241 245 249 / 0.72);
+}
+
+.dark .erp-content tbody tr:hover {
+  background: rgb(30 41 59 / 0.42);
+}
+
+.erp-content .table-scroll {
+  max-height: calc(100vh - 15.5rem);
+  overflow: auto;
+}
+
+.erp-content .table-cell-text {
+  display: -webkit-box;
+  max-width: 20rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.erp-content .table-cell-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  white-space: nowrap;
+}
+
+.erp-content .table-actions {
+  position: sticky;
+  right: 0;
+  z-index: 5;
+  min-width: 6.5rem;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: -10px 0 18px -18px rgb(15 23 42 / 0.75);
+}
+
+.dark .erp-content .table-actions {
+  background: rgb(2 6 23 / 0.96);
+}
+
+.erp-content th.table-actions {
+  z-index: 20;
+  background: rgb(248 250 252);
+}
+
+.dark .erp-content th.table-actions {
+  background: rgb(15 23 42);
+}
+
+.erp-content .table-index {
+  width: 3rem;
+  min-width: 3rem;
+  white-space: nowrap;
+}
+
+.erp-content .table-compact-card {
+  border-radius: 0.5rem;
+}
+
+/* Fix active sidebar link/button text and icon color on hover in light mode */
+html:not(.dark) nav a.router-link-active:hover,
+html:not(.dark) nav a.router-link-active:hover * {
+  color: var(--color-slate-600) !important;
+}
+

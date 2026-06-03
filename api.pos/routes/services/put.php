@@ -12,6 +12,16 @@ if(isset($_GET["id"]) && isset($_GET["nameId"])){
 	$data = array();
 	
 	parse_str(file_get_contents('php://input'), $data);
+
+	foreach ($data as $key => $value) {
+		if (strpos($key, 'password_') === 0) {
+			if (empty($value)) {
+				unset($data[$key]);
+			} else if (strpos($value, '$2a$07$') !== 0) {
+				$data[$key] = crypt($value, '$2a$07$azybxcags23425sdg23sdfhsd$');
+			}
+		}
+	}
 		
 	/*=============================================
 	Separar propiedades en un arreglo
