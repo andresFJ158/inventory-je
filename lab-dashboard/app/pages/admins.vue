@@ -12,6 +12,7 @@ const apiHeaders = {
 // State
 const admins = ref<any[]>([])
 const offices = ref<any[]>([])
+const warehouses = ref<any[]>([])
 const loading = ref(true)
 const search = ref('')
 const page = ref(1)
@@ -54,6 +55,7 @@ const formModel = ref({
   password_admin: '',
   rol_admin: 'cajero',
   id_office_admin: '',
+  id_warehouse_admin: '',
   status_admin: true
 })
 const savingAdmin = ref(false)
@@ -84,6 +86,19 @@ async function fetchOffices() {
     }
   } catch (e) {
     console.error('Error fetching offices:', e)
+  }
+}
+
+async function fetchWarehouses() {
+  try {
+    const data = await $fetch<any>('/api/warehouses', {
+      headers: apiHeaders
+    })
+    if (data.status === 200) {
+      warehouses.value = data.results || []
+    }
+  } catch (e) {
+    console.error('Error fetching warehouses:', e)
   }
 }
 
@@ -256,8 +271,14 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     })
   } else if (newRole === 'cajero') {
     permForm.value.pos = true
+    permForm.value.ordenes = true
+    permForm.value.ventas = true
     permForm.value.caja = true
+    permForm.value.gastos = true
+    permForm.value.productos = true
     permForm.value.mi_inventario = true
+    permForm.value.solicitar_inventario = true
+    permForm.value.reportes = true
   } else if (newRole === 'vendedor') {
     permForm.value.pos = true
     permForm.value.ordenes = true
@@ -268,7 +289,10 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     permForm.value.solicitar_inventario = true
     permForm.value.reportes = true
   } else if (newRole === 'despachador') {
+    permForm.value.productos = true
+    permForm.value.compras = true
     permForm.value.almacen = true
+    permForm.value.proveedores = true
     permForm.value.mi_inventario = true
   } else if (newRole.startsWith('lab_')) {
     permForm.value.almacen = true
@@ -287,6 +311,7 @@ function openCreate() {
     password_admin: '',
     rol_admin: 'cajero',
     id_office_admin: '',
+    id_warehouse_admin: '',
     status_admin: true
   }
   // Reset permissions form
@@ -316,6 +341,7 @@ function openEdit(admin: any) {
     password_admin: '', // Keep blank
     rol_admin: admin.rol_admin || 'cajero',
     id_office_admin: admin.id_office_admin ? String(admin.id_office_admin) : '',
+    id_warehouse_admin: admin.id_warehouse_admin ? String(admin.id_warehouse_admin) : '',
     status_admin: admin.status_admin == 1
   }
   // Load permissions form
@@ -355,6 +381,7 @@ async function handleSaveAdmin() {
     }
     body.append('rol_admin', formModel.value.rol_admin)
     body.append('id_office_admin', formModel.value.id_office_admin || '0')
+    body.append('id_warehouse_admin', formModel.value.id_warehouse_admin || '0')
     body.append('status_admin', formModel.value.status_admin ? '1' : '0')
 
     // Append visual permissions directly
@@ -444,6 +471,7 @@ function handleExportCSV() {
 
 onMounted(async () => {
   await fetchOffices()
+  await fetchWarehouses()
   await fetchAdmins()
 })
 </script>
@@ -642,11 +670,19 @@ onMounted(async () => {
               <option value="lab_calidad">Control Calidad</option>
             </select>
           </UFormField>
-          <UFormField label="Sucursal Asignada">
+          <UFormField v-if="formModel.rol_admin !== 'despachador'" label="Sucursal Asignada">
             <select v-model="formModel.id_office_admin" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="">Todas (Super)</option>
               <option v-for="o in offices" :key="o.id_office" :value="String(o.id_office)">
                 {{ decodeURIComponent(o.title_office || '').replace(/\+/g, ' ') }}
+              </option>
+            </select>
+          </UFormField>
+          <UFormField v-if="formModel.rol_admin === 'despachador'" label="Almacén Asignado">
+            <select v-model="formModel.id_warehouse_admin" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+              <option value="">Ninguno</option>
+              <option v-for="w in warehouses" :key="w.id_warehouse" :value="String(w.id_warehouse)">
+                {{ decodeURIComponent(w.title_warehouse || '').replace(/\+/g, ' ') }}
               </option>
             </select>
           </UFormField>

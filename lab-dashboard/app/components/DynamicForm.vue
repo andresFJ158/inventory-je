@@ -11,18 +11,19 @@ const emit = defineEmits(['saved', 'cancel'])
 
 const auth = useAuthStore()
 
-const MODULE_MAPPING: Record<string, { id_module: number, title_module: string, suffix_module: string, title: string }> = {
-  admins: { id_module: 2, title_module: 'admins', suffix_module: 'admin', title: 'Administradores' },
-  sucursales: { id_module: 4, title_module: 'offices', suffix_module: 'office', title: 'Sucursales' },
-  clientes: { id_module: 6, title_module: 'clients', suffix_module: 'client', title: 'Clientes' },
-  categorias: { id_module: 8, title_module: 'categories', suffix_module: 'category', title: 'Categorías' },
-  productos: { id_module: 10, title_module: 'products', suffix_module: 'product', title: 'Productos' },
-  compras: { id_module: 41, title_module: 'purchases', suffix_module: 'purchase', title: 'Compras' },
-  ordenes: { id_module: 14, title_module: 'orders', suffix_module: 'order', title: 'Órdenes' },
-  ventas: { id_module: 16, title_module: 'sales', suffix_module: 'sale', title: 'Ventas' },
-  caja: { id_module: 18, title_module: 'cashs', suffix_module: 'cash', title: 'Caja' },
-  gastos: { id_module: 20, title_module: 'bills', suffix_module: 'bill', title: 'Gastos' },
-  proveedores: { id_module: 40, title_module: 'suppliers', suffix_module: 'supplier', title: 'Proveedores' }
+const MODULE_MAPPING: Record<string, { id_module: number, title_module: string, suffix_module: string, title: string, editable_module: number }> = {
+  admins: { id_module: 2, title_module: 'admins', suffix_module: 'admin', title: 'Administradores', editable_module: 0 },
+  sucursales: { id_module: 4, title_module: 'offices', suffix_module: 'office', title: 'Sucursales', editable_module: 1 },
+  clientes: { id_module: 6, title_module: 'clients', suffix_module: 'client', title: 'Clientes', editable_module: 1 },
+  categorias: { id_module: 8, title_module: 'categories', suffix_module: 'category', title: 'Categorías', editable_module: 1 },
+  productos: { id_module: 10, title_module: 'products', suffix_module: 'product', title: 'Productos', editable_module: 1 },
+  compras: { id_module: 41, title_module: 'purchases', suffix_module: 'purchase', title: 'Compras', editable_module: 1 },
+  ordenes: { id_module: 14, title_module: 'orders', suffix_module: 'order', title: 'Órdenes', editable_module: 0 },
+  ventas: { id_module: 16, title_module: 'sales', suffix_module: 'sale', title: 'Ventas', editable_module: 0 },
+  caja: { id_module: 18, title_module: 'cashs', suffix_module: 'cash', title: 'Caja', editable_module: 1 },
+  gastos: { id_module: 20, title_module: 'bills', suffix_module: 'bill', title: 'Gastos', editable_module: 1 },
+  proveedores: { id_module: 40, title_module: 'suppliers', suffix_module: 'supplier', title: 'Proveedores', editable_module: 1 },
+  almacenes: { id_module: 42, title_module: 'warehouses', suffix_module: 'warehouse', title: 'Almacenes', editable_module: 1 }
 }
 
 const moduleConfig = computed(() => MODULE_MAPPING[props.moduleName])
@@ -134,6 +135,25 @@ async function loadFormMetadata() {
         }
       }
 
+      // Auto-populate warehouse for purchases if new and user is not superadmin
+      if (moduleConfig.value.title_module === 'purchases' && auth.role !== 'superadmin' && !props.initialData) {
+        if (auth.role === 'despachador') {
+          model['id_office_purchase'] = String(auth.warehouseId || '0')
+        } else if (auth.officeId) {
+          // Fetch corresponding warehouse for their office
+          try {
+            const whData = await $fetch<any>(`/api/warehouses?linkTo=id_office_warehouse&equalTo=${auth.officeId}`, {
+              headers: apiHeaders
+            })
+            if (whData.status === 200 && whData.results && whData.results.length > 0) {
+              model['id_office_purchase'] = String(whData.results[0].id_warehouse)
+            }
+          } catch (e) {
+            console.error('Error fetching warehouse for purchases:', e)
+          }
+        }
+      }
+
       formModel.value = model
     }
   } catch (e) {
@@ -187,6 +207,31 @@ async function loadRelationOptions(matrixTable: string) {
 async function handleSubmit() {
   if (!moduleConfig.value) return
   saving.value = true
+
+  // Basic validation for purchases
+  if (props.moduleName === 'compras') {
+    if (!formModel.value.id_supplier_purchase) {
+      alert('Por favor selecciona un proveedor.')
+      saving.value = false
+      return
+    }
+    if (!formModel.value.id_office_purchase) {
+      alert('Por favor selecciona un almacén.')
+      saving.value = false
+      return
+    }
+    if (!formModel.value.id_product_purchase) {
+      alert('Por favor selecciona un producto.')
+      saving.value = false
+      return
+    }
+    const qty = parseFormattedNumber(formModel.value.qty_purchase)
+    if (qty <= 0) {
+      alert('Por favor ingresa una cantidad válida mayor a 0.')
+      saving.value = false
+      return
+    }
+  }
 
   try {
     const config = moduleConfig.value
@@ -258,6 +303,38 @@ async function handleSubmit() {
   }
 }
 
+// Helper to parse localized numeric strings (e.g. "1.250,50" -> 1250.5)
+function parseFormattedNumber(val: any): number {
+  if (val === undefined || val === null || val === '') return 0
+  const str = String(val).replace(/\./g, '').replace(',', '.')
+  return parseFloat(str) || 0
+}
+
+// Helper to format numbers back to localized strings
+function formatNumber(num: number): string {
+  if (isNaN(num)) return '0'
+  const parts = String(num).split('.')
+  let intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  if (parts[1]) {
+    let decPart = parts[1].substring(0, 2)
+    return intPart + ',' + decPart
+  } else {
+    return intPart
+  }
+}
+
+// Watcher for auto-calculating investment in purchases
+watch(
+  () => [formModel.value.cost_purchase, formModel.value.qty_purchase],
+  ([newCost, newQty]) => {
+    if (props.moduleName === 'compras') {
+      const cost = parseFormattedNumber(newCost)
+      const qty = parseFormattedNumber(newQty)
+      formModel.value.invest_purchase = formatNumber(cost * qty)
+    }
+  }
+)
+
 onMounted(() => {
   loadFormMetadata()
 })
@@ -276,7 +353,7 @@ watch(() => props.initialData, () => {
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig.suffix_module}`">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig.title_module === 'purchases' && col.title_column === 'id_office_purchase' && auth.role === 'despachador')">
 
             <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
               {{ col.alias_column || col.title_column }}
@@ -290,11 +367,14 @@ watch(() => props.initialData, () => {
             </div>
 
             <div v-else-if="col.type_column === 'relations'">
-              <USelect
+              <USelectMenu
                 v-model="formModel[col.title_column]"
                 :items="selectOptions[col.matrix_column] || []"
                 class="w-full"
                 placeholder="Seleccionar opción..."
+                :ui="{ content: 'z-[100]' }"
+                value-key="value"
+                label-key="label"
               />
             </div>
 
@@ -303,6 +383,7 @@ watch(() => props.initialData, () => {
                 v-model="formModel[col.title_column]"
                 :items="selectOptions[col.title_column] || []"
                 class="w-full capitalize"
+                :ui="{ content: 'z-[100]' }"
               />
             </div>
 
@@ -314,6 +395,7 @@ watch(() => props.initialData, () => {
                 data-format-numeric="true"
                 inputmode="decimal"
                 placeholder="0,00"
+                :disabled="moduleConfig?.title_module === 'purchases' && col.title_column === 'invest_purchase'"
               />
             </div>
 

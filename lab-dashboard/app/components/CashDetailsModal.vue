@@ -37,31 +37,32 @@ async function fetchCashDetails(cashId: string | number) {
   sales.value = []
   
   try {
-    const data = await $fetch<any>(`/ajax/cash-details.ajax.php?id_cash=${cashId}`)
-    if (data && data.status === 200) {
-      cashData.value = {
-        ...data.cash,
-        money_cash: data.totalSales,
-        bills_cash: data.totalBills,
-        title_office: props.cash?.title_office || `Sucursal ${data.cash.id_office_cash}`
+    const apiHeaders = { Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy' }
+    
+    // First get exactly this cash row to know the time window.
+    const cashRes = await $fetch<any>(`/api/relations?rel=cashs,offices&type=cash,office&linkTo=id_cash&equalTo=${cashId}`, { headers: apiHeaders })
+    if (cashRes && cashRes.status === 200 && cashRes.results && cashRes.results.length > 0) {
+      cashData.value = cashRes.results[0]
+      const rawStart = cashData.value.date_created_cash
+      const rawEnd = cashData.value.date_end_cash || new Date()
+      
+      const startDate = formatToMySQLDate(rawStart)
+      const endDate = formatToMySQLDate(rawEnd)
+      
+      const officeId = cashData.value.id_office_cash
+      
+      // Get Expenses inside these dates for this office
+      const expRes = await $fetch<any>(`/api/bills?linkTo=id_office_bill,date_created_bill&between1=${officeId},${startDate}&between2=${officeId},${endDate}`, { headers: apiHeaders })
+      if (expRes && expRes.status === 200 && expRes.results) {
+        expenses.value = expRes.results
       }
       
-      // Map bills to match template expectations
-      expenses.value = (data.bills || []).map((exp: any) => ({
-        id_bill: exp.id_bill,
-        description_bill: exp.concept_bill,
-        amount_bill: exp.cost_bill,
-        date_created_bill: exp.date_bill
-      }))
-      
-      // Map orders to match template expectations
-      sales.value = (data.orders || []).map((sale: any) => ({
-        id_order: sale.id_order,
-        transaction_order: sale.transaction_order,
-        name_client: sale.name_client || 'Cliente General',
-        total_order: sale.total_order,
-        date_order: sale.date_order
-      }))
+      // Get Sales inside these dates for this office
+      const salesRes = await $fetch<any>(`/api/relations?rel=orders,clients&type=order,client&linkTo=id_office_order,date_order&between1=${officeId},${startDate}&between2=${officeId},${endDate}&select=transaction_order,date_order,method_order,total_order,name_client`, { headers: apiHeaders })
+      if (salesRes && salesRes.status === 200 && salesRes.results) {
+        // filter only completed ones if necessary
+        sales.value = salesRes.results
+      }
     }
   } catch (e) {
     console.error('Error fetching cash details:', e)
@@ -87,8 +88,8 @@ function decodeStr(str: string) {
 </script>
 
 <template>
-  <UModal v-model:open="isOpenModel" title="Detalles de Caja" :ui="{ content: 'w-full sm:max-w-7xl lg:max-w-[90vw] xl:max-w-[85vw]', body: 'max-h-[85vh] overflow-y-auto' }">
-    <template #body>
+  <UModal v-model="isOpenModel" :ui="{ width: 'sm:max-w-4xl' }">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 relative rounded-xl h-[80vh] overflow-y-auto">
       <!-- Loading State -->
       <div v-if="loading" class="flex flex-col items-center justify-center py-12">
         <UIcon name="i-lucide-loader-2" class="w-10 h-10 animate-spin text-primary mb-2" />
@@ -97,56 +98,34 @@ function decodeStr(str: string) {
 
       <!-- Content -->
       <template v-else-if="cashData">
-        <div class="mb-6 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
-          <p class="text-gray-500 dark:text-gray-400 text-sm">
-            Caja #{{ cashData.id_cash }} · Sucursal: <strong>{{ decodeStr(cashData.title_office) }}</strong>
-          </p>
+        <div class="absolute top-4 right-4">
+          <UButton color="gray" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <!-- Monto Inicial -->
-          <div class="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 p-4 rounded-xl flex items-center justify-between gap-4">
-            <div class="min-w-0">
-              <p class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Monto Inicial</p>
-              <p class="text-lg sm:text-xl xl:text-2xl font-extrabold text-blue-950 dark:text-blue-50 tracking-tight mt-1">{{ formatCurrency(cashData.start_cash) }}</p>
-            </div>
-            <div class="p-3 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl text-blue-600 dark:text-blue-400 shrink-0">
-              <UIcon name="i-lucide-wallet" class="w-6 h-6" />
-            </div>
-          </div>
+        <div class="mb-6">
+          <h1 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+            <UIcon name="i-lucide-receipt" /> Detalles de Caja
+          </h1>
+          <p class="text-gray-500 text-sm mt-1">Caja #{{ cashData.id_cash }} - Sucursal: {{ decodeStr(cashData.title_office) }}</p>
+        </div>
 
-          <!-- Ingresos -->
-          <div class="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 p-4 rounded-xl flex items-center justify-between gap-4">
-            <div class="min-w-0">
-              <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Ingresos</p>
-              <p class="text-lg sm:text-xl xl:text-2xl font-extrabold text-emerald-950 dark:text-emerald-50 tracking-tight mt-1">{{ formatCurrency(cashData.money_cash) }}</p>
-            </div>
-            <div class="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 shrink-0">
-              <UIcon name="i-lucide-arrow-up-right" class="w-6 h-6" />
-            </div>
-          </div>
-
-          <!-- Gastos -->
-          <div class="bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 p-4 rounded-xl flex items-center justify-between gap-4">
-            <div class="min-w-0">
-              <p class="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Gastos</p>
-              <p class="text-lg sm:text-xl xl:text-2xl font-extrabold text-rose-950 dark:text-rose-50 tracking-tight mt-1">{{ formatCurrency(cashData.bills_cash) }}</p>
-            </div>
-            <div class="p-3 bg-rose-500/10 dark:bg-rose-500/20 rounded-xl text-rose-600 dark:text-rose-400 shrink-0">
-              <UIcon name="i-lucide-arrow-down-right" class="w-6 h-6" />
-            </div>
-          </div>
-
-          <!-- Total en Caja -->
-          <div class="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-xl flex items-center justify-between gap-4">
-            <div class="min-w-0">
-              <p class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total en Caja</p>
-              <p class="text-lg sm:text-xl xl:text-2xl font-extrabold text-indigo-950 dark:text-indigo-50 tracking-tight mt-1">{{ formatCurrency(Number(cashData.start_cash) + Number(cashData.money_cash) - Number(cashData.bills_cash)) }}</p>
-            </div>
-            <div class="p-3 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400 shrink-0">
-              <UIcon name="i-lucide-banknote" class="w-6 h-6" />
-            </div>
-          </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <UCard class="bg-blue-50 dark:bg-blue-900/20 ring-blue-500/20">
+            <div class="text-xs font-semibold text-blue-600 mb-1">Monto Inicial</div>
+            <div class="text-xl font-bold">{{ formatCurrency(cashData.initial_cash) }}</div>
+          </UCard>
+          <UCard class="bg-green-50 dark:bg-green-900/20 ring-green-500/20">
+            <div class="text-xs font-semibold text-green-600 mb-1">Ingresos (Ventas)</div>
+            <div class="text-xl font-bold">{{ formatCurrency(cashData.money_cash) }}</div>
+          </UCard>
+          <UCard class="bg-red-50 dark:bg-red-900/20 ring-red-500/20">
+            <div class="text-xs font-semibold text-red-600 mb-1">Gastos</div>
+            <div class="text-xl font-bold">{{ formatCurrency(cashData.bills_cash) }}</div>
+          </UCard>
+          <UCard class="bg-indigo-50 dark:bg-indigo-900/20 ring-indigo-500/20">
+            <div class="text-xs font-semibold text-indigo-600 mb-1">Total en Caja</div>
+            <div class="text-xl font-bold">{{ formatCurrency(Number(cashData.initial_cash) + Number(cashData.money_cash) - Number(cashData.bills_cash)) }}</div>
+          </UCard>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -156,7 +135,7 @@ function decodeStr(str: string) {
               <UIcon name="i-lucide-arrow-up-right" class="text-green-500" /> Ingresos Registrados
             </h4>
             <div v-if="sales.length === 0" class="text-sm text-gray-500 italic">No hay ventas registradas en esta sesión.</div>
-            <div v-else class="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+            <div v-else class="space-y-2 max-h-64 overflow-y-auto pr-2">
               <div v-for="sale in sales" :key="sale.id_order" class="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm border border-gray-100 dark:border-slate-700">
                 <div>
                   <div class="font-bold">{{ sale.transaction_order }}</div>
@@ -176,7 +155,7 @@ function decodeStr(str: string) {
               <UIcon name="i-lucide-arrow-down-right" class="text-red-500" /> Gastos Registrados
             </h4>
             <div v-if="expenses.length === 0" class="text-sm text-gray-500 italic">No hay gastos registrados en esta sesión.</div>
-            <div v-else class="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+            <div v-else class="space-y-2 max-h-64 overflow-y-auto pr-2">
               <div v-for="exp in expenses" :key="exp.id_bill" class="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm border border-gray-100 dark:border-slate-700">
                 <div>
                   <div class="font-bold">{{ decodeStr(exp.description_bill) }}</div>
@@ -207,12 +186,8 @@ function decodeStr(str: string) {
       <div v-else class="py-12 text-center">
         <UIcon name="i-lucide-alert-triangle" class="w-12 h-12 text-red-400 mx-auto mb-3" />
         <p class="text-lg font-medium text-gray-700 dark:text-gray-300">No se pudieron cargar los detalles</p>
+        <UButton color="gray" class="mt-4" @click="isOpenModel = false">Cerrar</UButton>
       </div>
-    </template>
-    <template #footer>
-      <div class="flex justify-end gap-2 w-full">
-        <UButton color="neutral" variant="ghost" size="sm" @click="isOpenModel = false">Cerrar</UButton>
-      </div>
-    </template>
+    </div>
   </UModal>
 </template>

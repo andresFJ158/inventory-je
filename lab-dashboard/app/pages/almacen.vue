@@ -89,7 +89,7 @@ async function fetchStock() {
     const officeId = auth.officeId || 3
     
     // 1. Fetch products inventory of this office
-    const prodData = await $fetch<any>(`/api/relations?rel=products,product_inventory&type=product,inventory&linkTo=id_office_inventory,status_inventory&equalTo=${officeId},1`, {
+    const prodData = await $fetch<any>(`/api/relations?rel=product_inventory,products&type=inventory,product&linkTo=id_office_inventory,status_inventory&equalTo=${officeId},1`, {
       headers: apiHeaders
     })
     

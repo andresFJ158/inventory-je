@@ -312,6 +312,6 @@ if (import.meta.dev && !import.meta.nitro && import.meta.hot) {
 }
 /** client-end **/
 
-import cfg0 from "C:/Users/sebas/Desktop/UniTech/lab-dashboard/app/app.config.ts"
+import cfg0 from "C:/Users/HP/Desktop/Unitech2/inventory-je-master/lab-dashboard/app/app.config.ts"
 
 export default /*@__PURE__*/ defuFn(cfg0, inlineConfig)

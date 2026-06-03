@@ -4,18 +4,6 @@ import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
 
-function blockNegative(e: KeyboardEvent) {
-  if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault()
-}
-
-function onQtyInput(e: Event) {
-  const input = e.target as HTMLInputElement
-  const raw = input.value.replace(/[^\d]/g, '')
-  const n = parseInt(raw, 10) || 0
-  form.value.qty = Math.max(0, n)
-  input.value = n > 0 ? n.toLocaleString('de-DE') : ''
-}
-
 // State for Warehouses and Products
 const warehouses = ref<any[]>([])
 const products = ref<any[]>([])
@@ -79,7 +67,7 @@ async function fetchWarehouseProducts(warehouseId: string) {
       toast.add({
         title: 'Atención',
         description: 'Este almacén no tiene productos con stock disponible.',
-        color: 'warning'
+        color: 'amber'
       })
     }
   } catch (e) {
@@ -130,10 +118,10 @@ async function fetchMyRequests() {
 
 // Submit Request
 async function submitRequest() {
-  if (!form.value.warehouseId) return toast.add({ title: 'Error', description: 'Selecciona un almacén', color: 'error' })
-  if (!form.value.productId) return toast.add({ title: 'Error', description: 'Selecciona un producto', color: 'error' })
-  if (!form.value.qty || form.value.qty <= 0) return toast.add({ title: 'Error', description: 'Ingresa una cantidad válida', color: 'error' })
-  if (form.value.qty > maxStock.value) return toast.add({ title: 'Error', description: `La cantidad supera el stock disponible (${maxStock.value})`, color: 'error' })
+  if (!form.value.warehouseId) return toast.add({ title: 'Error', description: 'Selecciona un almacén', color: 'red' })
+  if (!form.value.productId) return toast.add({ title: 'Error', description: 'Selecciona un producto', color: 'red' })
+  if (!form.value.qty || form.value.qty <= 0) return toast.add({ title: 'Error', description: 'Ingresa una cantidad válida', color: 'red' })
+  if (form.value.qty > maxStock.value) return toast.add({ title: 'Error', description: `La cantidad supera el stock disponible (${maxStock.value})`, color: 'red' })
 
   submitting.value = true
   try {
@@ -152,7 +140,7 @@ async function submitRequest() {
     })
     
     if (typeof response === 'string' && response.trim() === 'ok') {
-      toast.add({ title: 'Éxito', description: 'Solicitud enviada correctamente', color: 'success' })
+      toast.add({ title: 'Éxito', description: 'Solicitud enviada correctamente', color: 'green' })
       // Reset form
       form.value.warehouseId = ''
       form.value.productId = ''
@@ -163,11 +151,11 @@ async function submitRequest() {
       // Refresh requests
       await fetchMyRequests()
     } else {
-      toast.add({ title: 'Error', description: response || 'No se pudo enviar la solicitud', color: 'error' })
+      toast.add({ title: 'Error', description: response || 'No se pudo enviar la solicitud', color: 'red' })
     }
   } catch (e) {
     console.error('Error submitting request:', e)
-    toast.add({ title: 'Error', description: 'Ocurrió un error inesperado.', color: 'error' })
+    toast.add({ title: 'Error', description: 'Ocurrió un error inesperado.', color: 'red' })
   } finally {
     submitting.value = false
   }
@@ -178,7 +166,7 @@ onMounted(() => {
   fetchMyRequests()
 })
 
-const columns: any[] = [
+const columns = [
   { accessorKey: 'date_created_request', header: 'Fecha' },
   { accessorKey: 'title_warehouse', header: 'Almacén' },
   { accessorKey: 'title_product', header: 'Producto' },
@@ -195,10 +183,10 @@ function formatText(t: string | undefined): string {
 
 function getStatusColor(status: string) {
   switch (status) {
-    case 'pendiente': return 'warning'
-    case 'despachada': return 'success'
-    case 'rechazada': return 'error'
-    default: return 'neutral'
+    case 'pendiente': return 'amber'
+    case 'despachada': return 'green'
+    case 'rechazada': return 'red'
+    default: return 'gray'
   }
 }
 
@@ -213,7 +201,7 @@ function getStatusLabel(status: string) {
 </script>
 
 <template>
-  <div class="h-full flex flex-col p-6 overflow-y-auto w-full">
+  <div class="w-full space-y-6">
     <!-- Header -->
     <div class="mb-6">
       <h1 class="text-2xl font-bold flex items-center gap-2">
@@ -241,7 +229,7 @@ function getStatusLabel(status: string) {
             <UFormGroup label="Almacén *">
               <USelect
                 v-model="form.warehouseId"
-                :items="warehouses.map(w => ({ value: String(w.id_warehouse), label: formatText(w.title_warehouse) }))"
+                :options="warehouses.map(w => ({ value: String(w.id_warehouse), label: formatText(w.title_warehouse) }))"
                 placeholder="-- Seleccionar almacén --"
                 :loading="loadingWarehouses"
                 @update:model-value="onWarehouseChange"
@@ -252,7 +240,7 @@ function getStatusLabel(status: string) {
             <UFormGroup label="Producto *">
               <USelect
                 v-model="form.productId"
-                :items="products.map(p => ({ value: String(p.id_product), label: `${formatText(p.title_product)} (Stock: ${p.stock})` }))"
+                :options="products.map(p => ({ value: String(p.id_product), label: `${formatText(p.title_product)} (Stock: ${p.stock})` }))"
                 placeholder="-- Seleccionar producto --"
                 :disabled="!form.warehouseId"
                 :loading="loadingProducts"
@@ -261,25 +249,21 @@ function getStatusLabel(status: string) {
             </UFormGroup>
 
             <UFormGroup label="Cantidad *">
-              <input
-                :value="form.qty > 0 ? form.qty.toLocaleString('de-DE') : ''"
-                type="text"
-                inputmode="numeric"
-                placeholder="0"
-                class="block w-full py-2.5 px-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                @input="onQtyInput($event)"
-                @keydown="blockNegative($event as KeyboardEvent)"
+              <UInput
+                v-model.number="form.qty"
+                type="number"
+                min="1"
+                :max="maxStock"
+                required
               />
-              <p v-if="selectedProductData" class="text-xs text-slate-500 mt-1">
-                Max disponible: <span class="font-bold text-green-600">{{ maxStock.toLocaleString('de-DE') }}</span>
-              </p>
+              <p v-if="selectedProductData" class="text-xs text-slate-500 mt-1">Max disponible: {{ maxStock }}</p>
             </UFormGroup>
 
             <UFormGroup label="Notas (opcional)">
               <UTextarea
                 v-model="form.notes"
                 placeholder="Justificación de la solicitud..."
-                :rows="2"
+                rows="2"
               />
             </UFormGroup>
 
@@ -287,7 +271,7 @@ function getStatusLabel(status: string) {
               type="submit"
               color="primary"
               class="w-full justify-center mt-4 bg-green-600 hover:bg-green-700"
-              icon="i-lucide-send"
+              icon="i-lucide-paper-plane"
               :loading="submitting"
             >
               Enviar Solicitud

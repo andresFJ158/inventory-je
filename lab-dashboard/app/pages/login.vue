@@ -74,7 +74,51 @@ async function handleLogin() {
     if (data.status === 200) {
       auth.setAuth(data)
       auth.setMode(selectedMode.value)
-      navigateTo(modeConfig[selectedMode.value].redirectTo)
+      
+      let redirectUrl = modeConfig[selectedMode.value].redirectTo
+      if (selectedMode.value === 'pos') {
+        const role = data.user?.rol_admin || 'lab_worker'
+        const perms = data.user?.permissions_admin ? (typeof data.user.permissions_admin === 'string' ? JSON.parse(decodeURIComponent(data.user.permissions_admin)) : data.user.permissions_admin) : {}
+        
+        const hasPerm = (pageUrl: string) => {
+          if (role === 'superadmin' || role === 'admin') return true
+          return perms[pageUrl] === 'on'
+        }
+
+        if (!hasPerm('pos')) {
+          if (role === 'despachador' || hasPerm('almacen')) {
+            redirectUrl = '/almacen'
+          } else {
+            // Find first permitted module
+            const possibleRoutes = [
+              { key: 'pos', path: '/pos' },
+              { key: 'sucursales', path: '/sucursales' },
+              { key: 'admins', path: '/admins' },
+              { key: 'clientes', path: '/clientes' },
+              { key: 'categorias', path: '/categorias' },
+              { key: 'productos', path: '/productos' },
+              { key: 'compras', path: '/compras' },
+              { key: 'ordenes', path: '/ordenes' },
+              { key: 'ventas', path: '/ventas' },
+              { key: 'caja', path: '/caja' },
+              { key: 'gastos', path: '/gastos' },
+              { key: 'proveedores', path: '/proveedores' },
+              { key: 'almacenes', path: '/almacenes' }
+            ]
+            const matched = possibleRoutes.find(r => hasPerm(r.key))
+            if (matched) {
+              redirectUrl = matched.path
+            } else if (role === 'despachador' || hasPerm('despachos')) {
+              redirectUrl = '/despachos'
+            } else if (hasPerm('mi_inventario')) {
+              redirectUrl = '/mi-inventario'
+            } else {
+              redirectUrl = '/'
+            }
+          }
+        }
+      }
+      navigateTo(redirectUrl)
     } else {
       errorMessage.value = data.message || 'Credenciales incorrectas.'
     }

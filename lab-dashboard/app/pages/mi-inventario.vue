@@ -1,24 +1,106 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
+const toast = useToast()
 
 const hasSubWarehouse = ref(false)
 const inventory = ref<any[]>([])
 const movements = ref<any[]>([])
+const offices = ref<any[]>([])
 
 const loadingInventory = ref(true)
 const loadingMovements = ref(true)
+
+// Assignment modal state
+const assignModalOpen = ref(false)
+const selectedProduct = ref<any>(null)
+const selectedOfficeId = ref<string>('')
+const assignQty = ref<number | null>(null)
+const assignNotes = ref<string>('')
+const assigning = ref(false)
 
 const apiHeaders = {
   Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
 }
 
-const isCaja = computed(() => auth.role === 'cajero' || auth.role === 'caja')
+async function fetchOffices() {
+  try {
+    const data = await $fetch<any>('/api/offices', { headers: apiHeaders })
+    if (data.status === 200) {
+      offices.value = data.results || []
+    }
+  } catch (e) {
+    console.error('Error fetching offices:', e)
+  }
+}
+
+const officeOptions = computed(() => {
+  return offices.value
+    .filter((o: any) => String(o.id_office) !== String(auth.officeId))
+    .map((o: any) => ({
+      value: String(o.id_office),
+      label: decodeURIComponent(o.title_office || '').replace(/\+/g, ' ')
+    }))
+})
+
+function openAssignModal(product: any) {
+  selectedProduct.value = product
+  selectedOfficeId.value = ''
+  assignQty.value = null
+  assignNotes.value = ''
+  assignModalOpen.value = true
+}
+
+async function confirmAssignment() {
+  if (!selectedProduct.value) return
+  if (!selectedOfficeId.value) {
+    toast.add({ title: 'Por favor selecciona una sucursal de destino.', color: 'error' })
+    return
+  }
+  if (!assignQty.value || assignQty.value <= 0) {
+    toast.add({ title: 'Por favor ingresa una cantidad válida mayor a 0.', color: 'error' })
+    return
+  }
+  if (assignQty.value > parseFloat(selectedProduct.value.stock)) {
+    toast.add({ title: 'La cantidad ingresada supera el stock disponible en almacén.', color: 'error' })
+    return
+  }
+
+  assigning.value = true
+  try {
+    const response = await $fetch<string>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        transferStockBetweenOffices: 'true',
+        id_product: String(selectedProduct.value.id_product),
+        id_office_source: String(auth.officeId),
+        id_office_dest: String(selectedOfficeId.value),
+        qty: String(assignQty.value),
+        notes: assignNotes.value || `Asignación manual de stock desde Almacén`,
+        id_dispatched_by: String(auth.user?.id_admin || 1)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+
+    if (response.trim() === 'ok') {
+      toast.add({ title: 'Inventario asignado correctamente.', color: 'success' })
+      assignModalOpen.value = false
+      await fetchInventory()
+    } else {
+      toast.add({ title: response.replace('error: ', '') || 'Error al asignar inventario.', color: 'error' })
+    }
+  } catch (e) {
+    console.error('Error confirming assignment:', e)
+    toast.add({ title: 'Error de red al intentar asignar inventario.', color: 'error' })
+  } finally {
+    assigning.value = false
+  }
+}
 
 async function checkHasSubWarehouse() {
-  if (auth.role === 'vendedor' || isCaja.value) {
+  if (auth.role === 'vendedor') {
     hasSubWarehouse.value = true
     return
   }
@@ -79,13 +161,18 @@ async function fetchMovements() {
   }
 }
 
-onMounted(async () => {
-  await checkHasSubWarehouse()
-  await fetchInventory()
-  await fetchMovements()
-})
+watch(() => auth.user, async (newVal) => {
+  if (newVal) {
+    await checkHasSubWarehouse()
+    await fetchInventory()
+    await fetchMovements()
+    if (auth.role === 'despachador') {
+      await fetchOffices()
+    }
+  }
+}, { immediate: true })
 
-const invColumns: any[] = [
+const invColumns = [
   { accessorKey: 'title_product', header: 'Producto' },
   { accessorKey: 'sku_product', header: 'SKU' },
   { accessorKey: 'unit_product', header: 'Unidad' },
@@ -93,7 +180,7 @@ const invColumns: any[] = [
   { accessorKey: 'status', header: 'Estado' }
 ]
 
-const moveColumns: any[] = [
+const moveColumns = [
   { accessorKey: 'date_created_assignment', header: 'Fecha' },
   { accessorKey: 'type', header: 'Tipo' },
   { accessorKey: 'title_product', header: 'Producto' },
@@ -120,7 +207,7 @@ function getTypeLabel(type: string): string {
 </script>
 
 <template>
-  <div class="h-full flex flex-col p-6 space-y-6 overflow-y-auto w-full">
+  <div class="w-full space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
@@ -133,7 +220,7 @@ function getTypeLabel(type: string): string {
         </p>
       </div>
       <UButton
-        v-if="hasSubWarehouse && !isCaja"
+        v-if="hasSubWarehouse"
         to="/solicitar-inventario"
         icon="i-lucide-plus-circle"
         color="primary"
@@ -159,7 +246,7 @@ function getTypeLabel(type: string): string {
       <div v-else-if="inventory.length === 0" class="py-12 text-center flex flex-col items-center">
         <UIcon name="i-lucide-box-select" class="w-12 h-12 text-gray-300 mb-3" />
         <p class="text-gray-500 font-medium">No tienes productos asignados.</p>
-        <UButton v-if="hasSubWarehouse && !isCaja" to="/solicitar-inventario" color="neutral" variant="soft" class="mt-4">
+        <UButton v-if="hasSubWarehouse" to="/solicitar-inventario" color="gray" variant="soft" class="mt-4">
           Ir a solicitar inventario
         </UButton>
       </div>
@@ -169,21 +256,33 @@ function getTypeLabel(type: string): string {
           <span class="font-medium">{{ formatText(row.original.title_product) }}</span>
         </template>
         <template #sku_product-cell="{ row }">
-          <UBadge color="neutral" variant="soft">{{ row.original.sku_product || '-' }}</UBadge>
+          <UBadge color="gray" variant="soft">{{ row.original.sku_product || '-' }}</UBadge>
         </template>
         <template #unit_product-cell="{ row }">
           {{ row.original.unit_product || '-' }}
         </template>
         <template #stock-cell="{ row }">
-          <span :class="[
-            'font-bold px-2 py-1 rounded text-sm',
-            parseFloat(row.original.stock) > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-          ]">
-            {{ row.original.stock }}
-          </span>
+          <div class="flex items-center gap-4 justify-between">
+            <span :class="[
+              'font-bold px-2 py-1 rounded text-sm',
+              parseFloat(row.original.stock) > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+            ]">
+              {{ row.original.stock }}
+            </span>
+            <UButton
+              v-if="auth.role === 'despachador' && parseFloat(row.original.stock) > 0"
+              size="xs"
+              color="primary"
+              variant="soft"
+              icon="i-lucide-send"
+              @click="openAssignModal(row.original)"
+            >
+              Asignar
+            </UButton>
+          </div>
         </template>
         <template #status-cell="{ row }">
-          <UBadge :color="parseFloat(row.original.stock) > 0 ? 'success' : 'error'">
+          <UBadge :color="parseFloat(row.original.stock) > 0 ? 'green' : 'red'">
             {{ parseFloat(row.original.stock) > 0 ? 'Disponible' : 'Agotado' }}
           </UBadge>
         </template>
@@ -221,5 +320,76 @@ function getTypeLabel(type: string): string {
         </template>
       </UTable>
     </UCard>
+
+    <!-- Modal de Asignación de Stock -->
+    <UModal v-model:open="assignModalOpen" title="Asignar Inventario a Sucursal">
+      <template #body>
+        <div v-if="selectedProduct" class="space-y-4 p-1">
+          <div>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Producto</span>
+            <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-sm font-semibold border border-slate-200 dark:border-slate-800">
+              {{ formatText(selectedProduct.title_product) }} ({{ selectedProduct.unit_product || 'Unidad' }})
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Stock Disponible</span>
+              <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-sm font-bold text-teal-600 border border-slate-200 dark:border-slate-800">
+                {{ selectedProduct.stock }}
+              </div>
+            </div>
+            <div>
+              <UFormField label="Cantidad a Asignar" required>
+                <UInput
+                  v-model="assignQty"
+                  type="number"
+                  min="1"
+                  :max="selectedProduct.stock"
+                  placeholder="Ej. 5"
+                  class="w-full"
+                />
+              </UFormField>
+            </div>
+          </div>
+
+          <div>
+            <UFormField label="Sucursal de Destino" required>
+              <USelectMenu
+                v-model="selectedOfficeId"
+                :items="officeOptions"
+                class="w-full"
+                placeholder="Seleccionar sucursal..."
+                value-key="value"
+                label-key="label"
+                :ui="{ content: 'z-[100]' }"
+              />
+            </UFormField>
+          </div>
+
+          <div>
+            <UFormField label="Notas / Justificación">
+              <UTextarea
+                v-model="assignNotes"
+                placeholder="Ej. Traspaso de mercadería para venta en sucursal"
+                rows="3"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <UButton color="neutral" variant="ghost" @click="assignModalOpen = false">
+            Cancelar
+          </UButton>
+          <UButton color="primary" :loading="assigning" @click="confirmAssignment">
+            Confirmar Asignación
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
