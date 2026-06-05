@@ -3,10 +3,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
 // Chart.js registration
-import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js'
-import { Bar, Doughnut } from 'vue-chartjs'
+import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement, LineElement, PointElement } from 'chart.js'
+import { Bar, Doughnut, Line } from 'vue-chartjs'
 
-ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement)
+ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement, LineElement, PointElement)
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -14,6 +14,7 @@ const toast = useToast()
 // Data state
 const orders = ref<any[]>([])
 const sales = ref<any[]>([])
+const productions = ref<any[]>([])
 const offices = ref<any[]>([])
 const statsByOffice = ref<any[]>([])
 
@@ -24,8 +25,8 @@ const today = new Date()
 const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
 const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
 
-const startDate = ref(firstDayLastMonth.toISOString().split('T')[0])
-const endDate = ref(lastDayLastMonth.toISOString().split('T')[0])
+const startDate = ref(firstDayLastMonth.toISOString().split('T')[0] || '')
+const endDate = ref(lastDayLastMonth.toISOString().split('T')[0] || '')
 
 // Tabs
 const items = [{
@@ -36,6 +37,10 @@ const items = [{
   label: 'Ventas (Productos)',
   icon: 'i-lucide-box',
   slot: 'ventas'
+}, {
+  label: 'Laboratorio (Producción)',
+  icon: 'i-lucide-flask-conical',
+  slot: 'laboratorio'
 }]
 
 const apiHeaders = {
@@ -57,6 +62,7 @@ async function fetchReportData() {
   loading.value = true
   orders.value = []
   sales.value = []
+  productions.value = []
   statsByOffice.value = []
   
   try {
@@ -79,17 +85,29 @@ async function fetchReportData() {
       orderMode: 'DESC'
     })
 
+    // Params for Productions
+    const prodParams = new URLSearchParams({
+      rel: 'productions,recipes',
+      type: 'production,recipe',
+      orderBy: 'id_production',
+      orderMode: 'ASC'
+    })
+
     if (startDate.value === endDate.value) {
       if (isSuperAdmin) {
         orderParams.set('linkTo', 'date_created_order')
         orderParams.set('equalTo', startDate.value)
         saleParams.set('linkTo', 'date_created_sale')
         saleParams.set('equalTo', startDate.value)
+        prodParams.set('linkTo', 'date_created_production')
+        prodParams.set('equalTo', startDate.value)
       } else {
         orderParams.set('linkTo', 'id_office_order,date_created_order')
         orderParams.set('equalTo', `${myOfficeId},${startDate.value}`)
         saleParams.set('linkTo', 'id_office_sale,date_created_sale')
         saleParams.set('equalTo', `${myOfficeId},${startDate.value}`)
+        prodParams.set('linkTo', 'id_office_production,date_created_production')
+        prodParams.set('equalTo', `${myOfficeId},${startDate.value}`)
       }
     } else {
       if (isSuperAdmin) {
@@ -97,6 +115,8 @@ async function fetchReportData() {
         orderParams.set('between2', `${startDate.value},${endDate.value}`)
         saleParams.set('between1', 'date_created_sale')
         saleParams.set('between2', `${startDate.value},${endDate.value}`)
+        prodParams.set('between1', 'date_created_production')
+        prodParams.set('between2', `${startDate.value},${endDate.value}`)
       } else {
         orderParams.set('linkTo', 'id_office_order')
         orderParams.set('equalTo', String(myOfficeId))
@@ -107,13 +127,19 @@ async function fetchReportData() {
         saleParams.set('equalTo', String(myOfficeId))
         saleParams.set('between1', 'date_created_sale')
         saleParams.set('between2', `${startDate.value},${endDate.value}`)
+
+        prodParams.set('linkTo', 'id_office_production')
+        prodParams.set('equalTo', String(myOfficeId))
+        prodParams.set('between1', 'date_created_production')
+        prodParams.set('between2', `${startDate.value},${endDate.value}`)
       }
     }
 
     // Fetch in parallel
-    const [ordersData, salesData] = await Promise.all([
+    const [ordersData, salesData, prodsData] = await Promise.all([
       $fetch<any>(`/api/relations?${orderParams.toString()}`, { headers: apiHeaders }).catch(() => null),
-      $fetch<any>(`/api/relations?${saleParams.toString()}`, { headers: apiHeaders }).catch(() => null)
+      $fetch<any>(`/api/relations?${saleParams.toString()}`, { headers: apiHeaders }).catch(() => null),
+      $fetch<any>(`/api/relations?${prodParams.toString()}`, { headers: apiHeaders }).catch(() => null)
     ])
 
     if (ordersData && ordersData.status === 200 && ordersData.results) {
@@ -122,6 +148,10 @@ async function fetchReportData() {
     
     if (salesData && salesData.status === 200 && salesData.results) {
       sales.value = salesData.results
+    }
+
+    if (prodsData && prodsData.status === 200 && prodsData.results) {
+      productions.value = prodsData.results
     }
 
     // If superadmin, calculate stats by office
@@ -192,7 +222,7 @@ const salesByDayChartData = computed(() => {
     labels: sortedKeys,
     datasets: [{
       label: 'Ventas por Día (Bs)',
-      data: sortedKeys.map(k => byDay[k]),
+      data: sortedKeys.map(k => byDay[k] || 0),
       backgroundColor: '#16a34a',
       borderRadius: 4
     }]
@@ -213,7 +243,7 @@ const topProductsChartData = computed(() => {
   return {
     labels: sortedProds.map(p => p[0]),
     datasets: [{
-      data: sortedProds.map(p => p[1]),
+      data: sortedProds.map(p => p[1] || 0),
       backgroundColor: [
         '#16a34a', '#2563eb', '#d97706', '#dc2626', '#7c3aed',
         '#059669', '#4f46e5', '#db2777', '#c026d3', '#0891b2'
@@ -234,13 +264,63 @@ const salesByOfficeChartData = computed(() => {
   }
 })
 
-function formatCurrency(val: number) {
-  return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(val)
-}
-
 function decodeStr(str: string) {
   if (!str) return ''
   return decodeURIComponent(str).replace(/\+/g, ' ')
+}
+
+const completedProds = computed(() => productions.value.filter(p => p.status_production === 'completado'))
+
+const labWasteChartData = computed(() => {
+  const dates = completedProds.value.map(p => p.date_created_production || '')
+  const variances = completedProds.value.map(p => parseFloat(p.yield_variance_pct || 0))
+  return {
+    labels: dates.length ? dates : ['Sin Datos'],
+    datasets: [{
+      label: 'Merma (%)',
+      data: variances.length ? variances : [0],
+      backgroundColor: '#ef4444',
+      borderColor: '#ef4444',
+      fill: false
+    }]
+  }
+})
+
+const labCostChartData = computed(() => {
+  const labels = completedProds.value.map(p => `#${p.id_production} ${decodeStr(p.title_product || '')}`)
+  const estimated = completedProds.value.map(p => parseFloat(p.proj_unit_cost || 0))
+  const real = completedProds.value.map(p => parseFloat(p.real_unit_cost || 0))
+  
+  return {
+    labels: labels.length ? labels : ['Sin Datos'],
+    datasets: [
+      { label: 'Costo Estimado', data: estimated.length ? estimated : [0], borderColor: '#3b82f6', backgroundColor: '#3b82f6', fill: false },
+      { label: 'Costo Real', data: real.length ? real : [0], borderColor: '#10b981', backgroundColor: '#10b981', fill: false }
+    ]
+  }
+})
+
+const labCountChartData = computed(() => {
+  const byRecipe: Record<string, number> = {}
+  completedProds.value.forEach(p => {
+    const name = decodeStr(p.title_product || '')
+    byRecipe[name] = (byRecipe[name] || 0) + 1
+  })
+  
+  const labels = Object.keys(byRecipe)
+  return {
+    labels: labels.length ? labels : ['Sin Datos'],
+    datasets: [{
+      label: 'Producciones Completadas',
+      data: labels.map(l => byRecipe[l] || 0),
+      backgroundColor: '#8b5cf6',
+      borderRadius: 4
+    }]
+  }
+})
+
+function formatCurrency(val: number) {
+  return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(val)
 }
 
 function handleExportCSV() {
@@ -320,7 +400,7 @@ const salesCols = [
         <UInput type="date" v-model="startDate" size="sm" />
         <span class="text-slate-500">hasta</span>
         <UInput type="date" v-model="endDate" size="sm" />
-        <UButton color="white" variant="solid" icon="i-lucide-filter" @click="applyFilter">Filtrar</UButton>
+        <UButton color="neutral" variant="solid" icon="i-lucide-filter" @click="applyFilter">Filtrar</UButton>
         <UButton color="primary" class="bg-green-600" icon="i-lucide-download" @click="handleExportCSV">Exportar Excel</UButton>
       </div>
     </div>
@@ -396,8 +476,8 @@ const salesCols = [
 
     <!-- Data Tabs -->
     <UTabs :items="items" class="w-full mt-4">
-      <template #ordenes>
-        <UCard class="mt-4">
+      <template #content="{ item }">
+        <UCard v-if="item.slot === 'ordenes'" class="mt-4">
            <UTable :data="orders" :columns="orderCols" :loading="loading">
              <template #client-cell="{ row }">
                {{ decodeStr(row.original.name_client) }} {{ decodeStr(row.original.surname_client) }}
@@ -408,19 +488,17 @@ const salesCols = [
                <span class="font-bold text-green-600">{{ formatCurrency(parseFloat(row.original.total_order)) }}</span>
              </template>
              <template #status_order-cell="{ row }">
-               <UBadge :color="row.original.status_order === 'Completada' ? 'green' : 'amber'" variant="subtle">
+               <UBadge :color="row.original.status_order === 'Completada' ? 'success' : 'warning'" variant="subtle">
                  {{ row.original.status_order }}
                </UBadge>
              </template>
              <template #actions-cell="{ row }">
-               <UButton color="gray" variant="ghost" icon="i-lucide-file-text" size="sm" @click="viewPdf(row.original.id_order)">PDF</UButton>
+               <UButton color="neutral" variant="ghost" icon="i-lucide-file-text" size="sm" @click="viewPdf(row.original.id_order)">PDF</UButton>
              </template>
            </UTable>
         </UCard>
-      </template>
 
-      <template #ventas>
-        <UCard class="mt-4">
+        <UCard v-else-if="item.slot === 'ventas'" class="mt-4">
            <UTable :data="sales" :columns="salesCols" :loading="loading">
              <template #title_product-cell="{ row }">
                <span class="font-medium">{{ decodeStr(row.original.title_product) }}</span>
@@ -433,6 +511,27 @@ const salesCols = [
              </template>
            </UTable>
         </UCard>
+
+        <div v-else-if="item.slot === 'laboratorio'" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <UCard>
+            <template #header><h3 class="font-semibold text-lg">Merma Histórica (%)</h3></template>
+            <div class="h-64">
+              <Line :data="labWasteChartData" :options="{ responsive: true, maintainAspectRatio: false }" />
+            </div>
+          </UCard>
+          <UCard>
+            <template #header><h3 class="font-semibold text-lg">Costo de Producción: Estimado vs Real</h3></template>
+            <div class="h-64">
+              <Line :data="labCostChartData" :options="{ responsive: true, maintainAspectRatio: false }" />
+            </div>
+          </UCard>
+          <UCard class="md:col-span-2">
+            <template #header><h3 class="font-semibold text-lg">Producciones Completadas por Receta</h3></template>
+            <div class="h-64">
+              <Bar :data="labCountChartData" :options="{ responsive: true, maintainAspectRatio: false }" />
+            </div>
+          </UCard>
+        </div>
       </template>
     </UTabs>
 

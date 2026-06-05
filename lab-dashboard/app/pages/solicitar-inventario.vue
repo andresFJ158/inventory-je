@@ -67,7 +67,7 @@ async function fetchWarehouseProducts(warehouseId: string) {
       toast.add({
         title: 'Atención',
         description: 'Este almacén no tiene productos con stock disponible.',
-        color: 'amber'
+        color: 'warning'
       })
     }
   } catch (e) {
@@ -118,10 +118,10 @@ async function fetchMyRequests() {
 
 // Submit Request
 async function submitRequest() {
-  if (!form.value.warehouseId) return toast.add({ title: 'Error', description: 'Selecciona un almacén', color: 'red' })
-  if (!form.value.productId) return toast.add({ title: 'Error', description: 'Selecciona un producto', color: 'red' })
-  if (!form.value.qty || form.value.qty <= 0) return toast.add({ title: 'Error', description: 'Ingresa una cantidad válida', color: 'red' })
-  if (form.value.qty > maxStock.value) return toast.add({ title: 'Error', description: `La cantidad supera el stock disponible (${maxStock.value})`, color: 'red' })
+  if (!form.value.warehouseId) return toast.add({ title: 'Error', description: 'Selecciona un almacén', color: 'error' })
+  if (!form.value.productId) return toast.add({ title: 'Error', description: 'Selecciona un producto', color: 'error' })
+  if (!form.value.qty || form.value.qty <= 0) return toast.add({ title: 'Error', description: 'Ingresa una cantidad válida', color: 'error' })
+  if (form.value.qty > maxStock.value) return toast.add({ title: 'Error', description: `La cantidad supera el stock disponible (${maxStock.value})`, color: 'error' })
 
   submitting.value = true
   try {
@@ -140,7 +140,7 @@ async function submitRequest() {
     })
     
     if (typeof response === 'string' && response.trim() === 'ok') {
-      toast.add({ title: 'Éxito', description: 'Solicitud enviada correctamente', color: 'green' })
+      toast.add({ title: 'Éxito', description: 'Solicitud enviada correctamente', color: 'success' })
       // Reset form
       form.value.warehouseId = ''
       form.value.productId = ''
@@ -151,11 +151,11 @@ async function submitRequest() {
       // Refresh requests
       await fetchMyRequests()
     } else {
-      toast.add({ title: 'Error', description: response || 'No se pudo enviar la solicitud', color: 'red' })
+      toast.add({ title: 'Error', description: response || 'No se pudo enviar la solicitud', color: 'error' })
     }
   } catch (e) {
     console.error('Error submitting request:', e)
-    toast.add({ title: 'Error', description: 'Ocurrió un error inesperado.', color: 'red' })
+    toast.add({ title: 'Error', description: 'Ocurrió un error inesperado.', color: 'error' })
   } finally {
     submitting.value = false
   }
@@ -183,10 +183,10 @@ function formatText(t: string | undefined): string {
 
 function getStatusColor(status: string) {
   switch (status) {
-    case 'pendiente': return 'amber'
-    case 'despachada': return 'green'
-    case 'rechazada': return 'red'
-    default: return 'gray'
+    case 'pendiente': return 'warning'
+    case 'despachada': return 'success'
+    case 'rechazada': return 'error'
+    default: return 'neutral'
   }
 }
 
@@ -263,7 +263,7 @@ function getStatusLabel(status: string) {
               <UTextarea
                 v-model="form.notes"
                 placeholder="Justificación de la solicitud..."
-                rows="2"
+                :rows="2"
               />
             </UFormGroup>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
@@ -27,7 +28,9 @@ const movements = ref<any[]>([])
 const loadingStock = ref(true)
 const loadingSubs = ref(true)
 const loadingMoves = ref(true)
+const loadingWaste = ref(true)
 const activeTab = ref(0)
+const wastePackaged = ref<any[]>([])
 
 // Assign Dialog
 const isAssignOpen = ref(false)
@@ -171,12 +174,37 @@ async function fetchMovements() {
   }
 }
 
+// Fetch Waste Packaged (Tab 4)
+async function fetchWastePackaged() {
+  loadingWaste.value = true
+  try {
+    const officeId = auth.officeId || 3
+    const response = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        getWastePackaged: 'true',
+        id_office: String(officeId)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    if (data.status === 200) {
+      wastePackaged.value = data.results
+    }
+  } catch (e) {
+    console.error('Error fetching waste packaged:', e)
+  } finally {
+    loadingWaste.value = false
+  }
+}
+
 onMounted(async () => {
   await fetchOffices()
   await fetchAdmins()
   await fetchStock()
   await fetchSubWarehouses()
   await fetchMovements()
+  await fetchWastePackaged()
 })
 
 // Action: Open Assign Modal
@@ -313,7 +341,8 @@ async function confirmTransfer() {
 const tabsItems = [
   { label: 'Inventario Principal', icon: 'i-lucide-boxes' },
   { label: 'Sub-Almacenes', icon: 'i-lucide-users' },
-  { label: 'Movimientos', icon: 'i-lucide-arrow-right-left' }
+  { label: 'Movimientos', icon: 'i-lucide-arrow-right-left' },
+  { label: 'Merma Envasada', icon: 'i-lucide-recycle' }
 ]
 
 function exportCSV() {
@@ -393,7 +422,7 @@ function exportCSV() {
           color="neutral"
           variant="soft"
           size="xs"
-          @click="activeTab === 0 ? fetchStock() : activeTab === 1 ? fetchSubWarehouses() : fetchMovements()"
+          @click="activeTab === 0 ? fetchStock() : activeTab === 1 ? fetchSubWarehouses() : activeTab === 2 ? fetchMovements() : fetchWastePackaged()"
         >
           Refrescar
         </UButton>
@@ -402,7 +431,7 @@ function exportCSV() {
 
     <!-- Tabs Layout -->
     <UTabs :items="tabsItems" v-model="activeTab" class="w-full">
-      <template #item="{ index }">
+      <template #content="{ index }">
         <!-- TAB 0: Main Stock Inventory -->
         <div v-if="index === 0" class="mt-4">
           <div v-if="loadingStock" class="flex justify-center py-12">
@@ -463,7 +492,7 @@ function exportCSV() {
                   <td class="p-4 text-right">
                     <div class="flex justify-end gap-2">
                       <UButton
-                        color="teal"
+                        color="info"
                         icon="i-lucide-share-2"
                         size="xs"
                         :disabled="(parseFloat(prod.stock_inventory) || 0) <= 0"
@@ -472,7 +501,7 @@ function exportCSV() {
                         Asignar
                       </UButton>
                       <UButton
-                        color="indigo"
+                        color="primary"
                         icon="i-lucide-arrow-right-left"
                         size="xs"
                         :disabled="(parseFloat(prod.stock_inventory) || 0) <= 0"
@@ -515,7 +544,7 @@ function exportCSV() {
                     Sucursal: {{ sw.title_office ? decodeURIComponent(sw.title_office).replace(/\+/g, ' ') : 'Sin Sucursal' }}
                   </span>
                 </div>
-                <UBadge color="emerald" size="xs">{{ sw.name_sub_warehouse }}</UBadge>
+                <UBadge color="success" size="xs">{{ sw.name_sub_warehouse }}</UBadge>
               </div>
 
               <!-- Card Body (Table of products in this sub-warehouse) -->
@@ -575,7 +604,7 @@ function exportCSV() {
                   <td class="p-4 font-mono text-xs">{{ m.date_created_assignment }}</td>
                   <td class="p-4">
                     <UBadge
-                      :color="m.type_assignment === 'despacho' ? 'indigo' : m.type_assignment === 'devolucion' ? 'warning' : m.type_assignment === 'traspaso' ? 'success' : 'rose'"
+                      :color="m.type_assignment === 'despacho' ? 'primary' : m.type_assignment === 'devolucion' ? 'warning' : m.type_assignment === 'traspaso' ? 'success' : 'error'"
                       variant="subtle"
                       class="capitalize font-semibold"
                     >
@@ -588,6 +617,41 @@ function exportCSV() {
                   <td class="p-4">{{ m.office_name ? decodeURIComponent(m.office_name).replace(/\+/g, ' ') : '-' }}</td>
                   <td class="p-4 text-xs">{{ m.dispatcher_name }}</td>
                   <td class="p-4 text-xs italic">{{ m.notes_assignment || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- TAB 3: Merma Envasada -->
+        <div v-if="index === 3" class="mt-4">
+          <div v-if="loadingWaste" class="flex justify-center py-12">
+            <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
+          </div>
+
+          <div v-else-if="wastePackaged.length === 0" class="text-center py-12 bg-slate-900/40 border border-slate-850 rounded-xl text-slate-500">
+            No se encontró merma envasada.
+          </div>
+
+          <div v-else class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
+            <table class="w-full text-left border-collapse text-sm text-slate-300">
+              <thead>
+                <tr class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                  <th class="p-4">ID Producción</th>
+                  <th class="p-4">Fecha de Registro</th>
+                  <th class="p-4">Producto Final Envasado</th>
+                  <th class="p-4 text-center">Cantidad Mermada</th>
+                  <th class="p-4">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="w in wastePackaged" :key="w.id_waste" class="border-b border-slate-850 hover:bg-slate-900/20">
+                  <td class="p-4 font-mono text-xs">#{{ w.id_production_waste }}</td>
+                  <td class="p-4 font-mono text-xs">{{ w.date_created_waste }}</td>
+                  <td class="p-4 font-semibold text-white">{{ decodeURIComponent(w.pkg_name_production || w.title_product || '').replace(/\+/g, ' ') }}</td>
+                  <td class="p-4 text-center font-mono font-bold text-rose-400">{{ w.qty_waste }} {{ w.unit_product }}</td>
+                  <td class="p-4">
+                    <UBadge color="warning" variant="soft">{{ w.status_waste === 'en_almacen' ? 'En Almacén' : w.status_waste }}</UBadge>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -639,7 +703,7 @@ function exportCSV() {
 
           <div>
             <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Notas de Asignación</label>
-            <UTextarea v-model="assignNotes" rows="2" placeholder="Opcional..." class="w-full" />
+            <UTextarea v-model="assignNotes" :rows="2" placeholder="Opcional..." class="w-full" />
           </div>
 
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
@@ -703,7 +767,7 @@ function exportCSV() {
           <!-- Notes -->
           <div>
             <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Notas de Traspaso</label>
-            <UTextarea v-model="transferNotes" rows="2" placeholder="Opcional..." class="w-full" />
+            <UTextarea v-model="transferNotes" :rows="2" placeholder="Opcional..." class="w-full" />
           </div>
 
           <!-- Actions -->

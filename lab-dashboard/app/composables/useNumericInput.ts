@@ -87,7 +87,7 @@ export function useNumericInput(initial: number | string = '', options: NumericI
     }
 
     // Parte entera y decimal
-    let intPart = parts[0].replace(/^0+(?=\d)/, '') || '0'
+    let intPart = (parts[0] || '').replace(/^0+(?=\d)/, '') || '0'
     let decPart = parts[1]
 
     // Aplicar puntos de miles a la parte entera

@@ -303,6 +303,7 @@ const sidebarItems = computed(() => {
   if (role === 'superadmin' || role === 'admin' || role === 'lab_admin' || role === 'lab_worker') {
     items.push({ label: 'Dashboard Lab', to: '/', icon: 'i-lucide-layout-dashboard' })
     items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
+    items.push({ label: 'Insumos Lab', to: '/insumos-lab', icon: 'i-lucide-beaker' })
     items.push({ label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' })
     items.push({ label: 'Entradas M.P.', to: '/entradas', icon: 'i-lucide-truck' })
     items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })

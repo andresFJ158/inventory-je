@@ -264,7 +264,7 @@ function formatCurrency(val: number) {
           <template #header>
             <div class="flex justify-between items-center">
               <h3 class="font-bold">Sucursales Activas</h3>
-              <UButton to="/reportes" size="xs" color="gray" variant="ghost" icon="i-lucide-external-link">Ver Reportes</UButton>
+              <UButton to="/reportes" size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link">Ver Reportes</UButton>
             </div>
           </template>
           <div v-if="openCashRegisters.length === 0" class="text-slate-500 text-center py-4">No hay cajas abiertas.</div>
@@ -296,7 +296,7 @@ function formatCurrency(val: number) {
             </div>
             <UIcon name="i-lucide-clipboard-copy" class="w-12 h-12 text-amber-100" />
           </div>
-          <UButton to="/despachos" class="w-full mt-4 justify-center" color="amber">Atender Solicitudes</UButton>
+          <UButton to="/despachos" class="w-full mt-4 justify-center" color="warning">Atender Solicitudes</UButton>
         </UCard>
       </div>
     </template>

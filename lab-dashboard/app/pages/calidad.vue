@@ -324,7 +324,7 @@ onMounted(() => {
                     <UButton
                       label="Evaluar Calidad"
                       icon="i-lucide-clipboard-check"
-                      color="green"
+                      color="success"
                       size="xs"
                       class="font-bold!"
                       @click="openQCModal(p)"
@@ -540,7 +540,7 @@ onMounted(() => {
             <UButton label="Cancelar" variant="ghost" color="neutral" @click="isQCOpen = false" />
             <UButton
               label="Registrar Auditoría de Calidad"
-              color="green"
+              color="success"
               class="font-bold!"
               @click="submitQC"
             />

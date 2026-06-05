@@ -26,10 +26,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       // Base de la API REST y del endpoint AJAX del POS.
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
-      ajaxBase: process.env.NUXT_PUBLIC_AJAX_BASE || '/ajax/pos.ajax.php',
+      apiBase: '',
+      ajaxBase: '/ajax/pos.ajax.php',
       // Token de la API. Configurable por entorno (no hardcodear en cada página).
-      apiToken: process.env.NUXT_PUBLIC_API_TOKEN || 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+      apiToken: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
     }
   },
 

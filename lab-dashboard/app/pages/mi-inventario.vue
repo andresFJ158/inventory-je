@@ -246,7 +246,7 @@ function getTypeLabel(type: string): string {
       <div v-else-if="inventory.length === 0" class="py-12 text-center flex flex-col items-center">
         <UIcon name="i-lucide-box-select" class="w-12 h-12 text-gray-300 mb-3" />
         <p class="text-gray-500 font-medium">No tienes productos asignados.</p>
-        <UButton v-if="hasSubWarehouse" to="/solicitar-inventario" color="gray" variant="soft" class="mt-4">
+        <UButton v-if="hasSubWarehouse" to="/solicitar-inventario" color="neutral" variant="soft" class="mt-4">
           Ir a solicitar inventario
         </UButton>
       </div>
@@ -256,7 +256,7 @@ function getTypeLabel(type: string): string {
           <span class="font-medium">{{ formatText(row.original.title_product) }}</span>
         </template>
         <template #sku_product-cell="{ row }">
-          <UBadge color="gray" variant="soft">{{ row.original.sku_product || '-' }}</UBadge>
+          <UBadge color="neutral" variant="soft">{{ row.original.sku_product || '-' }}</UBadge>
         </template>
         <template #unit_product-cell="{ row }">
           {{ row.original.unit_product || '-' }}
@@ -282,7 +282,7 @@ function getTypeLabel(type: string): string {
           </div>
         </template>
         <template #status-cell="{ row }">
-          <UBadge :color="parseFloat(row.original.stock) > 0 ? 'green' : 'red'">
+          <UBadge :color="parseFloat(row.original.stock) > 0 ? 'success' : 'error'">
             {{ parseFloat(row.original.stock) > 0 ? 'Disponible' : 'Agotado' }}
           </UBadge>
         </template>
@@ -372,7 +372,7 @@ function getTypeLabel(type: string): string {
               <UTextarea
                 v-model="assignNotes"
                 placeholder="Ej. Traspaso de mercadería para venta en sucursal"
-                rows="3"
+                :rows="3"
                 class="w-full"
               />
             </UFormField>

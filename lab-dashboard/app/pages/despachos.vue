@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
@@ -212,7 +213,7 @@ const tabsItems = [
 
     <!-- Tabs Layout -->
     <UTabs :items="tabsItems" v-model="activeTab" class="w-full">
-      <template #item="{ index }">
+      <template #content="{ index }">
         <!-- TAB 0: Pending Requests -->
         <div v-if="index === 0" class="mt-4">
           <div v-if="loadingPending" class="flex justify-center py-12">
@@ -246,14 +247,14 @@ const tabsItems = [
                     <UBadge color="info" variant="soft">{{ req.qty_request }}</UBadge>
                   </td>
                   <td class="p-4">
-                    <UBadge :color="req.available_stock > 0 ? 'emerald' : 'rose'" variant="subtle">
+                    <UBadge :color="req.available_stock > 0 ? 'success' : 'error'" variant="subtle">
                       {{ req.available_stock }}
                     </UBadge>
                   </td>
                   <td class="p-4 text-xs italic">{{ req.notes_request || '-' }}</td>
                   <td class="p-4 text-right flex gap-2 justify-end">
                     <UButton
-                      color="emerald"
+                      color="success"
                       icon="i-lucide-check"
                       size="xs"
                       :disabled="req.available_stock <= 0"
@@ -262,7 +263,7 @@ const tabsItems = [
                       Despachar
                     </UButton>
                     <UButton
-                      color="rose"
+                      color="error"
                       icon="i-lucide-x"
                       size="xs"
                       variant="soft"
@@ -309,7 +310,7 @@ const tabsItems = [
                   <td class="p-4 font-mono">{{ req.qty_dispatched_request || '-' }}</td>
                   <td class="p-4">
                     <UBadge
-                      :color="req.status_request === 'despachada' ? 'emerald' : req.status_request === 'rechazada' ? 'rose' : 'warning'"
+                      :color="req.status_request === 'despachada' ? 'success' : req.status_request === 'rechazada' ? 'error' : 'warning'"
                       variant="subtle"
                       class="capitalize"
                     >
@@ -363,7 +364,7 @@ const tabsItems = [
 
           <div>
             <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Notas del Despachador</label>
-            <UTextarea v-model="dispatchNotes" rows="2" placeholder="Opcional..." class="w-full" />
+            <UTextarea v-model="dispatchNotes" :rows="2" placeholder="Opcional..." class="w-full" />
           </div>
 
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
@@ -384,12 +385,12 @@ const tabsItems = [
 
           <div>
             <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Motivo de Rechazo</label>
-            <UTextarea v-model="rejectNotes" rows="2" placeholder="Escribe el motivo del rechazo aquí..." class="w-full" required />
+            <UTextarea v-model="rejectNotes" :rows="2" placeholder="Escribe el motivo del rechazo aquí..." class="w-full" required />
           </div>
 
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
             <UButton color="neutral" variant="ghost" @click="isRejectOpen = false">Cancelar</UButton>
-            <UButton color="rose" :loading="processingAction" @click="confirmReject">Rechazar Solicitud</UButton>
+            <UButton color="error" :loading="processingAction" @click="confirmReject">Rechazar Solicitud</UButton>
           </div>
         </div>
       </template>

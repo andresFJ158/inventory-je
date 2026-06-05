@@ -57,6 +57,13 @@ class OrdersController{
 				"date_order" => date("Y-m-d H:i:s")
 			);
 
+			if (isset($_POST["qrRefOrder"])) {
+				$fields["qr_ref_order"] = $_POST["qrRefOrder"];
+			}
+			if (isset($_POST["methodDetail"])) {
+				$fields["method_detail_order"] = $_POST["methodDetail"];
+			}
+
 			// $fields = array(
 			// 	"status_order" => "Pendiente"
 			// );
@@ -314,7 +321,9 @@ class OrdersController{
 
 								// Intentar crear factura solo si el módulo está disponible
 								// Primero verificamos si el cliente requiere factura
-								if(isset($_POST["clientInvoice"]) && $_POST["clientInvoice"] == "yes"){
+								$wantsInvoice = (isset($_POST["clientInvoice"]) && $_POST["clientInvoice"] == "yes") || (isset($_POST["invoice"]) && $_POST["invoice"] == "yes");
+								
+								if($wantsInvoice){
 
 									/*=============================================
 									El cliente es facturador
@@ -400,6 +409,8 @@ class OrdersController{
 									// El módulo de facturación no existe, continuamos sin factura
 									error_log("Módulo de facturación no disponible: " . $e->getMessage());
 								}
+								
+								} // Fin del if($wantsInvoice)
 
 								/*=============================================
 								Devolvemos respuesta al vendedor

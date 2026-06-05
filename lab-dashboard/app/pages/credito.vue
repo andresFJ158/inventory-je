@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
@@ -234,7 +235,7 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
             <UInput v-model="newCredit.due_date" type="date" class="w-full" />
           </UFormField>
           <UFormField label="Notas">
-            <UTextarea v-model="newCredit.notes" rows="2" placeholder="Concepto del crédito..." class="w-full" />
+            <UTextarea v-model="newCredit.notes" :rows="2" placeholder="Concepto del crédito..." class="w-full" />
           </UFormField>
         </div>
       </template>

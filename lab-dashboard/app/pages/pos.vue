@@ -21,12 +21,50 @@ const orderId = ref<string | null>(null)
 const transactionOrder = ref<string | null>(null)
 const cartItems = ref<any[]>([])
 const isPaying = ref(false)
-const payMethod = ref<'efectivo' | 'transferencia' | 'tarjeta'>('efectivo')
+const payMethod = ref<'efectivo' | 'transferencia' | 'credito' | 'tarjeta'>('efectivo')
 const cashReceived = ref<number | null>(null)
 const transferId = ref('')
+const qrRefOrder = ref('')
 const wantInvoice = ref(false)
 const checkoutSuccess = ref(false)
 const lastOrderReceipt = ref<any>(null)
+
+// Expense Modal
+const isExpenseModalOpen = ref(false)
+const expenseModel = ref({ description: '', amount: 0 })
+const savingExpense = ref(false)
+
+async function handleSaveExpense() {
+  if (!expenseModel.value.description || expenseModel.value.amount <= 0) {
+    alert('Ingresa una descripción válida y monto mayor a 0.')
+    return
+  }
+  savingExpense.value = true
+  try {
+    const body = new URLSearchParams({
+      description_bill: 'Gasto POS: ' + expenseModel.value.description,
+      cost_bill: String(expenseModel.value.amount),
+      id_office_bill: String(auth.officeId || 3),
+      type_bill: 'gasto_pos',
+      status_bill: '1'
+    })
+    const res = await $fetch<any>('/api/bills?token=no', {
+      method: 'POST',
+      body: body.toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    if (res.status === 200) {
+      alert('Gasto registrado con éxito.')
+      isExpenseModalOpen.value = false
+      expenseModel.value = { description: '', amount: 0 }
+    } else {
+      alert('Error al registrar gasto.')
+    }
+  } catch {
+    alert('Error de conexión.')
+  }
+  savingExpense.value = false
+}
 
 // Client Modal
 const isClientModalOpen = ref(false)
@@ -222,7 +260,7 @@ async function submitCashOpen() {
     const officeId = auth.officeId || 3
 
     const payload = new URLSearchParams()
-    payload.append('date_created_cash', today)
+    payload.append('date_created_cash', today || '')
     payload.append('id_office_cash', String(officeId))
     payload.append('initial_cash', String(openingCashAmount.value))
     payload.append('status_cash', '1') // 1 means open
@@ -230,7 +268,7 @@ async function submitCashOpen() {
     payload.append('money_cash', '0')
     payload.append('diff_cash', '0')
 
-    const res = await $fetch<any>(`/api/cashs?token=no&except=date_end_cash`, {
+    const res = await ($fetch as any)(`/api/cashs?token=no&except=date_end_cash`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -377,7 +415,7 @@ async function updateQty(item: any, change: number) {
   const priceMeta = pricesMap.value[item.id_product_sale] || { price: 0, wholesalePrice: 0, wholesaleQty: 0 }
   let unitPrice = priceMeta.price
 
-  if (isWholesaleGlobal.value || (priceMeta.wholesaleQty > 0 && newQty >= priceMeta.wholesaleQty)) {
+  if (isWholesaleGlobal.value || newQty >= 12 || (priceMeta.wholesaleQty > 0 && newQty >= priceMeta.wholesaleQty)) {
     if (priceMeta.wholesalePrice > 0) {
       unitPrice = priceMeta.wholesalePrice
     }
@@ -582,6 +620,7 @@ async function handleCheckout() {
         idOrder: orderId.value!,
         method: payMethod.value,
         transfer: transferId.value,
+        qrRefOrder: qrRefOrder.value,
         invoice: wantInvoice.value ? 'yes' : 'no',
         sellerId: String(auth.user?.id_admin || 1)
       }).toString(),
@@ -769,7 +808,7 @@ function printReceipt() {
                 <div class="text-right">
                   <span class="text-[10px] text-slate-400 block">Stock:</span>
                   <UBadge
-                    :color="(inventory[prod.id_product] || 0) > 0 ? 'emerald' : 'rose'"
+                    :color="(inventory[prod.id_product] || 0) > 0 ? 'success' : 'error'"
                     variant="soft"
                     size="xs"
                   >
@@ -804,7 +843,15 @@ function printReceipt() {
           </UButton>
           <div v-else class="flex gap-2">
             <UButton
-              color="rose"
+              color="warning"
+              variant="ghost"
+              icon="i-lucide-receipt"
+              size="xs"
+              title="Añadir Gasto"
+              @click="isExpenseModalOpen = true"
+            />
+            <UButton
+              color="error"
               variant="ghost"
               icon="i-lucide-trash-2"
               size="xs"
@@ -883,7 +930,7 @@ function printReceipt() {
                 />
                 <UButton
                   icon="i-lucide-trash"
-                  color="rose"
+                  color="error"
                   variant="ghost"
                   size="xs"
                   class="p-1 ml-1"
@@ -904,13 +951,24 @@ function printReceipt() {
           <UIcon name="i-lucide-check-circle" class="w-8 h-8 text-emerald-400 mx-auto" />
           <h3 class="text-xs font-bold text-white">Venta Procesada con Éxito</h3>
           <UButton
-            color="emerald"
+            v-if="auth.role === 'vendedor' || auth.user?.type_seller"
+            color="success"
+            size="xs"
+            block
+            icon="i-lucide-file-text"
+            @click="printReceipt"
+          >
+            Imprimir Comprobante (PDF)
+          </UButton>
+          <UButton
+            v-if="auth.role === 'cajero' || auth.role === 'admin' || auth.role === 'superadmin'"
+            color="info"
             size="xs"
             block
             icon="i-lucide-printer"
             @click="printReceipt"
           >
-            Imprimir Recibo (PDF)
+            Imprimir Ticket (Caja)
           </UButton>
         </div>
 
@@ -1017,14 +1075,15 @@ function printReceipt() {
                 Transfer
               </UButton>
               <UButton
-                :color="payMethod === 'tarjeta' ? 'primary' : 'neutral'"
+                v-if="auth.role === 'vendedor' || auth.user?.type_seller === 'vendedor' || auth.user?.type_seller === 'calle' || auth.user?.type_seller === 'tienda'"
+                :color="payMethod === 'credito' ? 'primary' : 'neutral'"
                 variant="soft"
                 icon="i-lucide-credit-card"
                 size="sm"
                 class="flex-col py-3.5"
-                @click="payMethod = 'tarjeta'"
+                @click="payMethod = 'credito'"
               >
-                Tarjeta
+                Crédito
               </UButton>
             </div>
           </div>
@@ -1054,10 +1113,18 @@ function printReceipt() {
               placeholder="Ingresa el número de referencia"
             />
           </div>
+          
+          <div v-if="payMethod === 'transferencia' && (auth.role === 'vendedor' || auth.user?.type_seller)">
+            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Link Imagen / QR de Confirmación</label>
+            <UInput
+              v-model="qrRefOrder"
+              placeholder="Ej: https://... / Comprobante"
+            />
+          </div>
 
-          <!-- Card message hint -->
-          <div v-if="payMethod === 'tarjeta'" class="text-center py-2 text-xs text-slate-400">
-            Asegúrate de pasar la tarjeta por el POS físico antes de completar.
+          <!-- Credit message hint -->
+          <div v-if="payMethod === 'credito'" class="text-center py-2 text-xs text-slate-400">
+            Esta orden se registrará como crédito para el vendedor.
           </div>
 
           <!-- Invoice switch checkbox -->
@@ -1069,7 +1136,7 @@ function printReceipt() {
           <!-- Actions -->
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
             <UButton color="neutral" variant="ghost" @click="isPaying = false">Cancelar</UButton>
-            <UButton color="primary" @click="handleCheckout">Confirmar Cobro</UButton>
+            <UButton color="primary" @click="handleCheckout">{{ wantInvoice ? 'Cobrar CON Factura' : 'Cobrar SIN Factura' }}</UButton>
           </div>
         </div>
       </template>
@@ -1094,7 +1161,7 @@ function printReceipt() {
 
         <UButton
           size="lg"
-          color="emerald"
+          color="success"
           icon="i-lucide-lock-keyhole-open"
           block
           class="font-bold py-3 text-base shadow-lg shadow-emerald-500/20"
@@ -1107,11 +1174,11 @@ function printReceipt() {
 
     <!-- Modal to open cash -->
     <UModal v-model="isOpeningCash">
-      <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-slate-800' }">
+      <UCard>
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-bold">Apertura de Caja</h3>
-            <UButton color="gray" variant="ghost" icon="i-lucide-x" class="-my-1" @click="isOpeningCash = false" />
+            <UButton color="neutral" variant="ghost" icon="i-lucide-x" class="-my-1" @click="isOpeningCash = false" />
           </div>
         </template>
 
@@ -1124,8 +1191,33 @@ function printReceipt() {
 
         <template #footer>
           <div class="flex justify-end gap-3">
-            <UButton color="gray" variant="soft" @click="isOpeningCash = false">Cancelar</UButton>
-            <UButton color="emerald" :loading="cashModalLoading" @click="submitCashOpen">Confirmar y Abrir</UButton>
+            <UButton color="neutral" variant="soft" @click="isOpeningCash = false">Cancelar</UButton>
+            <UButton color="success" :loading="cashModalLoading" @click="submitCashOpen">Confirmar y Abrir</UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
+    <!-- Modal Añadir Gasto POS -->
+    <UModal v-model="isExpenseModalOpen" title="Registrar Gasto Rápido">
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold">Registrar Gasto</h3>
+            <UButton color="neutral" variant="ghost" icon="i-lucide-x" class="-my-1" @click="isExpenseModalOpen = false" />
+          </div>
+        </template>
+        <div class="space-y-4">
+          <UFormField label="Descripción del Gasto *">
+            <UInput v-model="expenseModel.description" placeholder="Ej: Pasajes, almuerzo, etc." />
+          </UFormField>
+          <UFormField label="Monto (Bs.) *">
+            <UInput v-model.number="expenseModel.amount" type="number" step="0.10" />
+          </UFormField>
+        </div>
+        <template #footer>
+          <div class="flex justify-end gap-3">
+            <UButton color="neutral" variant="soft" @click="isExpenseModalOpen = false">Cancelar</UButton>
+            <UButton color="warning" :loading="savingExpense" @click="handleSaveExpense">Guardar Gasto</UButton>
           </div>
         </template>
       </UCard>

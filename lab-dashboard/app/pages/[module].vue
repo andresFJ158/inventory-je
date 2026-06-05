@@ -5,7 +5,7 @@ const route = useRoute()
 const moduleName = computed(() => {
   // Capture dynamic module parameter (e.g. "sucursales")
   const m = route.params.module
-  return Array.isArray(m) ? m[0] : m
+  return (Array.isArray(m) ? m[0] : m) || ''
 })
 </script>
 

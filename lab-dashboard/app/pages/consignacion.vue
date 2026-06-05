@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
@@ -210,7 +211,7 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
       <template #body>
         <div class="space-y-4 p-1">
           <UFormField label="Notas / Descripción">
-            <UTextarea v-model="newNotes" rows="2" placeholder="Vendedor, zona, observaciones..." class="w-full" />
+            <UTextarea v-model="newNotes" :rows="2" placeholder="Vendedor, zona, observaciones..." class="w-full" />
           </UFormField>
 
           <div class="space-y-3">

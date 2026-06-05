@@ -21,6 +21,16 @@ const isCreateOpen = ref(false)
 const recipes = ref<any[]>([])
 const loadingRecipes = ref(false)
 
+const labSupplies = ref<any[]>([])
+async function fetchLabSupplies() {
+  try {
+    const res = await $fetch<any>('/api/lab_supplies', { headers: { 'Authorization': auth.token || '' } })
+    if (res.status === 200) labSupplies.value = res.results.filter((s:any) => parseInt(s.status_supply) === 1)
+  } catch (e) {
+    console.error('Error fetching lab supplies', e)
+  }
+}
+
 // Inputs numéricos del modal de crear producción
 const totalQtyInput = useNumericInput('', { decimals: 3, min: 0 })
 const cifInput = useNumericInput('0', { decimals: 2, min: 0 })
@@ -166,7 +176,9 @@ function onPkgMatQtyInput(e: Event, idx: number) {
   const input = e.target as HTMLInputElement
   const raw = input.value.replace(/[^\d]/g, '')
   const n = parseInt(raw, 10) || 0
-  pkgForm.value.extra_mats[idx].qty = String(n)
+  if (pkgForm.value.extra_mats[idx]) {
+    pkgForm.value.extra_mats[idx].qty = String(n)
+  }
   input.value = n > 0 ? n.toLocaleString('de-DE') : ''
 }
 
@@ -184,7 +196,9 @@ const pkgForm = ref({
   envase_type: 'botellas',
   unit: 'ml',
   final_name: '',
-
+  waste_packaged_qty: '0',
+  waste_loss_qty: '0',
+  waste_packaged_id_raw: '',
   extra_mats: [] as Array<{ id_raw: string; qty: string }>
 })
 
@@ -212,9 +226,13 @@ async function fetchMaterials() {
 }
 
 const calculatedEnvases = computed(() => {
-  const qty = pkgForm.value.yield_type === 'diff' ? pkgRealBulkInput.raw.value : cleanFloat(pkgForm.value.total_qty)
+  let qty = pkgForm.value.yield_type === 'diff' ? pkgRealBulkInput.raw.value : cleanFloat(pkgForm.value.total_qty)
+  if (pkgForm.value.yield_type === 'diff') {
+    qty -= (parseFloat(pkgForm.value.waste_packaged_qty) || 0)
+    qty -= (parseFloat(pkgForm.value.waste_loss_qty) || 0)
+  }
   const vol = pkgVolumeInput.raw.value
-  if (vol <= 0) return 0
+  if (vol <= 0 || qty <= 0) return 0
 
   let volInBase = vol
   const baseUnit = pkgForm.value.bulk_unit
@@ -259,6 +277,9 @@ async function openPkgModal(prod: any) {
     envase_type: 'botellas',
     unit: prod.unit === 'L' ? 'ml' : prod.unit === 'kg' ? 'g' : 'und',
     final_name: '',
+    waste_packaged_qty: '0',
+    waste_loss_qty: '0',
+    waste_packaged_id_raw: '',
     extra_mats: []
   }
 
@@ -313,6 +334,9 @@ async function submitPackaging() {
     payload.append('id_office', String(auth.officeId || 6))
     payload.append('real_bulk_qty', real_bulk_qty !== null ? String(real_bulk_qty) : '')
     payload.append('original_bulk_qty', String(cleanFloat(pkgForm.value.total_qty)))
+    payload.append('waste_packaged_qty', String(parseFloat(pkgForm.value.waste_packaged_qty) || 0))
+    payload.append('waste_loss_qty', String(parseFloat(pkgForm.value.waste_loss_qty) || 0))
+    payload.append('waste_packaged_id_raw', pkgForm.value.waste_packaged_id_raw)
 
     const response = await $fetch<any>(apiBase, {
       method: 'POST',
@@ -460,6 +484,7 @@ async function handleSaveProduction() {
 
 onMounted(() => {
   fetchProductions()
+  fetchLabSupplies()
 })
 </script>
 
@@ -482,7 +507,7 @@ onMounted(() => {
       <UButton
         v-if="auth.role !== 'lab_calidad'"
         icon="i-lucide-plus"
-        color="green"
+        color="success"
         size="md"
         class="font-bold!"
         @click="handleOpenCreateModal"
@@ -556,11 +581,11 @@ onMounted(() => {
               <td v-if="auth.role !== 'lab_calidad'" class="px-6 py-4 text-center flex justify-center items-center gap-2 flex-wrap">
                 <template v-if="prod.status === 'pendiente'">
                   <UButton label="Iniciar Fabricación" color="primary" size="xs" class="font-bold!" @click="handleStartProduction(prod.id)" />
-                  <UButton v-if="isAdmin" icon="i-lucide-x-circle" color="rose" size="xs" variant="ghost" title="Cancelar orden" @click="handleCancelProduction(prod)" />
+                  <UButton v-if="isAdmin" icon="i-lucide-x-circle" color="error" size="xs" variant="ghost" title="Cancelar orden" @click="handleCancelProduction(prod)" />
                 </template>
                 <UButton v-else-if="prod.status === 'proceso' || prod.status === 'en_proceso'" label="Producción Finalizada" color="success" size="xs" class="font-bold!" @click="openPkgModal(prod)" />
                 <span v-else class="text-xs font-bold uppercase" :class="prod.status === 'pendiente_qc' ? 'text-indigo-500' : prod.status === 'rechazado' ? 'text-rose-500' : 'text-slate-400 dark:text-slate-500'">{{ prod.status === 'pendiente_qc' ? 'En QC' : prod.status === 'rechazado' ? 'Rechazado' : 'Listo' }}</span>
-                <UButton icon="i-lucide-eye" color="blue" size="xs" variant="ghost" class="font-bold!" @click="openDetailsModal(prod.id)" title="Ver Historial y Detalles" />
+                <UButton icon="i-lucide-eye" color="info" size="xs" variant="ghost" class="font-bold!" @click="openDetailsModal(prod.id)" title="Ver Historial y Detalles" />
               </td>
             </tr>
           </tbody>
@@ -668,7 +693,7 @@ onMounted(() => {
 
             <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-850 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isCreateOpen = false" />
-              <UButton type="submit" label="Programar Producción" color="green" class="font-bold!" />
+              <UButton type="submit" label="Programar Producción" color="success" class="font-bold!" />
             </div>
           </form>
         </div>
@@ -720,20 +745,54 @@ onMounted(() => {
               </label>
             </div>
 
-            <div v-if="pkgForm.yield_type === 'diff'" class="pt-2 border-t border-slate-200 dark:border-slate-800">
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Cantidad Real Obtenida</label>
-              <div class="relative rounded-lg shadow-sm w-48">
-                <input
-                  :value="pkgRealBulkInput.display.value"
-                  type="text"
-                  inputmode="decimal"
-                  placeholder="0,000"
-                  class="block w-full py-2 px-3 pr-10 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                  @input="pkgRealBulkInput.onInput($event as InputEvent)"
-                  @keydown="pkgRealBulkInput.onKeydown($event as KeyboardEvent)"
-                >
-                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 text-xs font-bold">
-                  {{ pkgForm.bulk_unit }}
+            <div v-if="pkgForm.yield_type === 'diff'" class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Cantidad Real Obtenida</label>
+                  <div class="relative rounded-lg shadow-sm">
+                    <input
+                      :value="pkgRealBulkInput.display.value"
+                      type="text"
+                      inputmode="decimal"
+                      placeholder="0,000"
+                      class="block w-full py-2 px-3 pr-10 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                      @input="pkgRealBulkInput.onInput($event as InputEvent)"
+                      @keydown="pkgRealBulkInput.onKeydown($event as KeyboardEvent)"
+                    >
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 text-xs font-bold">
+                      {{ pkgForm.bulk_unit }}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider mb-2">Merma Envasada (L/kg)</label>
+                  <div class="flex gap-2">
+                    <input
+                      v-model="pkgForm.waste_packaged_qty"
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="0"
+                      class="block w-20 py-2 px-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                    >
+                    <select v-model="pkgForm.waste_packaged_id_raw" class="flex-1 py-2 px-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50">
+                      <option value="">Sin Envase Lab</option>
+                      <option v-for="s in labSupplies" :key="s.id_supply" :value="s.id_supply">{{ s.name_supply }}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider mb-2">Merma Desperdicio (L/kg)</label>
+                  <input
+                    v-model="pkgForm.waste_loss_qty"
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0"
+                    class="block w-full py-2 px-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                  >
                 </div>
               </div>
             </div>
@@ -785,7 +844,7 @@ onMounted(() => {
           <div class="space-y-3">
             <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
               <h4 class="text-xs font-bold text-slate-550 dark:text-slate-400 uppercase tracking-wider">Insumos/Materiales de Envasado</h4>
-              <UButton icon="i-lucide-plus" label="Añadir Insumo" color="green" variant="ghost" size="xs" @click="addPkgMaterial" />
+              <UButton icon="i-lucide-plus" label="Añadir Insumo" color="success" variant="ghost" size="xs" @click="addPkgMaterial" />
             </div>
 
             <div class="space-y-3 max-h-[25vh] overflow-y-auto pr-1">
@@ -813,7 +872,7 @@ onMounted(() => {
                 >
 
                 <!-- Botón eliminar -->
-                <UButton icon="i-lucide-trash" color="red" variant="ghost" size="xs" @click="removePkgMaterial(idx)" />
+                <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs" @click="removePkgMaterial(idx)" />
               </div>
             </div>
           </div>
@@ -864,7 +923,7 @@ onMounted(() => {
           <!-- Footer: Botones de acción del modal envasado -->
           <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4 mt-2">
             <UButton label="Cancelar" variant="ghost" color="neutral" @click="isPkgOpen = false" />
-            <UButton label="Confirmar Envasado y Enviar a QC" color="green" class="font-bold!" @click="submitPackaging" />
+            <UButton label="Confirmar Envasado y Enviar a QC" color="success" class="font-bold!" @click="submitPackaging" />
           </div>
         </div>
       </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
@@ -56,7 +58,8 @@ const formModel = ref({
   rol_admin: 'cajero',
   id_office_admin: '',
   id_warehouse_admin: '',
-  status_admin: true
+  status_admin: true,
+  type_seller: 'tienda'
 })
 const savingAdmin = ref(false)
 
@@ -312,7 +315,8 @@ function openCreate() {
     rol_admin: 'cajero',
     id_office_admin: '',
     id_warehouse_admin: '',
-    status_admin: true
+    status_admin: true,
+    type_seller: 'tienda'
   }
   // Reset permissions form
   Object.keys(permForm.value).forEach(k => {
@@ -342,10 +346,11 @@ function openEdit(admin: any) {
     rol_admin: admin.rol_admin || 'cajero',
     id_office_admin: admin.id_office_admin ? String(admin.id_office_admin) : '',
     id_warehouse_admin: admin.id_warehouse_admin ? String(admin.id_warehouse_admin) : '',
-    status_admin: admin.status_admin == 1
+    status_admin: admin.status_admin == 1,
+    type_seller: admin.type_seller || 'tienda'
   }
   // Load permissions form
-  let perms = {}
+  let perms: any = {}
   try {
     perms = typeof admin.permissions_admin === 'string' 
       ? JSON.parse(decodeURIComponent(admin.permissions_admin)) 
@@ -383,6 +388,7 @@ async function handleSaveAdmin() {
     body.append('id_office_admin', formModel.value.id_office_admin || '0')
     body.append('id_warehouse_admin', formModel.value.id_warehouse_admin || '0')
     body.append('status_admin', formModel.value.status_admin ? '1' : '0')
+    body.append('type_seller', formModel.value.rol_admin === 'vendedor' ? formModel.value.type_seller : '')
 
     // Append visual permissions directly
     const resultObj: Record<string, string> = {}
@@ -576,7 +582,7 @@ onMounted(async () => {
               </td>
               <td class="px-4 py-3">
                 <UBadge
-                  :color="['superadmin','admin'].includes(a.rol_admin) ? 'rose' : 'indigo'"
+                  :color="['superadmin','admin'].includes(a.rol_admin) ? 'error' : 'primary'"
                   variant="subtle"
                   size="xs"
                   class="uppercase font-bold"
@@ -624,7 +630,7 @@ onMounted(async () => {
                     />
                     <UButton
                       icon="i-lucide-trash"
-                      color="rose"
+                      color="error"
                       variant="ghost"
                       title="Eliminar"
                       @click="handleDelete(a)"
@@ -684,6 +690,12 @@ onMounted(async () => {
               <option v-for="w in warehouses" :key="w.id_warehouse" :value="String(w.id_warehouse)">
                 {{ decodeURIComponent(w.title_warehouse || '').replace(/\+/g, ' ') }}
               </option>
+            </select>
+          </UFormField>
+          <UFormField v-if="formModel.rol_admin === 'vendedor'" label="Tipo de Vendedor">
+            <select v-model="formModel.type_seller" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+              <option value="tienda">Vendedor de Tienda</option>
+              <option value="calle">Vendedor de Calle</option>
             </select>
           </UFormField>
           <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">

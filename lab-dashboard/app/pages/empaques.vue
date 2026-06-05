@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
@@ -212,7 +213,7 @@ onMounted(fetchPackagings)
             <USelect v-model="form.unit_packaging" :items="unitOptions" class="w-full capitalize" />
           </UFormField>
           <div class="flex items-center gap-3 pt-2">
-            <USwitch v-model="form.status_packaging" :model-value="form.status_packaging === 1" @update:model-value="(v: boolean) => form.status_packaging = v ? 1 : 0" />
+            <USwitch :model-value="form.status_packaging === 1" @update:model-value="(v: boolean) => form.status_packaging = v ? 1 : 0" />
             <span class="text-sm text-slate-600 dark:text-slate-400 font-medium">{{ form.status_packaging ? 'Activo' : 'Inactivo' }}</span>
           </div>
 

@@ -30,7 +30,7 @@ function onNumInput(e: Event, obj: any, key: string) {
   let raw = input.value.replace(/[^\d,]/g, '')
   raw = raw.replace(',', '.')
   const parts = raw.split('.')
-  const intStr = parts[0].replace(/^0+(?=\d)/, '') || '0'
+  const intStr = (parts[0] || '').replace(/^0+(?=\d)/, '') || '0'
   const intVal = parseInt(intStr, 10) || 0
   const decStr = parts[1] !== undefined ? parts[1].slice(0, 3) : undefined
 
@@ -111,7 +111,11 @@ async function fetchRecipes() {
         })) : [],
         cost_estimated: parseFloat(r.cost_estimated) || 0,
         cost_real: parseFloat(r.cost_real) || 0,
-        has_real_cost: r.has_real_cost === true || r.has_real_cost == 1
+        has_real_cost: r.has_real_cost === true || r.has_real_cost == 1,
+        avg_variance: parseFloat(r.avg_variance) || 0,
+        worst_variance: parseFloat(r.worst_variance) || 0,
+        best_variance: parseFloat(r.best_variance) || 0,
+        variance_history: r.variance_history || []
       }))
     } else {
       recipes.value = []
@@ -319,7 +323,7 @@ onMounted(() => {
       <UButton
         v-if="auth.role !== 'lab_worker'"
         icon="i-lucide-plus"
-        color="green"
+        color="success"
         size="md"
         class="font-bold!"
         @click="handleOpenCreateModal"
@@ -366,7 +370,7 @@ onMounted(() => {
             <UButton
               v-if="auth.role === 'lab_admin' || auth.role === 'superadmin'"
               icon="i-lucide-trash-2"
-              color="rose"
+              color="error"
               variant="ghost"
               size="xs"
               title="Eliminar receta"
@@ -434,6 +438,34 @@ onMounted(() => {
             <span>El costo real se calculará al completar la primera producción con QC aprobado.</span>
           </div>
         </div>
+
+        <!-- Métricas de Merma -->
+        <div v-if="recipe.variance_history.length > 0" class="border-t border-slate-100 dark:border-slate-800/60 pt-3 space-y-2">
+          <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Métricas de Merma</h4>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="bg-slate-50 dark:bg-slate-900 p-2 rounded text-center">
+              <p class="text-[10px] text-slate-500 uppercase">Promedio</p>
+              <p class="font-bold font-mono text-sm" :class="recipe.avg_variance < 0 ? 'text-rose-500' : 'text-green-500'">
+                {{ recipe.avg_variance > 0 ? '+' : '' }}{{ recipe.avg_variance.toFixed(1) }}%
+              </p>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-900 p-2 rounded text-center">
+              <p class="text-[10px] text-slate-500 uppercase">Peor</p>
+              <p class="font-bold font-mono text-sm text-rose-500">
+                {{ recipe.worst_variance > 0 ? '+' : '' }}{{ recipe.worst_variance.toFixed(1) }}%
+              </p>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-900 p-2 rounded text-center">
+              <p class="text-[10px] text-slate-500 uppercase">Mejor</p>
+              <p class="font-bold font-mono text-sm text-green-500">
+                {{ recipe.best_variance > 0 ? '+' : '' }}{{ recipe.best_variance.toFixed(1) }}%
+              </p>
+            </div>
+          </div>
+          <div class="flex gap-1 items-end h-8 mt-2 px-1">
+            <div v-for="(v, i) in recipe.variance_history" :key="i" class="flex-1 rounded-t" :class="v < 0 ? 'bg-rose-400' : 'bg-green-400'" :style="{ height: Math.max(10, Math.min(100, Math.abs(v) * 2)) + '%' }" :title="v + '%'"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -456,7 +488,7 @@ onMounted(() => {
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Rendimiento Base</label>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Litros de agua base (Tamaño Lote)</label>
                 <input
                   :value="editBatchInput.display.value"
                   type="text"
@@ -469,7 +501,7 @@ onMounted(() => {
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Unidad de Medida</label>
-                <input v-model="editForm.unit_batch" type="text" placeholder="L, und, kg" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+                <input v-model="editForm.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed">
               </div>
             </div>
 
@@ -496,7 +528,7 @@ onMounted(() => {
                     @input="onNumInput($event, ing, 'qty')"
                     @keydown="blockNegative($event as KeyboardEvent)"
                   >
-                  <UButton icon="i-lucide-trash" color="red" variant="ghost" size="xs" @click="removeEditIngredient(index)" />
+                  <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs" @click="removeEditIngredient(index)" />
                 </div>
               </div>
             </div>
@@ -531,7 +563,7 @@ onMounted(() => {
             <!-- Lote Base y Unidad -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Cantidad Esperada de Producción (Rendimiento)</label>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Litros de agua base (Tamaño Lote)</label>
                 <input
                   :value="newBatchInput.display.value"
                   type="text"
@@ -544,7 +576,7 @@ onMounted(() => {
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Unidad de Medida</label>
-                <input v-model="newRecipe.unit_batch" type="text" placeholder="Ej: L, und, kg" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                <input v-model="newRecipe.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed">
               </div>
             </div>
 
@@ -552,7 +584,7 @@ onMounted(() => {
             <div class="space-y-3 pt-2">
               <div class="flex justify-between items-center">
                 <label class="block text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Insumos (Fórmula)</label>
-                <UButton icon="i-lucide-plus" label="Agregar Insumo" color="green" variant="ghost" size="xs" @click="addIngredient" />
+                <UButton icon="i-lucide-plus" label="Agregar Insumo" color="success" variant="ghost" size="xs" @click="addIngredient" />
               </div>
 
               <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
@@ -577,7 +609,7 @@ onMounted(() => {
                   >
 
                   <!-- Botón eliminar -->
-                  <UButton icon="i-lucide-trash" color="red" variant="ghost" size="xs" @click="removeIngredient(index)" />
+                  <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs" @click="removeIngredient(index)" />
                 </div>
               </div>
             </div>
@@ -585,7 +617,7 @@ onMounted(() => {
             <!-- Footer integrado directamente sin márgenes negativos -->
             <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-850 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isCreateOpen = false" />
-              <UButton type="submit" label="Guardar Receta" color="green" class="font-bold!" />
+              <UButton type="submit" label="Guardar Receta" color="success" class="font-bold!" />
             </div>
           </form>
         </div>

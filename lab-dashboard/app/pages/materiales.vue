@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
@@ -44,7 +45,9 @@ async function fetchMaterials() {
         type: m.measure_type || 'unit',
         stock: parseFloat(m.stock_raw_material) || 0,
         unit: m.unit_raw_material,
-        desc: m.description_raw_material || ''
+        desc: m.description_raw_material || '',
+        no_stock: parseInt(m.no_stock_raw_material) === 1,
+        price: parseFloat(m.price_raw_material) || 0
       }))
     } else {
       items.value = []
@@ -69,7 +72,9 @@ const form = ref({
   name: '',
   type: 'unit' as 'unit' | 'weight' | 'volume',
   unit: 'und',
-  desc: ''
+  desc: '',
+  no_stock: false,
+  price: 0
 })
 
 const unitOptions = {
@@ -80,11 +85,11 @@ const unitOptions = {
 
 function handleMeasureTypeChange(type: 'unit' | 'weight' | 'volume') {
   form.value.type = type
-  form.value.unit = unitOptions[type][0]
+  form.value.unit = unitOptions[type][0] || 'und'
 }
 
 function openCreateModal() {
-  form.value = { id: null, name: '', type: 'unit', unit: 'und', desc: '' }
+  form.value = { id: null, name: '', type: 'unit', unit: 'und', desc: '', no_stock: false, price: 0 }
   modalTitle.value = 'Registrar Materia Prima'
   isModalOpen.value = true
 }
@@ -110,7 +115,9 @@ async function saveMaterial() {
           name_raw_material: form.value.name,
           measure_type: form.value.type,
           unit_raw_material: form.value.unit,
-          description_raw_material: form.value.desc
+          description_raw_material: form.value.desc,
+          no_stock_raw_material: form.value.no_stock ? '1' : '0',
+          price_raw_material: String(form.value.price)
         }).toString(),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       })
@@ -124,6 +131,8 @@ async function saveMaterial() {
           measure_type: form.value.type,
           unit_raw_material: form.value.unit,
           description_raw_material: form.value.desc,
+          no_stock_raw_material: form.value.no_stock ? '1' : '0',
+          price_raw_material: String(form.value.price),
           id_office_raw_material: String(auth.officeId || 6),
           id_admin_raw_material: String(auth.user?.id_admin || 1)
         }).toString(),
@@ -188,7 +197,7 @@ async function deleteMaterial(item: any) {
       <UButton
         v-if="auth.role === 'lab_admin'"
         icon="i-lucide-plus"
-        color="green"
+        color="success"
         size="md"
         class="font-bold!"
         @click="openCreateModal"
@@ -269,6 +278,7 @@ async function deleteMaterial(item: any) {
               </td>
               <td class="px-6 py-4 font-bold text-slate-800 dark:text-white uppercase tracking-wide">
                 {{ item.name }}
+                <span v-if="item.no_stock" class="ml-2 text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded uppercase font-bold">Fijo / Sin Stock</span>
               </td>
               <td class="px-6 py-4">
                 <span
@@ -300,7 +310,8 @@ async function deleteMaterial(item: any) {
                 </span>
               </td>
               <td class="px-6 py-4 font-bold font-mono text-slate-800 dark:text-slate-100">
-                {{ item.stock.toFixed(2) }}
+                <span v-if="!item.no_stock">{{ item.stock.toFixed(2) }}</span>
+                <span v-else class="text-slate-400">N/A</span>
               </td>
               <td class="px-6 py-4">
                 <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs">{{ item.unit }}</span>
@@ -321,7 +332,7 @@ async function deleteMaterial(item: any) {
                 />
                 <UButton
                   icon="i-lucide-trash-2"
-                  color="rose"
+                  color="error"
                   variant="subtle"
                   size="xs"
                   @click="deleteMaterial(item)"
@@ -360,6 +371,25 @@ async function deleteMaterial(item: any) {
                 v-model="form.name"
                 placeholder="Ej. Alcohol Isopropílico"
                 size="md"
+                required
+              />
+            </div>
+
+            <div class="flex items-center gap-3 bg-sky-50 dark:bg-sky-950/30 p-3 rounded-lg border border-sky-100 dark:border-sky-900/50">
+              <USwitch v-model="form.no_stock" color="info" />
+              <div>
+                <p class="text-sm font-bold text-sky-800 dark:text-sky-300">Insumo Especial (Sin Descuento de Stock)</p>
+                <p class="text-xs text-sky-600 dark:text-sky-400">Ej: Agua, Energía. Se cobrará un costo fijo en recetas.</p>
+              </div>
+            </div>
+
+            <div v-if="form.no_stock" class="space-y-1.5">
+              <label class="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400">Costo Fijo (Bs.)</label>
+              <UInput
+                v-model.number="form.price"
+                type="number"
+                step="0.01"
+                min="0"
                 required
               />
             </div>
@@ -427,7 +457,7 @@ async function deleteMaterial(item: any) {
               <UTextarea
                 v-model="form.desc"
                 placeholder="Especificaciones, usos o detalles químicos..."
-                rows="3"
+                :rows="3"
               />
             </div>
 
@@ -442,7 +472,7 @@ async function deleteMaterial(item: any) {
               <UButton
                 type="submit"
                 label="Guardar Insumo"
-                color="green"
+                color="success"
                 class="font-bold!"
               />
             </div>

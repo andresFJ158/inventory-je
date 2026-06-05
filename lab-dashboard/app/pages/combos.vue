@@ -110,7 +110,7 @@ onMounted(async () => {
           </div>
         </div>
         <div class="mt-3 flex items-center justify-between">
-          <UBadge color="purple" variant="subtle">Combo</UBadge>
+          <UBadge color="secondary" variant="subtle">Combo</UBadge>
           <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-settings-2">Editar componentes</UButton>
         </div>
       </UCard>

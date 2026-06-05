@@ -94,7 +94,7 @@ async function loadFormMetadata() {
             }
             selectOptions.value = {
               ...selectOptions.value,
-              [colName]: options.map(opt => ({
+              [colName]: options.map((opt: string) => ({
                 value: opt.trim(),
                 label: roleLabels[opt.trim()] || opt.trim()
               }))
@@ -102,7 +102,7 @@ async function loadFormMetadata() {
           } else {
             selectOptions.value = {
               ...selectOptions.value,
-              [colName]: options.map(opt => ({
+              [colName]: options.map((opt: string) => ({
                 value: opt.trim(),
                 label: opt.trim()
               }))
@@ -113,7 +113,7 @@ async function loadFormMetadata() {
             const parsed = parseFloat(String(val))
             if (!isNaN(parsed)) {
               const parts = String(parsed).split('.')
-              let intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+              let intPart = (parts[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
               if (parts[1]) {
                 model[colName] = intPart + ',' + parts[1]
               } else {
@@ -174,14 +174,14 @@ async function loadRelationOptions(matrixTable: string) {
       const mapped = data.results
         .filter((r: any) => {
           const firstKey = Object.keys(r)[0]
-          return r[firstKey] && String(r[firstKey]).trim() !== ''
+          return firstKey ? r[firstKey] && String(r[firstKey]).trim() !== '' : false
         })
         .map((r: any) => {
           const firstKey = Object.keys(r)[0]
           const secondKey = Object.keys(r)[1]
           return {
-            value: String(r[firstKey]).trim(),
-            label: decodeURIComponent(r[secondKey] || '').replace(/\+/g, ' ')
+            value: firstKey ? String(r[firstKey]).trim() : '',
+            label: secondKey ? decodeURIComponent(r[secondKey] || '').replace(/\+/g, ' ') : ''
           }
         })
       selectOptions.value = {
@@ -263,7 +263,7 @@ async function handleSubmit() {
       const dateCreatedCol = `date_created_${config.suffix_module}`
       const hasDateCreated = columns.value.some(c => c.title_column === dateCreatedCol)
       if (hasDateCreated) {
-        body.append(dateCreatedCol, new Date().toISOString().split('T')[0])
+        body.append(dateCreatedCol, new Date().toISOString().split('T')[0] || '')
       }
     }
 
@@ -314,7 +314,7 @@ function parseFormattedNumber(val: any): number {
 function formatNumber(num: number): string {
   if (isNaN(num)) return '0'
   const parts = String(num).split('.')
-  let intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  let intPart = (parts[0] || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   if (parts[1]) {
     let decPart = parts[1].substring(0, 2)
     return intPart + ',' + decPart
@@ -353,7 +353,7 @@ watch(() => props.initialData, () => {
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig.title_module === 'purchases' && col.title_column === 'id_office_purchase' && auth.role === 'despachador')">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'id_office_purchase' && auth.role === 'despachador')">
 
             <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
               {{ col.alias_column || col.title_column }}
@@ -422,7 +422,7 @@ watch(() => props.initialData, () => {
             <div v-else-if="col.title_column.includes('description') || col.title_column.includes('notes')">
               <UTextarea
                 v-model="formModel[col.title_column]"
-                rows="3"
+                :rows="3"
                 class="w-full"
               />
             </div>

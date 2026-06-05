@@ -1675,6 +1675,11 @@ if(isset($_POST["completeProduction"])){
 		$yield_variance_pct = ($original_bulk_qty > 0) ? ($yield_variance / $original_bulk_qty * 100) : 0;
 	}
 	
+	$waste_packaged_qty = (float)($_POST['waste_packaged_qty'] ?? 0);
+	$waste_loss_qty = (float)($_POST['waste_loss_qty'] ?? 0);
+	$waste_qty_production = $waste_packaged_qty + $waste_loss_qty;
+	$id_admin = $_POST['id_admin'] ?? 1;
+	
 	try {
 		$db->beginTransaction();
 
@@ -1799,6 +1804,9 @@ if(isset($_POST["completeProduction"])){
 			':real_bulk_qty' => $real_bulk_qty,
 			':yield_variance' => $yield_variance,
 			':yield_variance_pct' => $yield_variance_pct,
+			':waste_qty' => $waste_qty_production,
+			':waste_pkg' => $waste_packaged_qty,
+			':waste_loss' => $waste_loss_qty,
 			':qty_packaged' => $pkg_final_qty,
 			':id' => $id_production
 		];
@@ -1841,11 +1849,30 @@ if(isset($_POST["completeProduction"])){
 			real_bulk_qty = :real_bulk_qty,
 			yield_variance = :yield_variance,
 			yield_variance_pct = :yield_variance_pct,
+			waste_qty_production = :waste_qty,
+			waste_packaged_qty = :waste_pkg,
+			waste_loss_qty = :waste_loss,
 			qty_packaged_production = :qty_packaged,
 			date_updated_production = NOW() 
 		WHERE id_production = :id");
 		$updateProdData[':id_pkg'] = $id_packaged_product;
 		$stmtUpdateProd->execute($updateProdData);
+
+		if ($waste_packaged_qty > 0 && $id_packaged_product > 0) {
+			$waste_supply_id = (int)($_POST['waste_packaged_id_raw'] ?? 0);
+			if ($waste_supply_id > 0) {
+				$stmtSup = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply - :qty WHERE id_supply = :id");
+				$stmtSup->execute([':qty' => $waste_packaged_qty, ':id' => $waste_supply_id]);
+			}
+			$stmtWaste = $db->prepare("INSERT INTO waste_packaged (id_production_waste, id_product_waste, qty_waste, id_office_waste, status_waste, id_admin_waste, date_created_waste) VALUES (:prod, :product, :qty, :office, 'en_almacen', :admin, NOW())");
+			$stmtWaste->execute([
+				':prod' => $id_production,
+				':product' => $id_packaged_product,
+				':qty' => $waste_packaged_qty,
+				':office' => $id_office,
+				':admin' => $id_admin
+			]);
+		}
 
 		$db->commit();
 		echo "ok";
@@ -3348,6 +3375,32 @@ if(isset($_POST["getLabRecipes"])){
 		$recipe['cost_estimated'] = round($estimated_unit_cost, 4);
 		$recipe['cost_real'] = floatval($recipe['rte_product']);
 		$recipe['has_real_cost'] = floatval($recipe['rte_product']) > 0;
+
+		// Calcular métricas de merma históricas
+		$stmtMetrics = $db->prepare("
+			SELECT 
+				AVG(yield_variance_pct) as avg_variance,
+				MIN(yield_variance_pct) as worst_variance,
+				MAX(yield_variance_pct) as best_variance
+			FROM productions 
+			WHERE id_recipe_production = :id_recipe AND yield_variance_pct IS NOT NULL
+		");
+		$stmtMetrics->execute([':id_recipe' => $recipe['id_recipe']]);
+		$metrics = $stmtMetrics->fetch(PDO::FETCH_ASSOC);
+
+		$recipe['avg_variance'] = $metrics && $metrics['avg_variance'] !== null ? floatval($metrics['avg_variance']) : 0;
+		$recipe['worst_variance'] = $metrics && $metrics['worst_variance'] !== null ? floatval($metrics['worst_variance']) : 0;
+		$recipe['best_variance'] = $metrics && $metrics['best_variance'] !== null ? floatval($metrics['best_variance']) : 0;
+
+		// Obtener últimos 5 registros de merma
+		$stmtHistory = $db->prepare("
+			SELECT yield_variance_pct 
+			FROM productions 
+			WHERE id_recipe_production = :id_recipe AND yield_variance_pct IS NOT NULL
+			ORDER BY id_production DESC LIMIT 5
+		");
+		$stmtHistory->execute([':id_recipe' => $recipe['id_recipe']]);
+		$recipe['variance_history'] = $stmtHistory->fetchAll(PDO::FETCH_COLUMN);
 	}
 
 	echo json_encode([
@@ -3371,6 +3424,29 @@ if(isset($_POST["getLabProductions"])){
 		LEFT JOIN recipes r ON p.id_recipe_production = r.id_recipe
 		WHERE p.id_office_production = :office 
 		ORDER BY p.id_production DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	echo json_encode([
+		'status' => 200,
+		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+	]);
+	exit;
+}
+
+//=====================================
+// GET WASTE PACKAGED
+//=====================================
+if(isset($_POST["getWastePackaged"])){
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$stmt = $db->prepare("
+		SELECT w.*, p.title_product, p.unit_product, prod.id_recipe_production, r.title_product AS recipe_name, prod.pkg_name_production
+		FROM waste_packaged w
+		JOIN products p ON w.id_product_waste = p.id_product
+		JOIN productions prod ON w.id_production_waste = prod.id_production
+		LEFT JOIN recipes r ON prod.id_recipe_production = r.id_recipe
+		WHERE w.id_office_waste = :office 
+		ORDER BY w.id_waste DESC
 	");
 	$stmt->execute([':office' => $id_office]);
 	echo json_encode([

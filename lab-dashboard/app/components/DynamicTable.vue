@@ -89,11 +89,11 @@ function getRelationLabel(matrixTable: string, id: any) {
   if (!tableData || !tableData.length) return id
   const match = tableData.find((r: any) => {
     const firstKey = Object.keys(r)[0]
-    return String(r[firstKey]) === String(id)
+    return firstKey ? String(r[firstKey]) === String(id) : false
   })
   if (!match) return id
   const secondKey = Object.keys(match)[1]
-  return decodeURIComponent(match[secondKey] || '').replace(/\+/g, ' ')
+  return secondKey ? decodeURIComponent(match[secondKey] || '').replace(/\+/g, ' ') : id
 }
 
 // Fetch Rows Data
@@ -344,7 +344,7 @@ function openCashDetails(cashRow: any) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, idx) in paginatedRows" :key="row[Object.keys(row)[0]]" class="border-b border-slate-850 hover:bg-slate-900/20">
+            <tr v-for="(row, idx) in paginatedRows" :key="idx" class="border-b border-slate-850 hover:bg-slate-900/20">
               <td class="p-4 text-xs text-slate-500 font-mono">
                 {{ (page - 1) * itemsPerPage + idx + 1 }}
               </td>
@@ -361,7 +361,7 @@ function openCashDetails(cashRow: any) {
                 <!-- Boolean -->
                 <span v-else-if="col.type_column === 'boolean'">
                   <UBadge
-                    :color="row[col.title_column] == 1 ? 'emerald' : 'rose'"
+                    :color="row[col.title_column] == 1 ? 'success' : 'error'"
                     variant="subtle"
                     class="capitalize"
                   >
@@ -376,7 +376,7 @@ function openCashDetails(cashRow: any) {
 
                 <!-- Relation -->
                 <span v-else-if="col.type_column === 'relations'">
-                  <UBadge color="indigo" variant="outline">
+                  <UBadge color="primary" variant="outline">
                     {{ getRelationLabel(col.matrix_column, row[col.title_column]) }}
                   </UBadge>
                 </span>
@@ -427,7 +427,7 @@ function openCashDetails(cashRow: any) {
                     />
                     <UButton
                       icon="i-lucide-trash"
-                      color="rose"
+                      color="error"
                       variant="ghost"
                       size="xs"
                       @click="handleDelete(row)"

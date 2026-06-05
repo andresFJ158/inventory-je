@@ -103,7 +103,7 @@ class DynamicController{
 						// Seguridad: forzar que no cambien de sucursal al editar si no son superadmin
 						$rolAdminEdit = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
 						// Nota: 'purchases' NO está aquí porque su campo almacena id_warehouse, no id_office
-						$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "products" => "id_office_product"];
+						$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "products" => "id_office_product", "lab_supplies" => "id_office_supply", "waste_packaged" => "id_office_waste"];
 						if(isset($officeForceTables[$module->title_module]) && $rolAdminEdit !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
 							$forceOfficeField = $officeForceTables[$module->title_module];
 							// Reemplazar o añadir el campo forzadamente en el string x-www-form-urlencoded
@@ -453,7 +453,7 @@ class DynamicController{
 					// Seguridad: para caja, gastos y ventas, el campo de sucursal siempre viene del usuario si no es superadmin
 					$rolAdminSave = isset($_SESSION["admin"]->rol_admin) ? $_SESSION["admin"]->rol_admin : "";
 					// Nota: 'purchases' NO está aquí porque id_office_purchase almacena id_warehouse, no id_office
-					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order"];
+					$officeForceTables = ["cashs" => "id_office_cash", "bills" => "id_office_bill", "orders" => "id_office_order", "lab_supplies" => "id_office_supply", "waste_packaged" => "id_office_waste"];
 					if(isset($officeForceTables[$module->title_module]) && $rolAdminSave !== "superadmin" && isset($_SESSION["admin"]->id_office_admin)){
 						$forceOfficeField = $officeForceTables[$module->title_module];
 						$fields[$forceOfficeField] = (int)$_SESSION["admin"]->id_office_admin;
@@ -515,10 +515,11 @@ class DynamicController{
 								// Crear filas en product_inventory para cada sucursal
 								foreach($targetOffices as $offId){
 									$urlInv = "product_inventory?token=".$_SESSION["admin"]->token_admin."&table=admins&suffix=admin";
+									$initialStock = isset($_POST["initial_stock_product"]) ? (float)$_POST["initial_stock_product"] : 0;
 									$invFields = array(
 										"id_product_inventory" => (int)$newProductId,
 										"id_office_inventory"  => (int)$offId,
-										"stock_inventory"      => 0,
+										"stock_inventory"      => $initialStock,
 										"status_inventory"     => 1,
 										"date_created_inventory" => date("Y-m-d")
 									);
@@ -710,6 +711,8 @@ class DynamicController{
 		}
 
 		$totalOrders = 0.0;
+		$totalEfectivo = 0.0;
+		$totalQr = 0.0;
 		$urlOrders = TemplateController::ordersSessionApiUrl($cashOffice, $tStart, $tEnd);
 		$orders = CurlController::request($urlOrders, "GET", array());
 		if(isset($orders->status) && $orders->status == 200 && !empty($orders->results)){
@@ -720,7 +723,15 @@ class DynamicController{
 				}
 				$s = isset($o->status_order) ? (string) $o->status_order : "";
 				if($s === "Completada"){
-					$totalOrders += isset($o->total_order) ? (float)$o->total_order : 0.0;
+					$amount = isset($o->total_order) ? (float)$o->total_order : 0.0;
+					$totalOrders += $amount;
+					
+					$method = isset($o->method_order) ? (string) $o->method_order : "";
+					if ($method === "efectivo") {
+						$totalEfectivo += $amount;
+					} else if ($method === "qr" || $method === "transferencia") {
+						$totalQr += $amount;
+					}
 				}
 			}
 		}
@@ -730,6 +741,8 @@ class DynamicController{
 		$putUrl = "cashs?id=".$idCash."&nameId=id_cash&token=".$token."&table=admins&suffix=admin";
 		$putFields = "bills_cash=".rawurlencode(number_format($totalBills, 2, ".", ""))
 			."&money_cash=".rawurlencode(number_format($totalOrders, 2, ".", ""))
+			."&cash_efectivo=".rawurlencode(number_format($totalEfectivo, 2, ".", ""))
+			."&cash_qr=".rawurlencode(number_format($totalQr, 2, ".", ""))
 			."&diff_cash=".rawurlencode(number_format($diffCash, 2, ".", ""));
 
 		CurlController::request($putUrl, "PUT", $putFields);

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
@@ -80,7 +81,7 @@ const unitOptions = {
 
 function handleMeasureTypeChange(type: 'unit' | 'weight' | 'volume') {
   form.value.type = type
-  form.value.unit = unitOptions[type][0]
+  form.value.unit = unitOptions[type][0] || 'und'
 }
 
 function openCreateModal() {
@@ -189,7 +190,7 @@ async function deleteInsumo(item: any) {
       <UButton
         v-if="auth.role === 'lab_admin'"
         icon="i-lucide-plus"
-        color="green"
+        color="success"
         size="md"
         class="font-bold!"
         @click="openCreateModal"
@@ -322,7 +323,7 @@ async function deleteInsumo(item: any) {
                 />
                 <UButton
                   icon="i-lucide-trash-2"
-                  color="rose"
+                  color="error"
                   variant="subtle"
                   size="xs"
                   @click="deleteInsumo(item)"
@@ -429,7 +430,7 @@ async function deleteInsumo(item: any) {
               <UTextarea
                 v-model="form.desc"
                 placeholder="Especificaciones, material del envase o detalles de embalaje..."
-                rows="3"
+                :rows="3"
               />
             </div>
 
@@ -444,7 +445,7 @@ async function deleteInsumo(item: any) {
               <UButton
                 type="submit"
                 label="Guardar Insumo"
-                color="green"
+                color="success"
                 class="font-bold!"
               />
             </div>

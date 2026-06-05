@@ -26,7 +26,7 @@ function formatToMySQLDate(dateInput: string | Date | null): string {
   if (!dateInput) return ''
   const d = new Date(dateInput)
   if (isNaN(d.getTime())) return ''
-  return d.toISOString().replace('T', ' ').split('.')[0]
+  return d.toISOString().replace('T', ' ').split('.')[0] || ''
 }
 
 // Fetch full cash details
@@ -88,7 +88,7 @@ function decodeStr(str: string) {
 </script>
 
 <template>
-  <UModal v-model="isOpenModel" :ui="{ width: 'sm:max-w-4xl' }">
+  <UModal v-model="isOpenModel">
     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 relative rounded-xl h-[80vh] overflow-y-auto">
       <!-- Loading State -->
       <div v-if="loading" class="flex flex-col items-center justify-center py-12">
@@ -99,7 +99,7 @@ function decodeStr(str: string) {
       <!-- Content -->
       <template v-else-if="cashData">
         <div class="absolute top-4 right-4">
-          <UButton color="gray" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
+          <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
         </div>
 
         <div class="mb-6">
@@ -186,7 +186,7 @@ function decodeStr(str: string) {
       <div v-else class="py-12 text-center">
         <UIcon name="i-lucide-alert-triangle" class="w-12 h-12 text-red-400 mx-auto mb-3" />
         <p class="text-lg font-medium text-gray-700 dark:text-gray-300">No se pudieron cargar los detalles</p>
-        <UButton color="gray" class="mt-4" @click="isOpenModel = false">Cerrar</UButton>
+        <UButton color="neutral" class="mt-4" @click="isOpenModel = false">Cerrar</UButton>
       </div>
     </div>
   </UModal>

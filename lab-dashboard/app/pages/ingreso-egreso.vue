@@ -398,7 +398,7 @@ onMounted(() => {
         </UButton>
         <UButton
           icon="i-lucide-minus"
-          color="amber"
+          color="warning"
           size="md"
           class="font-bold! flex-1 md:flex-initial"
           @click="handleOpenAdjModal"
@@ -725,13 +725,13 @@ onMounted(() => {
             <!-- Observaciones -->
             <div>
               <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Observaciones / Detalles</label>
-              <UTextarea v-model="newAdjustment.notes" placeholder="Describa brevemente el motivo específico (lote vencido, frasco quebrado, etc.)..." rows="3" />
+              <UTextarea v-model="newAdjustment.notes" placeholder="Describa brevemente el motivo específico (lote vencido, frasco quebrado, etc.)..." :rows="3" />
             </div>
 
             <!-- Footer -->
             <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-855 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isAdjustmentOpen = false" />
-              <UButton type="submit" label="Registrar Baja de Stock" color="amber" class="font-bold!" :disabled="!newAdjustment.id_raw_material || adjQtyInput.raw.value <= 0 || (selectedMaterialForAdj && parseFloat(selectedMaterialForAdj.stock_raw_material) < adjQtyInput.raw.value)" />
+              <UButton type="submit" label="Registrar Baja de Stock" color="warning" class="font-bold!" :disabled="!newAdjustment.id_raw_material || adjQtyInput.raw.value <= 0 || (selectedMaterialForAdj && parseFloat(selectedMaterialForAdj.stock_raw_material) < adjQtyInput.raw.value)" />
             </div>
           </form>
         </div>

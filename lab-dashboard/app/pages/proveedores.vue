@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
@@ -31,10 +32,10 @@ const typeOptions = [
   { value: 'materias_primas', label: 'Solo Materias Primas / Lab' }
 ]
 
-const typeColors: Record<string, string> = {
-  productos: 'blue',
-  materias_primas: 'green',
-  ambos: 'purple'
+const typeColors: Record<string, any> = {
+  productos: 'info',
+  materias_primas: 'success',
+  ambos: 'secondary'
 }
 
 const typeLabels: Record<string, string> = {
@@ -126,7 +127,12 @@ async function deleteSupplier(s: any) {
   await fetchSuppliers()
 }
 
-onMounted(fetchSuppliers)
+onMounted(() => {
+  if (['lab_admin', 'lab_worker', 'lab_calidad'].includes(auth.role || '')) {
+    filterType.value = 'materias_primas'
+  }
+  fetchSuppliers()
+})
 </script>
 
 <template>
@@ -236,7 +242,7 @@ onMounted(fetchSuppliers)
             <USelect v-model="form.type_supplier" :items="typeOptions" class="w-full" />
           </UFormField>
           <div class="flex items-center gap-3 pt-2">
-            <USwitch v-model="form.status_supplier" :model-value="form.status_supplier === 1" @update:model-value="(v: boolean) => form.status_supplier = v ? 1 : 0" />
+            <USwitch :model-value="form.status_supplier === 1" @update:model-value="(v: boolean) => form.status_supplier = v ? 1 : 0" />
             <span class="text-sm text-slate-600 dark:text-slate-400">{{ form.status_supplier ? 'Activo' : 'Inactivo' }}</span>
           </div>
 

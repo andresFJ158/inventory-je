@@ -69,7 +69,7 @@ function decodeStr(str: string) {
 </script>
 
 <template>
-  <UModal v-model="isOpenModel" :ui="{ width: 'sm:max-w-2xl' }">
+  <UModal v-model="isOpenModel">
     <div class="print-container bg-white text-black p-8 relative">
       <!-- Loading State -->
       <div v-if="loading" class="flex flex-col items-center justify-center py-12">
@@ -83,7 +83,7 @@ function decodeStr(str: string) {
         <!-- Action Buttons (Hidden in print) -->
         <div class="print-hide absolute top-4 right-4 flex gap-2">
           <UButton color="primary" class="bg-blue-600" icon="i-lucide-printer" @click="handlePrint">Imprimir</UButton>
-          <UButton color="gray" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
+          <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
         </div>
 
         <div class="text-center mb-6">
@@ -178,7 +178,7 @@ function decodeStr(str: string) {
       <div v-else class="py-12 text-center">
         <UIcon name="i-lucide-alert-triangle" class="w-12 h-12 text-red-400 mx-auto mb-3" />
         <p class="text-lg font-medium text-gray-700">Comprobante no encontrado</p>
-        <UButton color="gray" class="mt-4" @click="isOpenModel = false">Cerrar</UButton>
+        <UButton color="neutral" class="mt-4" @click="isOpenModel = false">Cerrar</UButton>
       </div>
 
     </div>

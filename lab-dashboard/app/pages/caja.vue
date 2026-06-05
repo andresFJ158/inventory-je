@@ -40,7 +40,7 @@ const offices = ref<any[]>([])
 
 // Apertura de caja
 const openModal = ref(false)
-const openAmount = ref<number | null>(null)
+const openAmount = ref<number | null>(200)
 const opening = ref(false)
 
 // Cierre de caja
@@ -358,7 +358,9 @@ onMounted(async () => {
               </div>
               <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
                 <p class="text-slate-500 text-xs">Total Ventas</p>
-                <p class="font-bold text-lg text-green-600">{{ formatCurrency(parseFloat(cashDetails.total_sales || 0)) }}</p>
+                <p class="font-bold text-lg text-green-600">{{ formatCurrency(parseFloat(cashDetails.money_cash || cashDetails.total_sales || 0)) }}</p>
+                <p class="text-xs text-slate-400 mt-1">Efectivo: {{ formatCurrency(parseFloat(cashDetails.cash_efectivo || 0)) }}</p>
+                <p class="text-xs text-slate-400">QR: {{ formatCurrency(parseFloat(cashDetails.cash_qr || 0)) }}</p>
               </div>
               <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
                 <p class="text-slate-500 text-xs">Gastos</p>

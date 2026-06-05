@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__."/models/connection.php";
 
 $db = Connection::connect();
@@ -218,7 +218,48 @@ $queries = [
       KEY `idx_invoices_order` (`id_order_invoice`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
     "ALTER TABLE admins ADD COLUMN surname_admin TEXT NULL DEFAULT NULL",
-    "ALTER TABLE admins ADD COLUMN img_admin TEXT NULL DEFAULT NULL"
+    "ALTER TABLE admins ADD COLUMN img_admin TEXT NULL DEFAULT NULL",
+    
+    "ALTER TABLE admins ADD COLUMN type_seller VARCHAR(50) DEFAULT 'cajero'",
+    "ALTER TABLE products ADD COLUMN initial_stock_product DOUBLE DEFAULT 0",
+    "ALTER TABLE cashs ADD COLUMN cash_efectivo DOUBLE DEFAULT 0",
+    "ALTER TABLE cashs ADD COLUMN cash_qr DOUBLE DEFAULT 0",
+    "ALTER TABLE orders ADD COLUMN qr_ref_order VARCHAR(255) DEFAULT NULL",
+    "ALTER TABLE orders ADD COLUMN method_detail_order TEXT DEFAULT NULL",
+    
+    "ALTER TABLE raw_materials ADD COLUMN no_stock_raw_material INT DEFAULT 0",
+    "ALTER TABLE raw_materials ADD COLUMN price_raw_material DOUBLE DEFAULT 0",
+    
+    "CREATE TABLE IF NOT EXISTS lab_supplies (
+      id_supply              INT AUTO_INCREMENT PRIMARY KEY,
+      name_supply            TEXT NOT NULL,
+      unit_supply            VARCHAR(20) NOT NULL,
+      stock_supply           DOUBLE DEFAULT 0,
+      price_supply           DOUBLE DEFAULT 0,
+      id_office_supply       INT NOT NULL,
+      id_supplier_supply     INT DEFAULT NULL,
+      status_supply          INT DEFAULT 1,
+      date_created_supply    DATE NULL,
+      date_updated_supply    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )",
+
+    "CREATE TABLE IF NOT EXISTS waste_packaged (
+      id_waste               INT AUTO_INCREMENT PRIMARY KEY,
+      id_production_waste    INT NOT NULL,
+      id_product_waste       INT NOT NULL,
+      qty_waste              DOUBLE NOT NULL,
+      id_office_waste        INT NOT NULL,
+      status_waste           VARCHAR(50) DEFAULT 'en_almacen',
+      concept_waste          TEXT NULL,
+      id_admin_waste         INT NOT NULL,
+      notes_waste            TEXT NULL,
+      date_created_waste     DATE NULL,
+      date_updated_waste     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )",
+
+    "ALTER TABLE productions ADD COLUMN waste_qty_production DOUBLE DEFAULT 0",
+    "ALTER TABLE productions ADD COLUMN waste_packaged_qty DOUBLE DEFAULT 0",
+    "ALTER TABLE productions ADD COLUMN waste_loss_qty DOUBLE DEFAULT 0"
 ];
 
 $success = true;
