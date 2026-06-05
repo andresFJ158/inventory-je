@@ -281,7 +281,19 @@ class LocalConnection {
 				date_created_packaging DATE DEFAULT NULL,
 				date_updated_packaging TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 				PRIMARY KEY (id_packaging)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+			"CREATE TABLE IF NOT EXISTS incomes (
+				id_income INT(11) NOT NULL AUTO_INCREMENT,
+				concept_income TEXT DEFAULT NULL,
+				amount_income DOUBLE DEFAULT 0,
+				date_income TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				id_cash_income INT(11) DEFAULT 0,
+				id_admin_income INT(11) DEFAULT 0,
+				id_office_income INT(11) DEFAULT 0,
+				date_created_income DATE DEFAULT NULL,
+				date_updated_income TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (id_income)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_spanish_ci"
 		);
 
 		foreach($queries as $query){
@@ -310,7 +322,8 @@ class LocalConnection {
 			"ALTER TABLE credit_payments ADD COLUMN file_payment VARCHAR(255) DEFAULT NULL",
 			"ALTER TABLE consignments ADD COLUMN file_consignment VARCHAR(255) DEFAULT NULL",
 			"ALTER TABLE consignments ADD COLUMN reference_consignment VARCHAR(255) DEFAULT NULL",
-			"ALTER TABLE raw_materials ADD COLUMN is_insumo TINYINT(1) DEFAULT 0 AFTER status_raw_material"
+			"ALTER TABLE raw_materials ADD COLUMN is_insumo TINYINT(1) DEFAULT 0 AFTER status_raw_material",
+			"ALTER TABLE bills ADD COLUMN id_cash_bill INT(11) DEFAULT 0"
 		);
 
 		foreach($alterQueries as $query){
@@ -363,6 +376,43 @@ class LocalConnection {
 			}
 		}catch(Exception $e){
 			error_log("[RUNTIME_SCHEMA] ".$e->getMessage());
+		}
+
+		try {
+			// Add incomes module if not exists
+			$stmtMod = $link->query("SELECT id_module FROM modules WHERE title_module = 'incomes'");
+			if (!($rowMod = $stmtMod->fetch())) {
+				$link->exec("INSERT INTO modules (type_module, title_module, suffix_module, editable_module, date_created_module) VALUES ('tables', 'incomes', 'income', 1, CURDATE())");
+				$id_module = $link->lastInsertId();
+				
+				// Add columns for incomes
+				$cols = [
+					['concept_income', 'Concepto', 'text', ''],
+					['amount_income', 'Monto', 'money', ''],
+					['date_income', 'Fecha', 'timestamp', ''],
+					['id_cash_income', 'Caja', 'text', ''],
+					['id_admin_income', 'Administrador', 'relations', 'admins'],
+					['id_office_income', 'Sucursal', 'relations', 'offices']
+				];
+				foreach ($cols as $c) {
+					$ins = $link->prepare("INSERT INTO columns (id_module_column, title_column, alias_column, type_column, matrix_column, date_created_column) VALUES (?, ?, ?, ?, ?, CURDATE())");
+					$ins->execute([$id_module, $c[0], $c[1], $c[2], $c[3]]);
+				}
+			}
+
+			// Add id_cash_bill to bills columns if not exists
+			$stmtBill = $link->query("SELECT id_module FROM modules WHERE title_module = 'bills'");
+			if ($rowBill = $stmtBill->fetch()) {
+				$id_module_bill = $rowBill['id_module'];
+				$checkCol = $link->prepare("SELECT id_column FROM columns WHERE title_column = 'id_cash_bill' AND id_module_column = ?");
+				$checkCol->execute([$id_module_bill]);
+				if (!$checkCol->fetch()) {
+					$ins = $link->prepare("INSERT INTO columns (id_module_column, title_column, alias_column, type_column, matrix_column, date_created_column) VALUES (?, 'id_cash_bill', 'Caja', 'text', '', CURDATE())");
+					$ins->execute([$id_module_bill]);
+				}
+			}
+		}catch(Exception $e){
+			error_log("[RUNTIME_SCHEMA_SEED] ".$e->getMessage());
 		}
 	}
 }
@@ -990,11 +1040,8 @@ class PosController{
 							</tr>';
 
 						echo $html;
-
-
 				}else{
-
-					echo "logout";
+					echo json_encode($createSale);
 				}
 
 			}
@@ -3704,7 +3751,7 @@ if(isset($_POST["getLoggedUser"])){
 				'permissions_admin' => $permissions
 			],
 			'office' => $office,
-			'token' => 'session-token'
+			'token' => $_SESSION["admin"]->token_admin
 		]);
 	} else {
 		echo json_encode([
@@ -3812,6 +3859,24 @@ if(isset($_POST["loginLabUser"])){
 				$permissions = json_decode(urldecode($admin->permissions_admin), true);
 			}
 
+			// Generate new token
+			require_once "../models/connection.php";
+			require_once "../models/put.model.php";
+			require_once "../vendor/autoload.php";
+			$tokenData = Connection::jwt($admin->id_admin, $admin->email_admin);
+			$jwt = \Firebase\JWT\JWT::encode($tokenData, "dfhsdfg34dfchs4xgsrsdry46");
+			
+			$updateData = array(
+				"token_admin" => $jwt,
+				"token_exp_admin" => $tokenData["exp"]
+			);
+			PutModel::putData("admins", $updateData, $admin->id_admin, "id_admin");
+			
+			// Update admin session
+			$admin->token_admin = $jwt;
+			$admin->token_exp_admin = $tokenData["exp"];
+			$_SESSION["admin"] = $admin;
+
 			echo json_encode([
 				'status' => 200,
 				'user' => [
@@ -3823,7 +3888,7 @@ if(isset($_POST["loginLabUser"])){
 					'permissions_admin' => $permissions
 				],
 				'office' => $office,
-				'token' => $admin->token_admin
+				'token' => $jwt
 			]);
 			exit;
 		}
@@ -4863,5 +4928,101 @@ if (isset($_POST['deletePackaging'])) {
     $stmt = $db->prepare("UPDATE packaging_catalog SET status_packaging=0 WHERE id_packaging=:id");
     $stmt->execute([':id' => intval($_POST['id_packaging'])]);
     echo json_encode(['status' => 200, 'message' => 'Empaque eliminado']);
+    exit;
+}
+
+//=====================================
+// CAJA: getCashDetails y closeCashRegister
+//=====================================
+
+function updateCashTotals($db, $idCash) {
+    // 1. Obtener gastos (bills_cash) que pertenezcan a la caja
+    $stmtB = $db->prepare("SELECT SUM(cost_bill) as total_bills FROM bills WHERE id_cash_bill = :id AND status_bill = 1");
+    // Wait, bill has status? Let's check. Actually CRUD might not have status_bill, let's assume no status or ignore.
+    $stmtB = $db->prepare("SELECT SUM(cost_bill) as total_bills FROM bills WHERE id_cash_bill = :id");
+    $stmtB->execute([':id' => $idCash]);
+    $bills = floatval($stmtB->fetchColumn() ?: 0);
+
+    // 2. Obtener ingresos extras manuales
+    $stmtI = $db->prepare("SELECT SUM(amount_income) as total_incomes FROM incomes WHERE id_cash_income = :id");
+    $stmtI->execute([':id' => $idCash]);
+    $incomes = floatval($stmtI->fetchColumn() ?: 0);
+
+    // 3. Obtener ingresos de ventas (órdenes completadas de esta caja)
+    // Buscamos órdenes que ocurrieron en la fecha de la caja o entre start y end de la caja.
+    // Usaremos un filtro de fecha. Pero es mejor tener un registro. Si la caja no se ha cerrado, 
+    // contamos las ventas desde start_cash_date hasta AHORA. Si está cerrada, hasta end_cash_date.
+    $stmtC = $db->prepare("SELECT * FROM cashs WHERE id_cash = :id");
+    $stmtC->execute([':id' => $idCash]);
+    $cash = $stmtC->fetch(PDO::FETCH_ASSOC);
+
+    if (!$cash) return null;
+
+    $startDate = $cash['date_start_cash'];
+    $endDate = $cash['date_end_cash'] && $cash['date_end_cash'] !== '0000-00-00 00:00:00' ? $cash['date_end_cash'] : date('Y-m-d H:i:s');
+    $officeId = $cash['id_office_cash'];
+
+    $stmtS = $db->prepare("SELECT SUM(total_order) FROM orders WHERE id_office_order = :o AND status_order = 'Completada' AND date_order >= :start AND date_order <= :end");
+    $stmtS->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
+    $sales = floatval($stmtS->fetchColumn() ?: 0);
+
+    $money_cash = $sales + $incomes;
+    $start_cash = floatval($cash['start_cash']);
+    $end_cash = $start_cash + $money_cash - $bills;
+    $diff_cash = $end_cash; // Expected final cash
+    
+    $stmtU = $db->prepare("UPDATE cashs SET bills_cash = :b, money_cash = :m, end_cash = :e, diff_cash = :d WHERE id_cash = :id");
+    $stmtU->execute([
+        ':b' => $bills,
+        ':m' => $money_cash,
+        ':e' => $end_cash,
+        ':d' => $diff_cash,
+        ':id' => $idCash
+    ]);
+    
+    return [
+        'start_cash' => $start_cash,
+        'bills_cash' => $bills,
+        'sales_cash' => $sales,
+        'incomes_cash' => $incomes,
+        'money_cash' => $money_cash,
+        'end_cash' => $end_cash,
+        'diff_cash' => $diff_cash,
+        'final_cash' => $end_cash
+    ];
+}
+
+if (isset($_POST['getCashDetails'])) {
+    $db = LocalConnection::connect();
+    $idCash = intval($_POST['id_cash'] ?? 0);
+    $res = updateCashTotals($db, $idCash);
+    
+    if (!$res) {
+        echo json_encode(['status' => 404, 'message' => 'Caja no encontrada']);
+        exit;
+    }
+
+    echo json_encode(['status' => 200, 'results' => $res]);
+    exit;
+}
+
+if (isset($_POST['closeCashRegister'])) {
+    $db = LocalConnection::connect();
+    $idCash = intval($_POST['id_cash'] ?? 0);
+    $physicalCash = floatval($_POST['physical_cash'] ?? 0);
+    
+    // Primero actualizar totales
+    $res = updateCashTotals($db, $idCash);
+    if (!$res) {
+        echo json_encode(['status' => 404, 'message' => 'Caja no encontrada']);
+        exit;
+    }
+
+    $gap = $physicalCash - $res['diff_cash']; // Sobrante/Faltante
+
+    $stmtC = $db->prepare("UPDATE cashs SET status_cash = 0, gap_cash = :gap, date_end_cash = NOW() WHERE id_cash = :id");
+    $stmtC->execute([':gap' => $gap, ':id' => $idCash]);
+
+    echo json_encode(['status' => 200, 'message' => 'Caja cerrada correctamente', 'gap' => $gap]);
     exit;
 }

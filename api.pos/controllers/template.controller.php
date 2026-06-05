@@ -292,6 +292,38 @@ class TemplateController{
 	}
 
 	/*=============================================
+	Generar imagen fallback para productos
+	=============================================*/
+	static public function fallbackProductImage($sku, $title, $img = '') {
+		if (!empty($img) && $img !== 'null' && $img !== 'NULL' && $img !== '[]' && $img !== '{}') {
+			// Si es un JSON Array (fotos múltiples) sacamos la primera
+			if (strpos($img, '[') === 0) {
+				$decoded = json_decode($img, true);
+				if (is_array($decoded) && count($decoded) > 0) {
+					return $decoded[0];
+				}
+			}
+			// Si no es JSON y tiene algo, devolvemos eso
+			if (strpos($img, '[') === false && strpos($img, '{') === false) {
+				return $img;
+			}
+		}
+
+		// Generar avatar con iniciales o SKU
+		$letter = 'P';
+		if (!empty($sku)) {
+			$letter = strtoupper(substr($sku, 0, 2));
+		} elseif (!empty($title)) {
+			$letter = strtoupper(substr($title, 0, 2));
+		}
+		
+		$colors = ['#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#34495e', '#16a085', '#27ae60', '#2980b9', '#8e44ad', '#2c3e50', '#f1c40f', '#e67e22', '#e74c3c', '#95a5a6', '#f39c12', '#d35400', '#c0392b', '#bdc3c7', '#7f8c8d'];
+		$color = $colors[abs(crc32($sku . $title)) % count($colors)];
+
+		return "https://ui-avatars.com/api/?name=" . urlencode($letter) . "&color=fff&background=" . substr($color, 1) . "&size=256&bold=true";
+	}
+
+	/*=============================================
 	Función para generar códigos alfanuméricos aleatorios
 	=============================================*/
 

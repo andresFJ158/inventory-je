@@ -70,10 +70,29 @@ CREATE TABLE `bills` (
   `concept_bill` text DEFAULT NULL,
   `cost_bill` double DEFAULT 0,
   `date_bill` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `id_cash_bill` int(11) DEFAULT 0,
   `id_admin_bill` int(11) DEFAULT 0,
   `id_office_bill` int(11) DEFAULT 0,
   `date_created_bill` date DEFAULT NULL,
   `date_updated_bill` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_spanish_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `incomes`
+--
+
+CREATE TABLE `incomes` (
+  `id_income` int(11) NOT NULL,
+  `concept_income` text DEFAULT NULL,
+  `amount_income` double DEFAULT 0,
+  `date_income` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `id_cash_income` int(11) DEFAULT 0,
+  `id_admin_income` int(11) DEFAULT 0,
+  `id_office_income` int(11) DEFAULT 0,
+  `date_created_income` date DEFAULT NULL,
+  `date_updated_income` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_spanish_ci;
 
 --

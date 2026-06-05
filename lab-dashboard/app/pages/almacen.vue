@@ -13,6 +13,23 @@ function onAssignQtyInput(e: Event) {
   input.value = n > 0 ? n.toLocaleString('de-DE') : ''
 }
 
+function getImageUrl(imgStr: string) {
+  if (!imgStr) return '/views/assets/img/multimedia.png'
+  const decoded = decodeURIComponent(imgStr).replace(/\+/g, ' ')
+  
+  // Si la ruta absoluta incluye nuestro propio directorio de views, la forzamos a ser relativa
+  // Esto arregla el problema de dominios inactivos guardados en BD (ej. pos.desarrolloweb24siete.com)
+  const viewsIndex = decoded.indexOf('views/')
+  if (viewsIndex !== -1) {
+    return '/' + decoded.substring(viewsIndex)
+  }
+
+  if (decoded.startsWith('http') || decoded.startsWith('/')) {
+    return decoded
+  }
+  return '/' + decoded
+}
+
 function blockNegative(e: KeyboardEvent) {
   if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault()
 }
@@ -459,7 +476,7 @@ function exportCSV() {
                 <tr v-for="prod in products" :key="prod.id_product" class="border-b border-slate-850 hover:bg-slate-900/20">
                   <td class="p-4">
                     <UAvatar
-                      :src="prod.img_product ? decodeURIComponent(prod.img_product).replace(/\+/g, ' ') : '/views/assets/img/multimedia.png'"
+                      :src="getImageUrl(prod.img_product)"
                       size="sm"
                       class="bg-slate-800"
                     />

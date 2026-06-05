@@ -163,12 +163,6 @@ async function fetchRows() {
       }
     }
 
-    // Handle search query
-    if (search.value) {
-      params.linkTo = columns.value.find(c => c.type_column === 'text')?.title_column || idKey
-      params.search = search.value
-    }
-
     console.log('[fetchRows]', {
       url,
       params,
@@ -209,11 +203,42 @@ const showActions = computed(() => {
 })
 
 
+// Money Column Color Logic
+function getMoneyColorClass(colName: string, val: any) {
+  const num = parseFloat(val || 0)
+  if (num < 0) return 'text-rose-500' // Faltantes (gap_cash negativo) o deudas en rojo
+  if (colName === 'bills_cash' || colName === 'cost_bill') {
+    return num > 0 ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400' // Gastos en rojo
+  }
+  if (colName === 'gap_cash' && num > 0) return 'text-green-500' // Sobrantes en verde
+  if (colName === 'gap_cash' && num === 0) return 'text-slate-500 dark:text-slate-400' // Caja cuadrada en gris
+  if (colName === 'money_cash' || colName === 'total_order' || colName === 'amount_income') {
+    return num > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400' // Ventas/Ingresos en verde
+  }
+  return 'text-teal-600 dark:text-teal-400' // Default money color
+}
+
+// Filtered Rows
+const filteredRows = computed(() => {
+  if (!search.value) return rows.value
+  const query = search.value.toLowerCase()
+  return rows.value.filter((row: any) => {
+    // Search across all text-like values
+    return Object.values(row).some(val => 
+      String(val).toLowerCase().includes(query)
+    )
+  })
+})
+
 // Paginated Rows
 const paginatedRows = computed(() => {
   const start = (page.value - 1) * itemsPerPage
   const end = start + itemsPerPage
-  return rows.value.slice(start, end)
+  return filteredRows.value.slice(start, end)
+})
+
+watch(filteredRows, () => {
+  totalItems.value = filteredRows.value.length
 })
 
 // Lifecycle
@@ -231,7 +256,6 @@ watch(() => props.moduleName, async () => {
 
 watch(search, () => {
   page.value = 1
-  fetchRows()
 })
 
 watch(() => auth.user, async (newVal, oldVal) => {
@@ -384,8 +408,8 @@ function openCashDetails(cashRow: any) {
                 </span>
 
                 <!-- Money -->
-                <span v-else-if="col.type_column === 'money'" class="font-semibold text-teal-400 font-mono">
-                  Bs. {{ parseFloat(row[col.title_column] || 0).toFixed(2) }}
+                <span v-else-if="col.type_column === 'money'" class="font-semibold font-mono" :class="getMoneyColorClass(col.title_column, row[col.title_column])">
+                  {{ col.title_column === 'gap_cash' && parseFloat(row[col.title_column] || 0) > 0 ? '+' : '' }}Bs. {{ parseFloat(row[col.title_column] || 0).toFixed(2) }}
                 </span>
 
                 <!-- Relation -->

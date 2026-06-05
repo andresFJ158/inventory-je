@@ -155,10 +155,15 @@ async function loadFormMetadata() {
         }
       }
 
-      // Auto-populate for bills (Gastos)
-      if (moduleConfig.value.title_module === 'bills' && !props.initialData) {
-        if (auth.user?.id_admin) model['id_admin_bill'] = String(auth.user.id_admin)
-        if (auth.officeId) model['id_office_bill'] = String(auth.officeId)
+      // Auto-populate for bills (Gastos) and incomes (Ingresos Extras)
+      if ((moduleConfig.value.title_module === 'bills' || moduleConfig.value.title_module === 'incomes') && !props.initialData) {
+        const isBill = moduleConfig.value.title_module === 'bills'
+        const adminField = isBill ? 'id_admin_bill' : 'id_admin_income'
+        const officeField = isBill ? 'id_office_bill' : 'id_office_income'
+        const cashField = isBill ? 'id_cash_bill' : 'id_cash_income'
+
+        if (auth.user?.id_admin) model[adminField] = String(auth.user.id_admin)
+        if (auth.officeId) model[officeField] = String(auth.officeId)
         
         // Find active cash register for this office
         if (auth.officeId) {
@@ -169,11 +174,11 @@ async function loadFormMetadata() {
             if (cashData.status === 200 && cashData.results) {
               const activeCash = Array.isArray(cashData.results) ? cashData.results[0] : cashData.results
               if (activeCash && activeCash.id_cash) {
-                model['id_cash_bill'] = String(activeCash.id_cash)
+                model[cashField] = String(activeCash.id_cash)
               }
             }
           } catch (e) {
-            console.error('Error fetching active cash for bill:', e)
+            console.error('Error fetching active cash:', e)
           }
         }
       }
@@ -257,10 +262,17 @@ async function handleSubmit() {
     }
   }
 
-  // Basic validation for bills (gastos)
+  // Basic validation for bills (gastos) and incomes
   if (props.moduleName === 'gastos') {
     if (!formModel.value.id_cash_bill) {
       toast.add({ title: 'Debes tener una caja abierta para poder registrar gastos.', color: 'error' })
+      saving.value = false
+      return
+    }
+  }
+  if (props.moduleName === 'ingresos') {
+    if (!formModel.value.id_cash_income) {
+      toast.add({ title: 'Debes tener una caja abierta para poder registrar ingresos.', color: 'error' })
       saving.value = false
       return
     }
@@ -409,7 +421,7 @@ watch(() => props.initialData, () => {
                 :ui="{ content: 'z-[100]' }"
                 value-key="value"
                 label-key="label"
-                :disabled="moduleConfig?.title_module === 'bills' && ['id_admin_bill', 'id_office_bill', 'id_cash_bill'].includes(col.title_column)"
+                :disabled="(moduleConfig?.title_module === 'bills' && ['id_admin_bill', 'id_office_bill', 'id_cash_bill'].includes(col.title_column)) || (moduleConfig?.title_module === 'incomes' && ['id_admin_income', 'id_office_income', 'id_cash_income'].includes(col.title_column))"
               />
             </div>
 

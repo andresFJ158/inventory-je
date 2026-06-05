@@ -58,7 +58,10 @@ async function handleSaveExpense() {
     const res = await $fetch<any>('/api/bills?token=no&except=id_bill', {
       method: 'POST',
       body: body.toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+      }
     })
     if (res.status === 200) {
       toast.add({ title: 'Gasto registrado con éxito.', color: 'success' })
@@ -71,6 +74,50 @@ async function handleSaveExpense() {
     toast.add({ title: 'Error de conexión.', color: 'error' })
   }
   savingExpense.value = false
+}
+
+// Income Modal
+const isIncomeModalOpen = ref(false)
+const incomeModel = ref({ description: '', amount: 0 })
+const savingIncome = ref(false)
+
+async function handleSaveIncome() {
+  if (!activeCashId.value) {
+    toast.add({ title: 'Debes tener una caja abierta para poder registrar ingresos.', color: 'error' })
+    return
+  }
+  if (!incomeModel.value.description || incomeModel.value.amount <= 0) {
+    toast.add({ title: 'Ingresa una descripción válida y monto mayor a 0.', color: 'error' })
+    return
+  }
+  savingIncome.value = true
+  try {
+    const body = new URLSearchParams({
+      concept_income: 'Ingreso Extra POS: ' + incomeModel.value.description,
+      amount_income: String(incomeModel.value.amount),
+      id_office_income: String(auth.officeId || 3),
+      id_admin_income: String(auth.user?.id_admin || 1),
+      id_cash_income: String(activeCashId.value)
+    })
+    const res = await $fetch<any>('/api/incomes?token=no&except=id_income', {
+      method: 'POST',
+      body: body.toString(),
+      headers: { 
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+      }
+    })
+    if (res.status === 200) {
+      toast.add({ title: 'Ingreso registrado con éxito.', color: 'success' })
+      isIncomeModalOpen.value = false
+      incomeModel.value = { description: '', amount: 0 }
+    } else {
+      toast.add({ title: 'Error al registrar ingreso.', color: 'error' })
+    }
+  } catch {
+    toast.add({ title: 'Error de conexión.', color: 'error' })
+  }
+  savingIncome.value = false
 }
 
 // Client Modal
@@ -180,6 +227,23 @@ function getProductDiscountedPrice(prod: any) {
   return base
 }
 
+function getImageUrl(imgStr: string) {
+  if (!imgStr) return ''
+  const decoded = decodeURIComponent(imgStr).replace(/\+/g, ' ')
+  
+  // Si la ruta absoluta incluye nuestro propio directorio de views, la forzamos a ser relativa
+  // Esto arregla el problema de dominios inactivos guardados en BD (ej. pos.desarrolloweb24siete.com)
+  const viewsIndex = decoded.indexOf('views/')
+  if (viewsIndex !== -1) {
+    return '/' + decoded.substring(viewsIndex)
+  }
+
+  if (decoded.startsWith('http') || decoded.startsWith('/')) {
+    return decoded
+  }
+  return '/' + decoded
+}
+
 // Fetch clients
 async function fetchClients() {
   try {
@@ -280,18 +344,20 @@ async function submitCashOpen() {
     const today = new Date().toISOString().split('T')[0]
     const officeId = auth.officeId || 3
 
+    const localDateTime = new Date().toLocaleString('sv-SE').replace('T', ' ')
+
     const payload = new URLSearchParams()
     payload.append('date_created_cash', today || '')
     payload.append('id_office_cash', String(officeId))
     payload.append('id_admin_cash', String(auth.user?.id_admin || ''))
-    payload.append('date_start_cash', new Date().toISOString().replace('T', ' ').split('.')[0])
+    payload.append('date_start_cash', localDateTime)
     payload.append('start_cash', String(openingCashAmount.value))
     payload.append('status_cash', '1') // 1 means open
     payload.append('bills_cash', '0')
     payload.append('money_cash', '0')
     payload.append('diff_cash', '0')
 
-    const res = await ($fetch as any)(`/api/cashs?token=no&except=date_end_cash`, {
+    const res = await ($fetch as any)(`/api/cashs?token=no&except=date_end_cash,end_cash,gap_cash`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -405,12 +471,17 @@ async function addToCart(product: any) {
     return
   }
 
+  if (inCart) {
+    await updateQty(inCart, 1)
+    return
+  }
+
   try {
     const officeId = auth.officeId || 3
     const adminId = auth.user?.id_admin || 1
 
     // Call POS ajax to create/add
-    await $fetch('/ajax/pos.ajax.php', {
+    const ajaxRes = await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
         idProduct: String(product.id_product),
@@ -424,10 +495,28 @@ async function addToCart(product: any) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
 
+    if (typeof ajaxRes === 'string' && ajaxRes.trim() !== '') {
+      if (ajaxRes.trim() === 'error stock') {
+        toast.add({ title: 'No hay stock disponible.', color: 'error' })
+        return
+      } else if (ajaxRes.trim() === 'logout') {
+        toast.add({ title: 'Sesión expirada o error de autorización.', color: 'error' })
+        auth.logout()
+        useRouter().push('/login')
+        return
+      } else if (ajaxRes.trim() !== 'product exist') {
+        if (!ajaxRes.trim().includes('<tr')) { // If it's not returning HTML
+           toast.add({ title: 'Error del servidor: ' + ajaxRes.trim(), color: 'error' })
+           return
+        }
+      }
+    }
+
     // Refresh cart
     await fetchCart()
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error adding product to cart:', e)
+    toast.add({ title: 'Error al agregar producto: ' + (e.message || 'Desconocido'), color: 'error' })
   }
 }
 
@@ -825,7 +914,7 @@ function printReceipt() {
               </span>
               <img
                 v-if="prod.img_product && !imageErrors[prod.id_product]"
-                :src="(prod.img_product.startsWith('http') || prod.img_product.startsWith('/')) ? decodeURIComponent(prod.img_product).replace(/\+/g, ' ') : '/' + decodeURIComponent(prod.img_product).replace(/\+/g, ' ')"
+                :src="getImageUrl(prod.img_product)"
                 @error="imageErrors[prod.id_product] = true"
                 class="h-full w-full object-contain"
               />
@@ -895,6 +984,14 @@ function printReceipt() {
             Nueva Orden
           </UButton>
           <div v-else class="flex gap-2">
+            <UButton
+              color="success"
+              variant="ghost"
+              icon="i-lucide-arrow-up-circle"
+              size="xs"
+              title="Añadir Ingreso Extra"
+              @click="isIncomeModalOpen = true"
+            />
             <UButton
               color="warning"
               variant="ghost"
@@ -1264,6 +1361,26 @@ function printReceipt() {
         <div class="flex justify-end gap-3 w-full">
           <UButton color="neutral" variant="soft" @click="isExpenseModalOpen = false">Cancelar</UButton>
           <UButton color="warning" :loading="savingExpense" @click="handleSaveExpense">Guardar Gasto</UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Modal Añadir Ingreso POS -->
+    <UModal v-model:open="isIncomeModalOpen" title="Registrar Ingreso Extra Rápido">
+      <template #body>
+        <div class="space-y-4 p-1">
+          <UFormField label="Descripción del Ingreso *">
+            <UInput v-model="incomeModel.description" placeholder="Ej: Pago pendiente, ajuste de caja, etc." />
+          </UFormField>
+          <UFormField label="Monto (Bs.) *">
+            <UInput v-model.number="incomeModel.amount" type="number" step="0.10" />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-3 w-full">
+          <UButton color="neutral" variant="soft" @click="isIncomeModalOpen = false">Cancelar</UButton>
+          <UButton color="success" :loading="savingIncome" @click="handleSaveIncome">Guardar Ingreso</UButton>
         </div>
       </template>
     </UModal>
