@@ -409,6 +409,38 @@ class TemplateController{
 		}
 
 	}
+
+	/*=============================================
+	Helper: Time bounds for cash session
+	=============================================*/
+	public static function cashSessionTimeBounds($cashRow) {
+		$tStart = isset($cashRow['date_start_cash']) && !empty($cashRow['date_start_cash']) ? $cashRow['date_start_cash'] : date("Y-m-d 00:00:00");
+		if (isset($cashRow['status_cash']) && (int)$cashRow['status_cash'] === 0 && !empty($cashRow['date_end_cash'])) {
+			$tEnd = $cashRow['date_end_cash'];
+		} else {
+			$tEnd = date("Y-m-d 23:59:59");
+		}
+		return array($tStart, $tEnd);
+	}
+
+	/*=============================================
+	Helper: API URL for session bills
+	=============================================*/
+	public static function billsSessionApiUrl($officeId, $tStart, $tEnd) {
+		// Asumimos que los gastos se filtran por fecha de creación (date_created_bill) o similar.
+		// En este caso, usamos date_created_bill con la fecha de tStart y tEnd.
+		$dateStart = substr($tStart, 0, 10);
+		$dateEnd = substr($tEnd, 0, 10);
+		return "bills?linkTo=date_created_bill&between1=".$dateStart."&between2=".$dateEnd."&filterTo=id_office_bill&inTo=".$officeId;
+	}
+
+	/*=============================================
+	Helper: API URL for session orders
+	=============================================*/
+	public static function ordersSessionApiUrl($officeId, $tStart, $tEnd) {
+		return "orders?linkTo=date_order&between1=".urlencode($tStart)."&between2=".urlencode($tEnd)."&filterTo=id_office_order&inTo=".$officeId;
+	}
+
 }
 
 ?>

@@ -159,22 +159,21 @@ class Connection{
 			=============================================*/
 
 			$sum = 0;
-				
+			$found = [];
 			foreach ($validate as $key => $value) {
-
-				$sum += in_array($value->item, $columns);	
-				
-						
+				if (in_array($value->item, $columns)) {
+					$sum += 1;
+					$found[] = $value->item;
+				}
+			}
+			
+			if ($sum != count($columns)) {
+				$missing = array_diff($columns, $found);
+				error_log("[DEBUG_COLUMNS_MISMATCH] Table: $table, Sent: " . json_encode($columns) . ", Found: " . json_encode($found) . ", Missing: " . json_encode($missing));
 			}
 
-
-
 			return $sum == count($columns) ? $validate : null;
-			
-			
-			
 		}
-
 	}
 
 	/*=============================================

@@ -741,8 +741,6 @@ class DynamicController{
 		$putUrl = "cashs?id=".$idCash."&nameId=id_cash&token=".$token."&table=admins&suffix=admin";
 		$putFields = "bills_cash=".rawurlencode(number_format($totalBills, 2, ".", ""))
 			."&money_cash=".rawurlencode(number_format($totalOrders, 2, ".", ""))
-			."&cash_efectivo=".rawurlencode(number_format($totalEfectivo, 2, ".", ""))
-			."&cash_qr=".rawurlencode(number_format($totalQr, 2, ".", ""))
 			."&diff_cash=".rawurlencode(number_format($diffCash, 2, ".", ""));
 
 		CurlController::request($putUrl, "PUT", $putFields);

@@ -53,16 +53,16 @@ class OrdersController{
 			$fields = array(
 				"method_order" => $_POST["methodPay"],
 				"transfer_order" => $_POST["transferPay"],
+				"subtotal_order" => $_POST["subtotal"] ?? 0,
+				"discount_order" => $_POST["discount"] ?? 0,
+				"tax_order" => $_POST["tax"] ?? 0,
+				"total_order" => $_POST["total"] ?? 0,
 				"status_order" => "Completada",
 				"date_order" => date("Y-m-d H:i:s")
 			);
 
-			if (isset($_POST["qrRefOrder"])) {
-				$fields["qr_ref_order"] = $_POST["qrRefOrder"];
-			}
-			if (isset($_POST["methodDetail"])) {
-				$fields["method_detail_order"] = $_POST["methodDetail"];
-			}
+			// The qr_ref_order and method_detail_order columns do not exist in the orders table.
+			// Removing them prevents the "Fields in the form do not match the database" 400 API error.
 
 			// $fields = array(
 			// 	"status_order" => "Pendiente"
@@ -355,7 +355,7 @@ class OrdersController{
 								/*=============================================
 								Intentar crear factura (opcional)
 								=============================================*/
-
+								if($wantsInvoice){
 								try {
 									
 									// API deshabilitada - Simulamos respuesta exitosa de factura
@@ -472,7 +472,7 @@ class OrdersController{
 
 			}else{
 
-				echo'<div class="alert alert-danger mt-3 p-3 rounded alertPos">Error al procesar la orden</div>
+				echo'<div class="alert alert-danger mt-3 p-3 rounded alertPos">Error al procesar la orden: ' . json_encode($updateOrder) . '</div>
 
 				<script>
 					/*POS_ORDER_PAY_RESULT*/

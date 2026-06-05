@@ -584,41 +584,20 @@ class PosController{
 
 		if (!$isIndependent) {
 			/*=============================================
-			Validar primero que exista caja del día abierta
+			Validar primero que exista caja abierta para la sucursal
 			=============================================*/
 
-			$url = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".date("Y-m-d").",1,".$this->idOffice."&select=status_cash";
+			$url = "cashs?linkTo=status_cash,id_office_cash&equalTo=1,".$this->idOffice."&select=status_cash";
 			$method = "GET";
 			$fields = array();
 
 			$cash = CurlController::request($url,$method,$fields);
 			
-			if($cash->status == 404){
+			if(!isset($cash->status) || $cash->status == 404){
 
 				echo "current cash error";
 				return;
 			
-			}else{
-
-				/*=============================================
-				Validar que la caja del día anterior haya sido cerrada
-				=============================================*/
-
-				$yesterday = date("Y-m-d", strtotime(date("Y-m-d")."- 1 days"));
-				
-				$url = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".$yesterday.",1,".$this->idOffice."&select=status_cash"; 
-				$method = "GET";
-				$fields = array();
-
-				$cash = CurlController::request($url,$method,$fields);
-
-				if($cash->status == 200){
-
-					echo "yesterday cash error";
-					return;
-
-				}
-
 			}
 		}
 
@@ -771,22 +750,23 @@ class PosController{
 
 	public $idProduct;
 
-	public function addProductPos(){
-
-		// Fetch warehouse IDs for this office
+	/*=============================================
+	Obtener datos de compra con fallback por SKU
+	=============================================*/
+	public function getProductPurchaseWithFallback($productId) {
 		$db = LocalConnection::connect();
 		$stmtWH = $db->prepare("SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office");
 		$stmtWH->execute([':office' => $this->idOffice]);
 		$warehouseIds = $stmtWH->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
-		$url = "relations?rel=purchases,products&type=purchase,product&linkTo=id_product&equalTo=".$this->idProduct."&orderBy=date_created_purchase&orderMode=DESC";
+		$url = "relations?rel=purchases,products&type=purchase,product&linkTo=id_product&equalTo=".$productId."&orderBy=date_created_purchase&orderMode=DESC";
 		$method = "GET";
 		$fields = array();
 
-		$getProduct = CurlController::request($url,$method,$fields);
+		$getProduct = CurlController::request($url, $method, $fields);
 
 		$matchedProduct = null;
-		if($getProduct->status == 200 && !empty($getProduct->results)){
+		if(isset($getProduct->status) && $getProduct->status == 200 && !empty($getProduct->results)){
 			foreach ($getProduct->results as $pRow) {
 				if (in_array((int)$pRow->id_office_purchase, $warehouseIds)) {
 					$matchedProduct = $pRow;
@@ -797,6 +777,55 @@ class PosController{
 				$matchedProduct = $getProduct->results[0];
 			}
 		}
+
+		if ($matchedProduct !== null) {
+			return $matchedProduct;
+		}
+
+		// Fallback por SKU
+		$stmtSku = $db->prepare("SELECT sku_product FROM products WHERE id_product = :product");
+		$stmtSku->execute([':product' => $productId]);
+		$sku = $stmtSku->fetchColumn();
+
+		if ($sku) {
+			$stmtOthers = $db->prepare("SELECT id_product FROM products WHERE sku_product = :sku AND id_product != :product");
+			$stmtOthers->execute([':sku' => $sku, ':product' => $productId]);
+			$otherIds = $stmtOthers->fetchAll(PDO::FETCH_COLUMN);
+
+			foreach ($otherIds as $otherId) {
+				$urlFallback = "relations?rel=purchases,products&type=purchase,product&linkTo=id_product&equalTo=".$otherId."&orderBy=date_created_purchase&orderMode=DESC";
+				$getFallback = CurlController::request($urlFallback, $method, $fields);
+				if (isset($getFallback->status) && $getFallback->status == 200 && !empty($getFallback->results)) {
+					$matchedFallback = null;
+					foreach ($getFallback->results as $pRow) {
+						if (in_array((int)$pRow->id_office_purchase, $warehouseIds)) {
+							$matchedFallback = $pRow;
+							break;
+						}
+					}
+					if (!$matchedFallback) {
+						$matchedFallback = $getFallback->results[0];
+					}
+					
+					$stmtOriginal = $db->prepare("SELECT * FROM products WHERE id_product = :product");
+					$stmtOriginal->execute([':product' => $productId]);
+					$originalProduct = $stmtOriginal->fetch(PDO::FETCH_ASSOC);
+
+					if ($originalProduct) {
+						$mergedProduct = (object) array_merge((array)$matchedFallback, $originalProduct);
+						$mergedProduct->id_product = $productId;
+						return $mergedProduct;
+					}
+				}
+			}
+		}
+
+		return null;
+	}
+
+	public function addProductPos(){
+
+		$matchedProduct = $this->getProductPurchaseWithFallback($this->idProduct);
 
 		if($matchedProduct !== null){
 
@@ -901,7 +930,7 @@ class PosController{
 					Devolver HTML
 					=============================================*/
 
-					$imgSrcCart = TemplateController::fallbackProductImage($product->sku_product ?? '', $product->title_product ?? '', $product->img_product ?? '');
+					$imgSrcCart = isset($product->img_product) ? $product->img_product : '';
 					if (empty($imgSrcCart) || $imgSrcCart === 'NULL' || $imgSrcCart === 'null') {
 						$imgSrcCart = 'views/assets/img/multimedia.png';
 					}
@@ -1052,17 +1081,10 @@ class PosController{
 
 			foreach ($getSales->results as $key => $sale) {
 				
-				$urlProduct = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$sale->id_product_sale.",".$sale->id_office_sale."&select=cost_purchase,may_product&orderBy=date_created_purchase&orderMode=DESC";
-				$getProduct = CurlController::request($urlProduct,$method,$fields);
+				$product = $this->getProductPurchaseWithFallback($sale->id_product_sale);
 
-				if($getProduct->status != 200){
-					$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$sale->id_product_sale."&select=cost_purchase,may_product&orderBy=date_created_purchase&orderMode=DESC";
-					$getProduct = CurlController::request($urlFallback,$method,$fields);
-				}
-
-				if(isset($getProduct->status) && $getProduct->status == 200){
+				if($product !== null){
 					
-					$product = $getProduct->results[0];
 					$selling_price = ($this->isWholesale == 1 && !empty($product->may_product) && $sale->discount_sale <= 0) ? $product->may_product : $product->cost_purchase;
 
 					$urlUpdate = "sales?id=".$sale->id_sale."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
@@ -3674,6 +3696,32 @@ if(isset($_POST["getLoggedUser"])){
 	if (session_status() === PHP_SESSION_NONE) { session_start(); }
 	if (isset($_SESSION["admin"])) {
 		$db = LocalConnection::connect();
+		
+		// Refresh token dynamically if expired or about to expire (within 5 minutes)
+		$time = time();
+		$exp = intval($_SESSION["admin"]->token_exp_admin ?? 0);
+		if ($exp < ($time + 300)) {
+			try {
+				require_once "../models/connection.php";
+				require_once "../vendor/autoload.php";
+				
+				$tokenInfo = Connection::jwt($_SESSION["admin"]->id_admin, $_SESSION["admin"]->email_admin);
+				$jwt = Firebase\JWT\JWT::encode($tokenInfo, "dfhsdfg34dfchs4xgsrsdry46");
+				
+				$stmtToken = $db->prepare("UPDATE admins SET token_admin = :token, token_exp_admin = :exp WHERE id_admin = :id");
+				$stmtToken->execute([
+					':token' => $jwt,
+					':exp' => $tokenInfo["exp"],
+					':id' => $_SESSION["admin"]->id_admin
+				]);
+				
+				$_SESSION["admin"]->token_admin = $jwt;
+				$_SESSION["admin"]->token_exp_admin = $tokenInfo["exp"];
+			} catch (Throwable $t) {
+				error_log("Error renewing token in getLoggedUser: " . $t->getMessage());
+			}
+		}
+
 		$id_office = intval($_SESSION["admin"]->id_office_admin);
 		if ($id_office === 0 && isset($_SESSION["admin"]->id_warehouse_admin) && intval($_SESSION["admin"]->id_warehouse_admin) > 0) {
 			$stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh");
@@ -3704,7 +3752,7 @@ if(isset($_POST["getLoggedUser"])){
 				'permissions_admin' => $permissions
 			],
 			'office' => $office,
-			'token' => 'session-token'
+			'token' => $_SESSION["admin"]->token_admin
 		]);
 	} else {
 		echo json_encode([
@@ -3793,6 +3841,27 @@ if(isset($_POST["loginLabUser"])){
 			// Establecemos la sesión PHP como el login original
 			$_SESSION["admin"] = $admin;
 			
+			// Refresh token dynamically on login
+			try {
+				require_once "../models/connection.php";
+				require_once "../vendor/autoload.php";
+				$tokenInfo = Connection::jwt($admin->id_admin, $admin->email_admin);
+				$jwt = Firebase\JWT\JWT::encode($tokenInfo, "dfhsdfg34dfchs4xgsrsdry46");
+				
+				$stmtToken = $db->prepare("UPDATE admins SET token_admin = :token, token_exp_admin = :exp WHERE id_admin = :id");
+				$stmtToken->execute([
+					':token' => $jwt,
+					':exp' => $tokenInfo["exp"],
+					':id' => $admin->id_admin
+				]);
+				
+				$admin->token_admin = $jwt;
+				$admin->token_exp_admin = $tokenInfo["exp"];
+				$_SESSION["admin"] = $admin;
+			} catch (Throwable $t) {
+				error_log("Error generating token in loginLabUser: " . $t->getMessage());
+			}
+
 			$id_office = intval($admin->id_office_admin);
 			if ($id_office === 0 && isset($admin->id_warehouse_admin) && intval($admin->id_warehouse_admin) > 0) {
 				$stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh");
@@ -4863,5 +4932,78 @@ if (isset($_POST['deletePackaging'])) {
     $stmt = $db->prepare("UPDATE packaging_catalog SET status_packaging=0 WHERE id_packaging=:id");
     $stmt->execute([':id' => intval($_POST['id_packaging'])]);
     echo json_encode(['status' => 200, 'message' => 'Empaque eliminado']);
+    exit;
+}
+
+//=====================================
+// CAJA (CASH REGISTER) ENDPOINTS
+//=====================================
+if (isset($_POST['getCashDetails'])) {
+    $db = LocalConnection::connect();
+    $id_cash = intval($_POST['id_cash'] ?? 0);
+    
+    // Get cash
+    $stmt = $db->prepare("SELECT * FROM cashs WHERE id_cash = :id");
+    $stmt->execute([':id' => $id_cash]);
+    $cash = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$cash) {
+        echo json_encode(['status' => 404, 'message' => 'Caja no encontrada']);
+        exit;
+    }
+    
+    $start_cash = floatval($cash['start_cash']);
+    $total_sales = floatval($cash['money_cash']);
+    $total_bills = floatval($cash['bills_cash']);
+    
+    // As we no longer fetch method_payment easily here, and diff_cash already holds the difference
+    $cash_efectivo = floatval($cash['cash_efectivo'] ?? $total_sales); 
+    $cash_qr = floatval($cash['cash_qr'] ?? 0);
+    
+    $final_cash = floatval($cash['diff_cash']); 
+    
+    $results = [
+        'start_cash' => $start_cash,
+        'total_sales' => $total_sales,
+        'cash_efectivo' => $cash_efectivo,
+        'cash_qr' => $cash_qr,
+        'total_bills' => $total_bills,
+        'final_cash' => $final_cash
+    ];
+    
+    echo json_encode(['status' => 200, 'results' => $results]);
+    exit;
+}
+
+if (isset($_POST['closeCashRegister'])) {
+    $db = LocalConnection::connect();
+    $id_cash = intval($_POST['id_cash'] ?? 0);
+    
+    $stmt = $db->prepare("SELECT * FROM cashs WHERE id_cash = :id");
+    $stmt->execute([':id' => $id_cash]);
+    $cash = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$cash) {
+        echo json_encode(['status' => 404, 'message' => 'Caja no encontrada']);
+        exit;
+    }
+    
+    $start_cash = floatval($cash['start_cash']);
+    $money_cash = floatval($cash['money_cash']);
+    $bills_cash = floatval($cash['bills_cash']);
+    $final_cash = floatval($cash['diff_cash']); // The expected cash in drawer
+    
+    // Get physical cash counted by the cashier
+    $physical_cash = isset($_POST['physical_cash']) ? floatval($_POST['physical_cash']) : $final_cash;
+    $gap_cash = $physical_cash - $final_cash;
+    
+    $update = $db->prepare("UPDATE cashs SET status_cash = 0, date_end_cash = NOW(), end_cash = :fc, gap_cash = :gc WHERE id_cash = :id");
+    $update->execute([
+        ':fc' => $physical_cash, // the end_cash is the physical money counted
+        ':gc' => $gap_cash,      // the difference (faltante o sobrante)
+        ':id' => $id_cash
+    ]);
+    
+    echo json_encode(['status' => 200, 'message' => 'Caja cerrada correctamente']);
     exit;
 }
