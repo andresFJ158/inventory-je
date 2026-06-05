@@ -51,8 +51,8 @@ async function fetchCashDetails(cashId: string | number) {
       
       const officeId = cashData.value.id_office_cash
       
-      // Get Expenses inside these dates for this office
-      const expRes = await $fetch<any>(`/api/bills?linkTo=id_office_bill,date_created_bill&between1=${officeId},${startDate}&between2=${officeId},${endDate}`, { headers: apiHeaders })
+      // Get Expenses for this cash register session
+      const expRes = await $fetch<any>(`/api/bills?linkTo=id_cash_bill&equalTo=${cashId}`, { headers: apiHeaders })
       if (expRes && expRes.status === 200 && expRes.results) {
         expenses.value = expRes.results
       }
@@ -88,8 +88,13 @@ function decodeStr(str: string) {
 </script>
 
 <template>
-  <UModal v-model="isOpenModel">
-    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 relative rounded-xl h-[80vh] overflow-y-auto">
+  <USlideover
+    v-model:open="isOpenModel"
+    title="Detalles de Caja"
+    class="z-50"
+    :ui="{ width: 'max-w-2xl' }"
+  >
+    <template #body>
       <!-- Loading State -->
       <div v-if="loading" class="flex flex-col items-center justify-center py-12">
         <UIcon name="i-lucide-loader-2" class="w-10 h-10 animate-spin text-primary mb-2" />
@@ -98,34 +103,35 @@ function decodeStr(str: string) {
 
       <!-- Content -->
       <template v-else-if="cashData">
-        <div class="absolute top-4 right-4">
-          <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
-        </div>
-
         <div class="mb-6">
-          <h1 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
-            <UIcon name="i-lucide-receipt" /> Detalles de Caja
-          </h1>
           <p class="text-gray-500 text-sm mt-1">Caja #{{ cashData.id_cash }} - Sucursal: {{ decodeStr(cashData.title_office) }}</p>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <UCard class="bg-blue-50 dark:bg-blue-900/20 ring-blue-500/20">
-            <div class="text-xs font-semibold text-blue-600 mb-1">Monto Inicial</div>
-            <div class="text-xl font-bold">{{ formatCurrency(cashData.initial_cash) }}</div>
-          </UCard>
-          <UCard class="bg-green-50 dark:bg-green-900/20 ring-green-500/20">
-            <div class="text-xs font-semibold text-green-600 mb-1">Ingresos (Ventas)</div>
-            <div class="text-xl font-bold">{{ formatCurrency(cashData.money_cash) }}</div>
-          </UCard>
-          <UCard class="bg-red-50 dark:bg-red-900/20 ring-red-500/20">
-            <div class="text-xs font-semibold text-red-600 mb-1">Gastos</div>
-            <div class="text-xl font-bold">{{ formatCurrency(cashData.bills_cash) }}</div>
-          </UCard>
-          <UCard class="bg-indigo-50 dark:bg-indigo-900/20 ring-indigo-500/20">
-            <div class="text-xs font-semibold text-indigo-600 mb-1">Total en Caja</div>
-            <div class="text-xl font-bold">{{ formatCurrency(Number(cashData.initial_cash) + Number(cashData.money_cash) - Number(cashData.bills_cash)) }}</div>
-          </UCard>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+          <div class="bg-blue-50/50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl p-3 flex flex-col justify-between transition-all hover:scale-[1.02] duration-200">
+            <div class="text-[10px] sm:text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">Monto Inicial</div>
+            <div class="text-base sm:text-lg font-bold text-blue-900 dark:text-blue-200 truncate" :title="formatCurrency(cashData.start_cash)">
+              {{ formatCurrency(cashData.start_cash) }}
+            </div>
+          </div>
+          <div class="bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-xl p-3 flex flex-col justify-between transition-all hover:scale-[1.02] duration-200">
+            <div class="text-[10px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-1">Ingresos (Ventas)</div>
+            <div class="text-base sm:text-lg font-bold text-emerald-900 dark:text-emerald-200 truncate" :title="formatCurrency(cashData.money_cash)">
+              {{ formatCurrency(cashData.money_cash) }}
+            </div>
+          </div>
+          <div class="bg-rose-50/50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 rounded-xl p-3 flex flex-col justify-between transition-all hover:scale-[1.02] duration-200">
+            <div class="text-[10px] sm:text-xs font-semibold text-rose-600 dark:text-rose-400 mb-1">Gastos</div>
+            <div class="text-base sm:text-lg font-bold text-rose-900 dark:text-rose-200 truncate" :title="formatCurrency(cashData.bills_cash)">
+              {{ formatCurrency(cashData.bills_cash) }}
+            </div>
+          </div>
+          <div class="bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-3 flex flex-col justify-between transition-all hover:scale-[1.02] duration-200">
+            <div class="text-[10px] sm:text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1">Total en Caja</div>
+            <div class="text-base sm:text-lg font-bold text-indigo-900 dark:text-indigo-200 truncate" :title="formatCurrency(Number(cashData.start_cash) + Number(cashData.money_cash) - Number(cashData.bills_cash))">
+              {{ formatCurrency(Number(cashData.start_cash) + Number(cashData.money_cash) - Number(cashData.bills_cash)) }}
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -158,10 +164,10 @@ function decodeStr(str: string) {
             <div v-else class="space-y-2 max-h-64 overflow-y-auto pr-2">
               <div v-for="exp in expenses" :key="exp.id_bill" class="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm border border-gray-100 dark:border-slate-700">
                 <div>
-                  <div class="font-bold">{{ decodeStr(exp.description_bill) }}</div>
+                  <div class="font-bold">{{ decodeStr(exp.concept_bill) }}</div>
                 </div>
                 <div class="text-right">
-                  <div class="font-bold text-red-500">- {{ formatCurrency(exp.amount_bill) }}</div>
+                  <div class="font-bold text-red-500">- {{ formatCurrency(exp.cost_bill) }}</div>
                   <div class="text-xs text-gray-400">{{ exp.date_created_bill }}</div>
                 </div>
               </div>
@@ -186,8 +192,12 @@ function decodeStr(str: string) {
       <div v-else class="py-12 text-center">
         <UIcon name="i-lucide-alert-triangle" class="w-12 h-12 text-red-400 mx-auto mb-3" />
         <p class="text-lg font-medium text-gray-700 dark:text-gray-300">No se pudieron cargar los detalles</p>
-        <UButton color="neutral" class="mt-4" @click="isOpenModel = false">Cerrar</UButton>
       </div>
-    </div>
-  </UModal>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-3 w-full">
+        <UButton color="neutral" variant="ghost" @click="isOpenModel = false">Cerrar</UButton>
+      </div>
+    </template>
+  </USlideover>
 </template>

@@ -7,6 +7,7 @@ const props = defineProps<{
 }>()
 
 const auth = useAuthStore()
+const toast = useToast()
 
 // Module mapping
 const MODULE_MAPPING: Record<string, { id_module: number, title_module: string, suffix_module: string, title: string, editable_module: number }> = {
@@ -92,8 +93,21 @@ function getRelationLabel(matrixTable: string, id: any) {
     return firstKey ? String(r[firstKey]) === String(id) : false
   })
   if (!match) return id
-  const secondKey = Object.keys(match)[1]
-  return secondKey ? decodeURIComponent(match[secondKey] || '').replace(/\+/g, ' ') : id
+
+  // Try to find a 'name_' or 'title_' key first
+  const keys = Object.keys(match)
+  let labelKey = keys.find(k => k.startsWith('name_') || k.startsWith('title_') || k.startsWith('email_'))
+  
+  if (!labelKey) {
+     labelKey = keys[1] // fallback to second key
+  }
+  
+  // Combine name and surname if both exist
+  if (match.name_client && match.surname_client) {
+    return decodeURIComponent(match.name_client + ' ' + match.surname_client).replace(/\+/g, ' ')
+  }
+  
+  return labelKey ? decodeURIComponent(match[labelKey] || '').replace(/\+/g, ' ') : id
 }
 
 // Fetch Rows Data
@@ -260,11 +274,11 @@ async function handleDelete(item: any) {
       // Refresh
       await fetchRows()
     } else {
-      alert(`Error al eliminar: ${res.results || 'Intenta de nuevo'}`)
+      toast.add({ title: `Error al eliminar: ${res.results || 'Intenta de nuevo'}`, color: 'error' })
     }
   } catch (e) {
     console.error('Error deleting item:', e)
-    alert('Error de red al intentar eliminar el registro.')
+    toast.add({ title: 'Error de red al intentar eliminar el registro.', color: 'error' })
   }
 }
 
@@ -471,7 +485,7 @@ function openCashDetails(cashRow: any) {
 
     <!-- Receipt Modal for Orders -->
     <OrderReceiptModal 
-      v-if="moduleConfig?.title_module === 'orders'"
+      v-if="moduleConfig?.title_module === 'orders' && isReceiptModalOpen"
       v-model:isOpen="isReceiptModalOpen"
       :order-id="selectedOrderId"
       @close="selectedOrderId = null"

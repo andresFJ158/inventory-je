@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -48,6 +48,12 @@ async function fetchOrderDetails(id: string | number) {
   }
 }
 
+onMounted(() => {
+  if (props.isOpen && props.orderId) {
+    fetchOrderDetails(props.orderId)
+  }
+})
+
 watch(() => props.isOpen, (newVal) => {
   if (newVal && props.orderId) {
     fetchOrderDetails(props.orderId)
@@ -58,136 +64,97 @@ function handlePrint() {
   window.print()
 }
 
-function formatCurrency(val: number | string) {
-  return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(Number(val))
+// Helpers for string decoding
+function decodeStr(str: any) {
+  if (!str) return ''
+  return decodeURIComponent(String(str)).replace(/\+/g, ' ')
 }
 
-function decodeStr(str: string) {
-  if (!str) return ''
-  return decodeURIComponent(str).replace(/\+/g, ' ')
+function formatCurrency(val: any) {
+  const num = parseFloat(val) || 0
+  return `Bs. ${num.toFixed(2)}`
 }
 </script>
 
 <template>
-  <UModal v-model="isOpenModel">
-    <div class="print-container bg-white text-black p-8 relative">
-      <!-- Loading State -->
-      <div v-if="loading" class="flex flex-col items-center justify-center py-12">
-        <UIcon name="i-lucide-loader-2" class="w-10 h-10 animate-spin text-green-600 mb-2" />
-        <p class="text-gray-500">Cargando comprobante...</p>
+  <UModal v-model:open="isOpenModel" :ui="{ width: 'max-w-md' }">
+    <template #body>
+      <!-- Action Buttons (Hidden in print) -->
+      <div class="print-hide flex justify-end gap-2 mb-4 border-b border-gray-800 pb-2">
+        <UButton color="primary" class="bg-blue-600" icon="i-lucide-printer" @click="handlePrint">Imprimir</UButton>
+        <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
       </div>
 
-      <!-- Receipt Content -->
-      <template v-else-if="orderData">
-        
-        <!-- Action Buttons (Hidden in print) -->
-        <div class="print-hide absolute top-4 right-4 flex gap-2">
-          <UButton color="primary" class="bg-blue-600" icon="i-lucide-printer" @click="handlePrint">Imprimir</UButton>
-          <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="isOpenModel = false" />
-        </div>
+      <!-- Loading State -->
+      <div v-if="loading" class="flex flex-col items-center justify-center py-12">
+        <UIcon name="i-lucide-loader-2" class="w-10 h-10 animate-spin text-teal-500 mb-2" />
+        <p class="text-slate-400">Cargando comprobante...</p>
+      </div>
 
-        <div class="text-center mb-6">
-          <h1 class="text-3xl font-black text-blue-800 tracking-tight">Comprobante de Compra</h1>
-          <p class="text-gray-500 text-lg">Transacción #{{ orderData.transaction_order }}</p>
-        </div>
-
-        <div class="grid grid-cols-2 gap-8 mb-6 text-sm">
-          <div>
-            <h4 class="font-bold text-gray-700 uppercase border-b pb-1 mb-2">Datos de Sucursal</h4>
-            <p><strong>Sucursal:</strong> {{ decodeStr(orderData.title_office) }}</p>
-            <p><strong>Dirección:</strong> {{ decodeStr(orderData.address_office) }}</p>
-            <p><strong>Teléfono:</strong> {{ orderData.phone_office }}</p>
-            <p><strong>NIT:</strong> {{ orderData.dni_office }}</p>
-          </div>
-          <div>
-            <h4 class="font-bold text-gray-700 uppercase border-b pb-1 mb-2">Datos del Cliente</h4>
-            <p><strong>Nombre:</strong> {{ decodeStr(orderData.name_client) }} {{ decodeStr(orderData.surname_client) }}</p>
-            <p><strong>Teléfono:</strong> {{ orderData.phone_client }}</p>
-            <p><strong>Email:</strong> {{ orderData.email_client || 'No especificado' }}</p>
-            <p><strong>Dirección:</strong> {{ decodeStr(orderData.address_client) }}</p>
-          </div>
-        </div>
-
-        <div class="bg-gray-50 p-4 rounded-lg mb-6 text-sm flex justify-between">
+      <!-- Receipt Content (Matches POS format) -->
+      <div v-else-if="orderData" class="print-container bg-white text-black p-4 text-xs font-mono w-72 mx-auto">
+        <div class="space-y-2">
+          <div class="text-center font-bold text-sm">JE INVENTARIO & VENTAS</div>
+          <div class="text-center">Sucursal: {{ decodeStr(orderData.title_office) }}</div>
+          <div class="text-center">NIT: {{ orderData.dni_office || '0000000' }}</div>
+          <hr class="border-dashed border-black">
+          <div><strong>Orden:</strong> {{ orderData.transaction_order }}</div>
           <div><strong>Fecha:</strong> {{ orderData.date_order }}</div>
-          <div><strong>Método de pago:</strong> {{ orderData.method_order }}</div>
-          <div>
-            <strong>Estado:</strong> 
-            <span :class="orderData.status_order === 'Completada' ? 'text-green-600 font-bold' : 'text-amber-600 font-bold'">
-              {{ orderData.status_order }}
-            </span>
+          <div><strong>Cliente:</strong> {{ decodeStr(orderData.name_client) }} {{ decodeStr(orderData.surname_client) }} ({{ orderData.dni_client }})</div>
+          <div><strong>Vendedor:</strong> {{ decodeStr(orderData.name_admin) }}</div>
+          <hr class="border-dashed border-black">
+          
+          <table class="w-full text-left">
+            <thead>
+              <tr>
+                <th>Cant</th>
+                <th>Descripción</th>
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(prod, i) in productsData" :key="i">
+                <td>{{ prod.qty_sale }}</td>
+                <td>{{ decodeStr(prod.title_product) }} @ {{ formatCurrency((parseFloat(prod.subtotal_sale) / parseInt(prod.qty_sale)).toFixed(2)) }}</td>
+                <td class="text-right">{{ formatCurrency(prod.subtotal_sale) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <hr class="border-dashed border-black">
+          <div class="flex justify-between">
+            <span>Subtotal:</span>
+            <span>{{ formatCurrency(orderData.subtotal_order) }}</span>
           </div>
-        </div>
-
-        <table class="w-full text-sm mb-6 border-collapse">
-          <thead>
-            <tr class="bg-gray-100 border-b-2 border-gray-300">
-              <th class="py-2 px-3 text-left font-bold w-1/2">Producto</th>
-              <th class="py-2 px-3 text-center font-bold">Cant.</th>
-              <th class="py-2 px-3 text-right font-bold">Precio U.</th>
-              <th class="py-2 px-3 text-center font-bold">Dscto / IVA</th>
-              <th class="py-2 px-3 text-right font-bold">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(prod, i) in productsData" :key="i" class="border-b border-gray-200">
-              <td class="py-3 px-3">{{ decodeStr(prod.title_product) }}</td>
-              <td class="py-3 px-3 text-center">{{ prod.qty_sale }}</td>
-              <td class="py-3 px-3 text-right">{{ formatCurrency(prod.price_sale) }}</td>
-              <td class="py-3 px-3 text-center text-xs text-gray-500">
-                <span v-if="parseFloat(prod.discount_sale) > 0">D: {{ prod.discount_sale }}%</span><br v-if="parseFloat(prod.discount_sale) > 0">
-                <span v-if="parseFloat(prod.tax_sale) > 0">IVA: {{ prod.tax_sale }}%</span>
-              </td>
-              <td class="py-3 px-3 text-right font-semibold">{{ formatCurrency(prod.subtotal_sale) }}</td>
-            </tr>
-            <tr v-if="productsData.length === 0">
-              <td colspan="5" class="py-4 text-center text-gray-500">No hay productos en esta orden.</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Totals -->
-        <div class="flex justify-end mt-6">
-          <div class="w-64 text-sm">
-            <div class="flex justify-between py-1">
-              <span class="text-gray-600">Subtotal:</span>
-              <span class="font-medium">{{ formatCurrency(orderData.subtotal_order) }}</span>
-            </div>
-            <div class="flex justify-between py-1 text-red-600">
-              <span>Descuento total (-):</span>
-              <span class="font-medium">{{ formatCurrency(orderData.discount_order) }}</span>
-            </div>
-            <div class="flex justify-between py-1 text-gray-600 border-b border-gray-200 pb-2">
-              <span>Impuestos (+):</span>
-              <span class="font-medium">{{ formatCurrency(orderData.tax_order) }}</span>
-            </div>
-            <div class="flex justify-between py-2 mt-1 text-lg font-black text-gray-900 border-t-2 border-gray-900">
-              <span>TOTAL A PAGAR:</span>
-              <span>{{ formatCurrency(orderData.total_order) }}</span>
-            </div>
+          <div v-if="parseFloat(orderData.discount_order) > 0" class="flex justify-between">
+            <span>Descuento:</span>
+            <span>{{ formatCurrency(orderData.discount_order) }}</span>
           </div>
+          <div class="flex justify-between font-bold text-sm">
+            <span>TOTAL:</span>
+            <span>{{ formatCurrency(orderData.total_order) }}</span>
+          </div>
+          <div class="flex justify-between text-capitalize">
+            <span>Pago:</span>
+            <span class="capitalize">{{ orderData.method_order }}</span>
+          </div>
+          <hr class="border-dashed border-black">
+          <div class="text-center font-bold">¡GRACIAS POR SU COMPRA!</div>
         </div>
-
-        <div class="mt-12 text-center text-xs text-gray-400 border-t pt-4 print-footer">
-          Gracias por su compra. Conserve este comprobante.
-        </div>
-
-      </template>
+      </div>
 
       <!-- Error State -->
       <div v-else class="py-12 text-center">
-        <UIcon name="i-lucide-alert-triangle" class="w-12 h-12 text-red-400 mx-auto mb-3" />
-        <p class="text-lg font-medium text-gray-700">Comprobante no encontrado</p>
+        <UIcon name="i-lucide-alert-triangle" class="w-12 h-12 text-rose-500 mx-auto mb-3" />
+        <p class="text-lg font-medium text-slate-300">Comprobante no encontrado</p>
         <UButton color="neutral" class="mt-4" @click="isOpenModel = false">Cerrar</UButton>
       </div>
-
-    </div>
+    </template>
   </UModal>
 </template>
 
 <style>
 @media print {
-  /* Hide everything outside of print-container */
   body * {
     visibility: hidden;
   }
@@ -200,17 +167,15 @@ function decodeStr(str: string) {
     top: 0;
     width: 100%;
     margin: 0;
-    padding: 20px;
+    padding: 0;
     background-color: white !important;
     color: black !important;
   }
   
-  /* Hide elements we don't want printed */
   .print-hide {
     display: none !important;
   }
   
-  /* Reset some shadcn/nuxt ui modal styles for printing */
   .u-modal-overlay { display: none !important; }
 }
 </style>

@@ -229,7 +229,7 @@ function getStatusLabel(status: string) {
             <UFormGroup label="Almacén *">
               <USelect
                 v-model="form.warehouseId"
-                :options="warehouses.map(w => ({ value: String(w.id_warehouse), label: formatText(w.title_warehouse) }))"
+                :items="warehouses.map(w => ({ value: String(w.id_warehouse), label: formatText(w.title_warehouse) }))"
                 placeholder="-- Seleccionar almacén --"
                 :loading="loadingWarehouses"
                 @update:model-value="onWarehouseChange"
@@ -240,7 +240,7 @@ function getStatusLabel(status: string) {
             <UFormGroup label="Producto *">
               <USelect
                 v-model="form.productId"
-                :options="products.map(p => ({ value: String(p.id_product), label: `${formatText(p.title_product)} (Stock: ${p.stock})` }))"
+                :items="products.map(p => ({ value: String(p.id_product), label: `${formatText(p.title_product)} (Stock: ${p.stock})` }))"
                 placeholder="-- Seleccionar producto --"
                 :disabled="!form.warehouseId"
                 :loading="loadingProducts"

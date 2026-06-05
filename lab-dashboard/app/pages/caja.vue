@@ -30,7 +30,7 @@ function getLocalDate() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
-const todayStr = getLocalDate()
+const todayStr = ref('')
 
 // State
 const loading = ref(true)
@@ -48,6 +48,11 @@ const closeModal = ref(false)
 const closing = ref(false)
 const cashDetails = ref<any>(null)
 const loadingDetails = ref(false)
+const physicalCash = ref<number | null>(null)
+
+// Detalles de Caja en Slideover
+const isDetailsOpen = ref(false)
+const selectedDetailsCash = ref<any>(null)
 
 const isSuperAdmin = computed(() => auth.role === 'superadmin' || auth.role === 'admin')
 
@@ -67,17 +72,17 @@ async function fetchCashStatus() {
   try {
     if (isSuperAdmin.value) {
       // Superadmin: ver todas las cajas de hoy
-      const data = await $fetch<any>(`/api/cashs?linkTo=date_created_cash&equalTo=${todayStr}&orderBy=id_cash&orderMode=DESC`, {
+      const data = await $fetch<any>(`/api/cashs?linkTo=date_created_cash&equalTo=${todayStr.value}&orderBy=id_cash&orderMode=DESC`, {
         headers: apiHeaders
       })
       if (data.status === 200) allCashs.value = data.results || []
     } else {
-      // Cajero: ver su caja de hoy
-      const data = await $fetch<any>(`/api/cashs?linkTo=id_office_cash,date_created_cash&equalTo=${auth.officeId},${todayStr}&orderBy=id_cash&orderMode=DESC`, {
+      // Cajero: ver su caja ABIERTA actualmente (sin importar si se abrió ayer en la noche)
+      const data = await $fetch<any>(`/api/cashs?linkTo=id_office_cash,status_cash&equalTo=${auth.officeId},1&orderBy=id_cash&orderMode=DESC`, {
         headers: apiHeaders
       })
-      if (data.status === 200 && data.results?.length > 0) {
-        todaysCash.value = data.results[0]
+      if (data.status === 200 && data.results) {
+        todaysCash.value = Array.isArray(data.results) ? data.results[0] : data.results
       } else {
         todaysCash.value = null
       }
@@ -94,7 +99,7 @@ async function openCash() {
   opening.value = true
   try {
     const body = new URLSearchParams({
-      date_created_cash: todayStr,
+      date_created_cash: todayStr.value,
       id_office_cash: String(auth.officeId),
       id_admin_cash: String(auth.user?.id_admin),
       start_cash: String(openAmount.value),
@@ -143,11 +148,16 @@ async function loadCashDetails(cashRow?: any) {
 }
 
 async function closeCash() {
+  if (!isSuperAdmin.value && (physicalCash.value === null || physicalCash.value < 0)) {
+    toast.add({ title: 'Ingresa el monto físico contado en caja', color: 'error' })
+    return
+  }
   closing.value = true
   try {
     const body = new URLSearchParams({
       closeCashRegister: 'ok',
-      id_cash: String(todaysCash.value?.id_cash)
+      id_cash: String(todaysCash.value?.id_cash),
+      physical_cash: String(physicalCash.value || 0)
     })
     const res = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -159,6 +169,7 @@ async function closeCash() {
       toast.add({ title: 'Caja cerrada correctamente', color: 'success' })
       closeModal.value = false
       cashDetails.value = null
+      physicalCash.value = null
       await fetchCashStatus()
     } else {
       toast.add({ title: data.message || 'Error al cerrar caja', color: 'error' })
@@ -175,6 +186,7 @@ function getOfficeName(id: any) {
 }
 
 onMounted(async () => {
+  todayStr.value = getLocalDate()
   await fetchOffices()
   await fetchCashStatus()
 })
@@ -221,16 +233,6 @@ onMounted(async () => {
             </UCard>
           </div>
 
-          <!-- Historial de esta caja (usamos la tabla dinámica) -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-receipt" class="text-green-500" />
-                <h3 class="font-bold">Historial de Caja — Hoy</h3>
-              </div>
-            </template>
-            <DynamicTable module-name="caja" />
-          </UCard>
         </template>
 
         <!-- Caja CERRADA / Sin abrir -->
@@ -248,6 +250,17 @@ onMounted(async () => {
             </UButton>
           </div>
         </template>
+
+        <!-- Historial de Cajas de la Sucursal -->
+        <UCard class="mt-6">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-receipt" class="text-green-500" />
+              <h3 class="font-bold">Historial de Cajas</h3>
+            </div>
+          </template>
+          <DynamicTable module-name="caja" />
+        </UCard>
       </template>
     </template>
 
@@ -285,9 +298,9 @@ onMounted(async () => {
               <span class="text-slate-500 dark:text-slate-400">Apertura:</span>
               <span class="font-semibold">{{ formatCurrency(parseFloat(cash.start_cash || 0)) }}</span>
             </div>
-            <div v-if="cash.final_cash" class="flex justify-between">
+            <div v-if="cash.end_cash" class="flex justify-between">
               <span class="text-slate-500 dark:text-slate-400">Cierre:</span>
-              <span class="font-semibold text-rose-500">{{ formatCurrency(parseFloat(cash.final_cash || 0)) }}</span>
+              <span class="font-semibold text-rose-500">{{ formatCurrency(parseFloat(cash.end_cash || 0)) }}</span>
             </div>
           </div>
           <div class="mt-3">
@@ -296,7 +309,7 @@ onMounted(async () => {
               variant="soft"
               color="primary"
               icon="i-lucide-receipt"
-              @click="() => { loadCashDetails(cash); closeModal = true }"
+              @click="() => { selectedDetailsCash = cash; isDetailsOpen = true }"
             >
               Ver Detalles
             </UButton>
@@ -375,8 +388,18 @@ onMounted(async () => {
           <div v-else class="text-center py-4 text-slate-400 text-sm">No hay detalles disponibles.</div>
 
           <div v-if="!isSuperAdmin && todaysCash?.status_cash == 1" class="pt-2 border-t border-slate-200 dark:border-slate-700">
+            <UFormField label="Efectivo físico en caja (Bs.)" class="mb-4">
+              <input
+                v-model="physicalCash"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ingresa lo que contaste..."
+                class="block w-full py-2 px-3 text-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500/50"
+              />
+            </UFormField>
             <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
-              Al cerrar la caja se finalizará la jornada. Esta acción no se puede deshacer.
+              Al cerrar la caja se finalizará la jornada y se registrará cualquier faltante o sobrante basado en el efectivo físico que indiques. Esta acción no se puede deshacer.
             </p>
           </div>
         </div>
@@ -396,6 +419,13 @@ onMounted(async () => {
         </div>
       </template>
     </UModal>
+
+    <!-- Cash Details Slideover -->
+    <CashDetailsModal
+      v-model:isOpen="isDetailsOpen"
+      :cash="selectedDetailsCash"
+      @close="selectedDetailsCash = null"
+    />
 
   </div>
 </template>

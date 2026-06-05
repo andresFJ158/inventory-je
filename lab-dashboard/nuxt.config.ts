@@ -20,7 +20,8 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/ajax/**': { proxy: 'http://api/ajax/**' },
-    '/api/**': { proxy: 'http://api/**' }
+    '/api/**': { proxy: 'http://api/**' },
+    '/views/**': { proxy: 'http://api/views/**' }
   },
 
   runtimeConfig: {

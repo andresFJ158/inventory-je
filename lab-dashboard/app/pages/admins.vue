@@ -58,8 +58,7 @@ const formModel = ref({
   rol_admin: 'cajero',
   id_office_admin: '',
   id_warehouse_admin: '',
-  status_admin: true,
-  type_seller: 'tienda'
+  status_admin: true
 })
 const savingAdmin = ref(false)
 
@@ -315,8 +314,7 @@ function openCreate() {
     rol_admin: 'cajero',
     id_office_admin: '',
     id_warehouse_admin: '',
-    status_admin: true,
-    type_seller: 'tienda'
+    status_admin: true
   }
   // Reset permissions form
   Object.keys(permForm.value).forEach(k => {
@@ -346,8 +344,7 @@ function openEdit(admin: any) {
     rol_admin: admin.rol_admin || 'cajero',
     id_office_admin: admin.id_office_admin ? String(admin.id_office_admin) : '',
     id_warehouse_admin: admin.id_warehouse_admin ? String(admin.id_warehouse_admin) : '',
-    status_admin: admin.status_admin == 1,
-    type_seller: admin.type_seller || 'tienda'
+    status_admin: admin.status_admin == 1
   }
   // Load permissions form
   let perms: any = {}
@@ -388,7 +385,6 @@ async function handleSaveAdmin() {
     body.append('id_office_admin', formModel.value.id_office_admin || '0')
     body.append('id_warehouse_admin', formModel.value.id_warehouse_admin || '0')
     body.append('status_admin', formModel.value.status_admin ? '1' : '0')
-    body.append('type_seller', formModel.value.rol_admin === 'vendedor' ? formModel.value.type_seller : '')
 
     // Append visual permissions directly
     const resultObj: Record<string, string> = {}
@@ -692,12 +688,7 @@ onMounted(async () => {
               </option>
             </select>
           </UFormField>
-          <UFormField v-if="formModel.rol_admin === 'vendedor'" label="Tipo de Vendedor">
-            <select v-model="formModel.type_seller" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
-              <option value="tienda">Vendedor de Tienda</option>
-              <option value="calle">Vendedor de Calle</option>
-            </select>
-          </UFormField>
+
           <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
             <span class="text-sm font-bold text-slate-500 uppercase">Estado Cuenta</span>
             <button

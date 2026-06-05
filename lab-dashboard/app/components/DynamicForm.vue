@@ -34,6 +34,7 @@ const formModel = ref<Record<string, any>>({})
 const selectOptions = ref<Record<string, any[]>>({})
 const loading = ref(true)
 const saving = ref(false)
+const toast = useToast()
 
 const apiHeaders = {
   Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
@@ -154,6 +155,29 @@ async function loadFormMetadata() {
         }
       }
 
+      // Auto-populate for bills (Gastos)
+      if (moduleConfig.value.title_module === 'bills' && !props.initialData) {
+        if (auth.user?.id_admin) model['id_admin_bill'] = String(auth.user.id_admin)
+        if (auth.officeId) model['id_office_bill'] = String(auth.officeId)
+        
+        // Find active cash register for this office
+        if (auth.officeId) {
+          try {
+            const cashData = await $fetch<any>(`/api/cashs?linkTo=id_office_cash,status_cash&equalTo=${auth.officeId},1`, {
+              headers: apiHeaders
+            })
+            if (cashData.status === 200 && cashData.results) {
+              const activeCash = Array.isArray(cashData.results) ? cashData.results[0] : cashData.results
+              if (activeCash && activeCash.id_cash) {
+                model['id_cash_bill'] = String(activeCash.id_cash)
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching active cash for bill:', e)
+          }
+        }
+      }
+
       formModel.value = model
     }
   } catch (e) {
@@ -211,23 +235,32 @@ async function handleSubmit() {
   // Basic validation for purchases
   if (props.moduleName === 'compras') {
     if (!formModel.value.id_supplier_purchase) {
-      alert('Por favor selecciona un proveedor.')
+      toast.add({ title: 'Por favor selecciona un proveedor.', color: 'error' })
       saving.value = false
       return
     }
     if (!formModel.value.id_office_purchase) {
-      alert('Por favor selecciona un almacén.')
+      toast.add({ title: 'Por favor selecciona un almacén.', color: 'error' })
       saving.value = false
       return
     }
     if (!formModel.value.id_product_purchase) {
-      alert('Por favor selecciona un producto.')
+      toast.add({ title: 'Por favor selecciona un producto.', color: 'error' })
       saving.value = false
       return
     }
     const qty = parseFormattedNumber(formModel.value.qty_purchase)
     if (qty <= 0) {
-      alert('Por favor ingresa una cantidad válida mayor a 0.')
+      toast.add({ title: 'Por favor ingresa una cantidad válida mayor a 0.', color: 'error' })
+      saving.value = false
+      return
+    }
+  }
+
+  // Basic validation for bills (gastos)
+  if (props.moduleName === 'gastos') {
+    if (!formModel.value.id_cash_bill) {
+      toast.add({ title: 'Debes tener una caja abierta para poder registrar gastos.', color: 'error' })
       saving.value = false
       return
     }
@@ -291,13 +324,14 @@ async function handleSubmit() {
     })
 
     if (res.status === 200) {
+      toast.add({ title: 'Registro guardado exitosamente', color: 'success' })
       emit('saved')
     } else {
-      alert(`Error al guardar: ${res.results || 'Verifica los campos e intenta de nuevo'}`)
+      toast.add({ title: `Error al guardar: ${res.results || 'Verifica los campos e intenta de nuevo'}`, color: 'error' })
     }
   } catch (e) {
     console.error('Error saving form:', e)
-    alert('Error al enviar los datos del formulario.')
+    toast.add({ title: 'Error al enviar los datos del formulario.', color: 'error' })
   } finally {
     saving.value = false
   }
@@ -375,6 +409,7 @@ watch(() => props.initialData, () => {
                 :ui="{ content: 'z-[100]' }"
                 value-key="value"
                 label-key="label"
+                :disabled="moduleConfig?.title_module === 'bills' && ['id_admin_bill', 'id_office_bill', 'id_cash_bill'].includes(col.title_column)"
               />
             </div>
 

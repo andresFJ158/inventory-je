@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
+const toast = useToast()
 
 // State
 const categories = ref<any[]>([])
@@ -15,6 +16,8 @@ const clients = ref<any[]>([])
 const selectedClient = ref<string>('')
 const isWholesaleGlobal = ref(false)
 const isCashRegisterOpen = ref(true)
+const activeCashId = ref<string | null>(null)
+const imageErrors = ref<Record<string, boolean>>({})
 
 // Active Order State
 const orderId = ref<string | null>(null)
@@ -35,33 +38,37 @@ const expenseModel = ref({ description: '', amount: 0 })
 const savingExpense = ref(false)
 
 async function handleSaveExpense() {
+  if (!activeCashId.value) {
+    toast.add({ title: 'Debes tener una caja abierta para poder registrar gastos.', color: 'error' })
+    return
+  }
   if (!expenseModel.value.description || expenseModel.value.amount <= 0) {
-    alert('Ingresa una descripción válida y monto mayor a 0.')
+    toast.add({ title: 'Ingresa una descripción válida y monto mayor a 0.', color: 'error' })
     return
   }
   savingExpense.value = true
   try {
     const body = new URLSearchParams({
-      description_bill: 'Gasto POS: ' + expenseModel.value.description,
+      concept_bill: 'Gasto POS: ' + expenseModel.value.description,
       cost_bill: String(expenseModel.value.amount),
       id_office_bill: String(auth.officeId || 3),
-      type_bill: 'gasto_pos',
-      status_bill: '1'
+      id_admin_bill: String(auth.user?.id_admin || 1),
+      id_cash_bill: String(activeCashId.value)
     })
-    const res = await $fetch<any>('/api/bills?token=no', {
+    const res = await $fetch<any>('/api/bills?token=no&except=id_bill', {
       method: 'POST',
       body: body.toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
     if (res.status === 200) {
-      alert('Gasto registrado con éxito.')
+      toast.add({ title: 'Gasto registrado con éxito.', color: 'success' })
       isExpenseModalOpen.value = false
       expenseModel.value = { description: '', amount: 0 }
     } else {
-      alert('Error al registrar gasto.')
+      toast.add({ title: 'Error al registrar gasto.', color: 'error' })
     }
   } catch {
-    alert('Error de conexión.')
+    toast.add({ title: 'Error de conexión.', color: 'error' })
   }
   savingExpense.value = false
 }
@@ -142,14 +149,49 @@ async function fetchCatalog() {
   }
 }
 
+// --- Price helpers (Fallback por SKU) ---
+function getProductPriceMeta(productId: string | number) {
+  const idStr = String(productId)
+  if (pricesMap.value[idStr]) {
+    return pricesMap.value[idStr]
+  }
+  // Fallback
+  const prod = products.value.find(p => String(p.id_product) === idStr)
+  if (prod && prod.sku_product) {
+    const fallbackProd = products.value.find(p => p.sku_product === prod.sku_product && pricesMap.value[p.id_product])
+    if (fallbackProd) {
+      return pricesMap.value[fallbackProd.id_product]
+    }
+  }
+  return { price: 0, wholesalePrice: 0, wholesaleQty: 0 }
+}
+
+function getProductPrice(prod: any) {
+  const meta = getProductPriceMeta(prod.id_product)
+  return meta.price || 0
+}
+
+function getProductDiscountedPrice(prod: any) {
+  const base = getProductPrice(prod)
+  const discount = parseFloat(prod.discount_product) || 0
+  if (discount > 0) {
+    return base - (base * (discount / 100))
+  }
+  return base
+}
+
 // Fetch clients
 async function fetchClients() {
   try {
     const data = await $fetch<any>('/api/clients', {
       headers: apiHeaders
     })
-    if (data.status === 200) {
-      clients.value = data.results || []
+    if (data.status === 200 && data.results) {
+      clients.value = data.results.sort((a: any, b: any) => {
+        const nameA = (a.name_client || '').toLowerCase()
+        const nameB = (b.name_client || '').toLowerCase()
+        return nameA.localeCompare(nameB)
+      })
     }
   } catch (e) {
     console.error('Error fetching clients:', e)
@@ -189,33 +231,10 @@ const filteredProducts = computed(() => {
   })
 })
 
-// Initialize order on mount if there is a pending order for this user
+// Initialize order on mount
 async function checkActiveOrder() {
   try {
-    const officeId = auth.officeId || 3
-    const adminId = auth.user?.id_admin || 1
-    const today = new Date().toISOString().split('T')[0]
-    
-    // Check if user has a pending draft order today
-    const data = await $fetch<any>(`/api/orders?linkTo=id_admin_order,status_order,id_office_order,date_created_order&equalTo=${adminId},Pendiente Racing,${officeId},${today}`, {
-      headers: apiHeaders
-    })
-    
-    // Fallback: Check general pending draft orders for this user
-    const dataGeneral = await $fetch<any>(`/api/orders?linkTo=id_admin_order,status_order&equalTo=${adminId},Pendiente`, {
-      headers: apiHeaders
-    })
-
-    const orderData = (data.status === 200 && data.results?.[0]) || (dataGeneral.status === 200 && dataGeneral.results?.[0])
-
-    if (orderData) {
-      orderId.value = String(orderData.id_order)
-      transactionOrder.value = orderData.transaction_order
-      if (orderData.id_client_order > 0) {
-        selectedClient.value = String(orderData.id_client_order)
-      }
-      await fetchCart()
-    }
+    await handleNewOrder()
   } catch (e) {
     console.error('Error checking active order:', e)
   }
@@ -228,19 +247,21 @@ async function checkCashRegister() {
   }
   try {
     const officeId = auth.officeId || 3
-    const today = new Date().toISOString().split('T')[0]
     
-    const data = await $fetch<any>(`/api/cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=${today},1,${officeId}&select=status_cash`, {
+    const data = await $fetch<any>(`/api/cashs?linkTo=id_office_cash,status_cash&equalTo=${officeId},1&select=id_cash,status_cash`, {
       headers: apiHeaders
     })
     
     if (data.status === 200 && data.results && data.results.length > 0) {
       isCashRegisterOpen.value = true
+      activeCashId.value = String(data.results[0].id_cash)
     } else {
       isCashRegisterOpen.value = false
+      activeCashId.value = null
     }
   } catch (e: any) {
     isCashRegisterOpen.value = false
+    activeCashId.value = null
   }
 }
 
@@ -251,7 +272,7 @@ const cashModalLoading = ref(false)
 
 async function submitCashOpen() {
   if (openingCashAmount.value < 0) {
-    alert('El monto inicial no puede ser negativo.')
+    toast.add({ title: 'El monto inicial no puede ser negativo.', color: 'error' })
     return
   }
   cashModalLoading.value = true
@@ -262,7 +283,9 @@ async function submitCashOpen() {
     const payload = new URLSearchParams()
     payload.append('date_created_cash', today || '')
     payload.append('id_office_cash', String(officeId))
-    payload.append('initial_cash', String(openingCashAmount.value))
+    payload.append('id_admin_cash', String(auth.user?.id_admin || ''))
+    payload.append('date_start_cash', new Date().toISOString().replace('T', ' ').split('.')[0])
+    payload.append('start_cash', String(openingCashAmount.value))
     payload.append('status_cash', '1') // 1 means open
     payload.append('bills_cash', '0')
     payload.append('money_cash', '0')
@@ -278,16 +301,16 @@ async function submitCashOpen() {
     })
 
     if (res.status === 200) {
-      isCashRegisterOpen.value = true
+      await checkCashRegister()
       isOpeningCash.value = false
-      alert('Caja abierta exitosamente.')
+      toast.add({ title: 'Caja abierta exitosamente.', color: 'success' })
       await checkActiveOrder()
     } else {
-      alert(`Error al abrir caja: ${res.results || 'Intenta de nuevo'}`)
+      toast.add({ title: `Error al abrir caja: ${res.results || 'Intenta de nuevo'}`, color: 'error' })
     }
   } catch (e) {
     console.error('Error opening cash:', e)
-    alert('Error de conexión al abrir caja.')
+    toast.add({ title: 'Error de conexión al abrir caja.', color: 'error' })
   } finally {
     cashModalLoading.value = false
   }
@@ -298,9 +321,10 @@ onMounted(async () => {
   await fetchCategories()
   await fetchCatalog()
   await fetchClients()
-  if (isCashRegisterOpen.value) {
-    await checkActiveOrder()
-  }
+  // Ya no creamos órdenes vacías automáticamente al entrar
+  // if (isCashRegisterOpen.value) {
+  //   await checkActiveOrder()
+  // }
 })
 
 // Generate new Order
@@ -314,7 +338,8 @@ async function handleNewOrder() {
       body: new URLSearchParams({
         order: 'new',
         idOffice: String(officeId),
-        seller: String(adminId)
+        seller: String(adminId),
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -323,17 +348,17 @@ async function handleNewOrder() {
     if (typeof response === 'string') {
       const trimmed = response.trim();
       if (trimmed === 'current cash error') {
-        alert('Error: No se encuentra ninguna caja del día de hoy abierta para esta sucursal. Por favor, abre caja.');
+        toast.add({ title: 'Error: No se encuentra ninguna caja del día de hoy abierta para esta sucursal. Por favor, abre caja.', color: 'error' });
         return;
       }
       if (trimmed === 'yesterday cash error') {
-        alert('Error: Tienes cajas de días anteriores pendientes de cerrar. Por favor ciérralas primero.');
+        toast.add({ title: 'Error: Tienes cajas de días anteriores pendientes de cerrar. Por favor ciérralas primero.', color: 'error' });
         return;
       }
       try {
         data = JSON.parse(trimmed);
       } catch (err) {
-        alert('Error al iniciar la orden: ' + trimmed);
+        toast.add({ title: 'Error al iniciar la orden: ' + trimmed, color: 'error' });
         return;
       }
     } else {
@@ -343,27 +368,32 @@ async function handleNewOrder() {
     if (data && data.transaction_order) {
       orderId.value = String(data.id_order)
       transactionOrder.value = data.transaction_order
-      selectedClient.value = ''
+      // No reseteamos el cliente porque puede que ya haya seleccionado uno antes de la auto-creación
+      if (!selectedClient.value) {
+         selectedClient.value = ''
+      }
       cartItems.value = []
       checkoutSuccess.value = false
     } else {
-      alert((data && data.message) || 'Error al iniciar la orden. Asegúrate de tener la caja abierta.');
+      toast.add({ title: (data && data.message) || 'Error al iniciar la orden. Asegúrate de tener la caja abierta.', color: 'error' });
     }
   } catch (e) {
     console.error('Error creating order:', e)
-    alert('Error al conectar con el servidor para iniciar la orden.')
+    toast.add({ title: 'Error al conectar con el servidor para iniciar la orden.', color: 'error' })
   }
 }
 
 // Add Product to Cart
 async function addToCart(product: any) {
-  if (!orderId.value) {
-    alert('Por favor, genera una nueva orden antes de agregar productos.')
+  if (!selectedClient.value) {
+    toast.add({ title: 'Por favor, selecciona un cliente para la orden.', color: 'error' })
     return
   }
-  if (!selectedClient.value) {
-    alert('Por favor, selecciona un cliente para la orden.')
-    return
+
+  if (!orderId.value) {
+    await handleNewOrder()
+    // Si aún después de intentar crearla, no hay orderId, no continuamos
+    if (!orderId.value) return
   }
 
   const stock = inventory.value[product.id_product] || 0
@@ -371,7 +401,7 @@ async function addToCart(product: any) {
   const currentQty = inCart ? parseInt(inCart.qty_sale) : 0
 
   if (currentQty + 1 > stock) {
-    alert('La cantidad excede el stock disponible en la sucursal.')
+    toast.add({ title: 'La cantidad excede el stock disponible en la sucursal.', color: 'error' })
     return
   }
 
@@ -388,7 +418,8 @@ async function addToCart(product: any) {
         idClient: selectedClient.value,
         seller: String(adminId),
         idOffice: String(officeId),
-        isWholesale: isWholesaleGlobal.value ? '1' : '0'
+        isWholesale: isWholesaleGlobal.value ? '1' : '0',
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -407,12 +438,12 @@ async function updateQty(item: any, change: number) {
 
   if (newQty < 1) return
   if (newQty > stock) {
-    alert('La cantidad excede el stock disponible.')
+    toast.add({ title: 'La cantidad excede el stock disponible.', color: 'error' })
     return
   }
 
   // Calculate pricing based on wholesale thresholds
-  const priceMeta = pricesMap.value[item.id_product_sale] || { price: 0, wholesalePrice: 0, wholesaleQty: 0 }
+  const priceMeta = getProductPriceMeta(item.id_product_sale)
   let unitPrice = priceMeta.price
 
   if (isWholesaleGlobal.value || newQty >= 12 || (priceMeta.wholesaleQty > 0 && newQty >= priceMeta.wholesaleQty)) {
@@ -435,7 +466,8 @@ async function updateQty(item: any, change: number) {
       body: new URLSearchParams({
         idSaleUpdate: String(item.id_sale),
         qtySale: String(newQty),
-        subtotalSale: String(newSubtotal)
+        subtotalSale: String(newSubtotal),
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -454,7 +486,8 @@ async function deleteItem(item: any) {
     await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
-        idSaleDelete: String(item.id_sale)
+        idSaleDelete: String(item.id_sale),
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -472,7 +505,8 @@ async function clearCart() {
     await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
-        idOrderSale: orderId.value
+        idOrderSale: orderId.value,
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -490,7 +524,8 @@ async function cancelOrder() {
     await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
-        idOrderDelete: orderId.value
+        idOrderDelete: orderId.value,
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -515,7 +550,8 @@ watch(selectedClient, async (newVal) => {
         subtotalOrder: String(subtotal.value),
         discountOrder: String(totalDiscount.value),
         taxOrder: '0',
-        totalOrder: String(total.value)
+        totalOrder: String(total.value),
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -547,7 +583,8 @@ async function handleRegisterClient() {
         email_client: newClient.value.email || '',
         phone_client: newClient.value.phone || '',
         address_client: newClient.value.address || '',
-        idOffice: String(officeId)
+        idOffice: String(officeId),
+        token: auth.token || ''
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -558,7 +595,7 @@ async function handleRegisterClient() {
       isClientModalOpen.value = false
       newClient.value = { name: '', surname: '', dni: '', email: '', phone: '', address: '' }
     } else {
-      alert('Error al registrar cliente.')
+      toast.add({ title: 'Error al registrar cliente.', color: 'error' })
     }
   } catch (e) {
     console.error('Error creating client:', e)
@@ -585,7 +622,7 @@ const total = computed(() => {
 // Payment Modal Open
 function openPayment() {
   if (cartItems.value.length === 0) {
-    alert('No hay productos en el carrito.')
+    toast.add({ title: 'No hay productos en el carrito.', color: 'error' })
     return
   }
   cashReceived.value = total.value
@@ -604,11 +641,11 @@ const cashChange = computed(() => {
 // Finalize Checkout
 async function handleCheckout() {
   if (payMethod.value === 'transferencia' && !transferId.value) {
-    alert('Ingresa el ID de la transferencia para confirmar.')
+    toast.add({ title: 'Ingresa el ID de la transferencia para confirmar.', color: 'error' })
     return
   }
   if (payMethod.value === 'efectivo' && (cashReceived.value || 0) < total.value) {
-    alert('El efectivo recibido es menor al total a pagar.')
+    toast.add({ title: 'El efectivo recibido es menor al total a pagar.', color: 'error' })
     return
   }
 
@@ -622,7 +659,11 @@ async function handleCheckout() {
         transfer: transferId.value,
         qrRefOrder: qrRefOrder.value,
         invoice: wantInvoice.value ? 'yes' : 'no',
-        sellerId: String(auth.user?.id_admin || 1)
+        sellerId: String(auth.user?.id_admin || 1),
+        subtotal: String(subtotal.value.toFixed(2)),
+        discount: String(totalDiscount.value.toFixed(2)),
+        tax: String(0),
+        total: String(total.value.toFixed(2))
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -664,11 +705,11 @@ async function handleCheckout() {
       // Update inventory stock catalog
       await fetchCatalog()
     } else {
-      alert(data.message || 'Error al procesar el pago.')
+      toast.add({ title: data.message || 'Error al procesar el pago.', color: 'error' })
     }
   } catch (e) {
     console.error('Checkout error:', e)
-    alert('Error al conectar con la API de facturación y cobros.')
+    toast.add({ title: 'Error al conectar con la API de facturación y cobros.', color: 'error' })
   }
 }
 
@@ -774,43 +815,55 @@ function printReceipt() {
           <div
             v-for="prod in filteredProducts"
             :key="prod.id_product"
-            class="bg-slate-900/60 border border-slate-800/80 rounded-xl overflow-hidden shadow hover:border-slate-700/80 hover:shadow-lg transition duration-200 cursor-pointer flex flex-col justify-between"
+            class="bg-slate-900/60 border border-slate-800/80 rounded-xl overflow-hidden shadow hover:border-slate-700/80 hover:shadow-lg transition duration-200 cursor-pointer flex flex-col justify-between h-[300px]"
             @click="addToCart(prod)"
           >
             <!-- Product Image -->
-            <div class="h-40 bg-slate-950 flex items-center justify-center p-4 relative">
-              <span class="absolute top-2 right-2 text-[10px] font-mono font-bold bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-slate-300">
+            <div class="h-36 bg-slate-950 flex items-center justify-center p-3 relative overflow-hidden shrink-0">
+              <span class="absolute top-2 right-2 text-[10px] font-mono font-bold bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-slate-300 z-10">
                 SKU: {{ prod.sku_product }}
               </span>
               <img
-                :src="prod.img_product ? decodeURIComponent(prod.img_product).replace(/\+/g, ' ') : '/views/assets/img/multimedia.png'"
-                class="max-h-full max-w-full object-contain"
+                v-if="prod.img_product && !imageErrors[prod.id_product]"
+                :src="(prod.img_product.startsWith('http') || prod.img_product.startsWith('/')) ? decodeURIComponent(prod.img_product).replace(/\+/g, ' ') : '/' + decodeURIComponent(prod.img_product).replace(/\+/g, ' ')"
+                @error="imageErrors[prod.id_product] = true"
+                class="h-full w-full object-contain"
+              />
+              <UIcon
+                v-else
+                name="i-lucide-image"
+                class="w-12 h-12 text-slate-600"
               />
             </div>
 
             <!-- Product Details -->
-            <div class="p-4 space-y-3 flex-1 flex flex-col justify-between">
+            <div class="p-3 flex-1 flex flex-col justify-between min-h-0">
               <div>
-                <h3 class="font-bold text-white line-clamp-2">{{ decodeURIComponent(prod.title_product).replace(/\+/g, ' ') }}</h3>
-                <span class="text-xs text-slate-500 block mt-1">U.M: {{ prod.unit_product }}</span>
+                <h3 class="font-bold text-white text-xs line-clamp-2 leading-snug">{{ decodeURIComponent(prod.title_product).replace(/\+/g, ' ') }}</h3>
+                <span class="text-[10px] text-slate-500 block mt-0.5">U.M: {{ prod.unit_product }}</span>
               </div>
 
-              <div class="flex justify-between items-center">
+              <div class="flex justify-between items-center pt-2">
                 <!-- Price info lookup -->
                 <div>
-                  <span class="text-xs text-slate-400 block">Precio:</span>
-                  <span class="font-bold text-teal-400 font-mono">
-                    Bs. {{ (pricesMap[prod.id_product]?.price || 0).toFixed(2) }}
+                  <span class="text-[10px] text-slate-400 block">Precio:</span>
+                  <div v-if="Number(prod.discount_product || 0) > 0">
+                    <span class="text-[9px] text-red-400 line-through">Bs. {{ Number(getProductPrice(prod)).toFixed(2) }}</span>
+                    <span class="font-bold text-teal-400 font-mono text-xs ml-1 font-bold">Bs. {{ Number(getProductDiscountedPrice(prod)).toFixed(2) }}</span>
+                  </div>
+                  <span v-else class="font-bold text-teal-400 font-mono text-xs font-bold">
+                    Bs. {{ Number(getProductPrice(prod)).toFixed(2) }}
                   </span>
                 </div>
 
                 <!-- Stock info lookup -->
                 <div class="text-right">
-                  <span class="text-[10px] text-slate-400 block">Stock:</span>
+                  <span class="text-[9px] text-slate-400 block">Stock:</span>
                   <UBadge
                     :color="(inventory[prod.id_product] || 0) > 0 ? 'success' : 'error'"
                     variant="soft"
                     size="xs"
+                    class="text-[9px] font-bold"
                   >
                     {{ inventory[prod.id_product] || 0 }}
                   </UBadge>
@@ -871,11 +924,15 @@ function printReceipt() {
         <div class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
           <!-- Client select & add client -->
           <div v-if="orderId" class="flex gap-2 items-center">
-            <USelect
+            <USelectMenu
               v-model="selectedClient"
-              :options="clients.map(c => ({ value: String(c.id_client), label: `${c.name_client} ${c.surname_client || ''} (${c.dni_client})` }))"
+              :items="clients.map(c => ({ value: String(c.id_client), label: `${c.name_client} ${c.surname_client || ''} (${c.dni_client})` }))"
+              value-key="value"
+              label-key="label"
               placeholder="Seleccionar cliente *"
               class="flex-1"
+              searchable
+              searchable-placeholder="Buscar cliente..."
             />
             <UButton
               icon="i-lucide-user-plus"
@@ -1173,40 +1230,28 @@ function printReceipt() {
     </div>
 
     <!-- Modal to open cash -->
-    <UModal v-model="isOpeningCash">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-bold">Apertura de Caja</h3>
-            <UButton color="neutral" variant="ghost" icon="i-lucide-x" class="-my-1" @click="isOpeningCash = false" />
-          </div>
-        </template>
-
-        <div class="space-y-4">
+    <UModal v-model:open="isOpeningCash" title="Apertura de Caja">
+      <template #body>
+        <div class="space-y-4 p-1">
           <p class="text-sm text-gray-500">Ingrese el monto inicial con el que comienza el día.</p>
-          <UFormGroup label="Dinero Inicial (Bs.)" :error="openingCashAmount < 0 ? 'Monto no puede ser negativo' : ''">
+          <UFormField label="Dinero Inicial (Bs.)">
             <UInput v-model.number="openingCashAmount" type="number" step="0.10" icon="i-lucide-coins" size="lg" />
-          </UFormGroup>
+          </UFormField>
         </div>
+      </template>
 
-        <template #footer>
-          <div class="flex justify-end gap-3">
-            <UButton color="neutral" variant="soft" @click="isOpeningCash = false">Cancelar</UButton>
-            <UButton color="success" :loading="cashModalLoading" @click="submitCashOpen">Confirmar y Abrir</UButton>
-          </div>
-        </template>
-      </UCard>
+      <template #footer>
+        <div class="flex justify-end gap-3 w-full">
+          <UButton color="neutral" variant="soft" @click="isOpeningCash = false">Cancelar</UButton>
+          <UButton color="success" :loading="cashModalLoading" @click="submitCashOpen">Confirmar y Abrir</UButton>
+        </div>
+      </template>
     </UModal>
+
     <!-- Modal Añadir Gasto POS -->
-    <UModal v-model="isExpenseModalOpen" title="Registrar Gasto Rápido">
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-bold">Registrar Gasto</h3>
-            <UButton color="neutral" variant="ghost" icon="i-lucide-x" class="-my-1" @click="isExpenseModalOpen = false" />
-          </div>
-        </template>
-        <div class="space-y-4">
+    <UModal v-model:open="isExpenseModalOpen" title="Registrar Gasto Rápido">
+      <template #body>
+        <div class="space-y-4 p-1">
           <UFormField label="Descripción del Gasto *">
             <UInput v-model="expenseModel.description" placeholder="Ej: Pasajes, almuerzo, etc." />
           </UFormField>
@@ -1214,13 +1259,13 @@ function printReceipt() {
             <UInput v-model.number="expenseModel.amount" type="number" step="0.10" />
           </UFormField>
         </div>
-        <template #footer>
-          <div class="flex justify-end gap-3">
-            <UButton color="neutral" variant="soft" @click="isExpenseModalOpen = false">Cancelar</UButton>
-            <UButton color="warning" :loading="savingExpense" @click="handleSaveExpense">Guardar Gasto</UButton>
-          </div>
-        </template>
-      </UCard>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-3 w-full">
+          <UButton color="neutral" variant="soft" @click="isExpenseModalOpen = false">Cancelar</UButton>
+          <UButton color="warning" :loading="savingExpense" @click="handleSaveExpense">Guardar Gasto</UButton>
+        </div>
+      </template>
     </UModal>
   </div>
 </template>
