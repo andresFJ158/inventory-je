@@ -39,7 +39,7 @@ const rejectNotes = ref('')
 async function fetchPending() {
   loadingPending.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const whId = auth.warehouseId || 0
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -65,7 +65,7 @@ async function fetchPending() {
 async function fetchHistory() {
   loadingHistory.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const whId = auth.warehouseId || 0
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -110,7 +110,7 @@ async function confirmDispatch() {
 
   processingAction.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     const res = await $fetch<any>('/ajax/pos.ajax.php', {

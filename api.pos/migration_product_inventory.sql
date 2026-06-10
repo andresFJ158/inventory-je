@@ -45,7 +45,7 @@ INSERT INTO product_inventory
 SELECT
   tc.canonical_id,
   p.id_office_product,
-  COALESCE(p.stock_product, 0),
+  IF(p.stock_product = '', 0, COALESCE(p.stock_product, 0)),
   p.status_product,
   p.date_created_product
 FROM products p
@@ -188,21 +188,45 @@ CREATE TRIGGER after_sale_update
 AFTER UPDATE ON sales
 FOR EACH ROW
 BEGIN
-    IF NEW.status_sale = 'Completada' AND OLD.status_sale != 'Completada' THEN
-        -- Descontar stock en product_inventory para la sucursal de la venta
-        UPDATE product_inventory
-        SET stock_inventory = COALESCE(stock_inventory, 0) - NEW.qty_sale
-        WHERE id_product_inventory = NEW.id_product_sale
-          AND id_office_inventory   = NEW.id_office_sale;
+    DECLARE v_is_combo INT DEFAULT 0;
 
-        -- Mantener compatibilidad: actualizar products.stock_product (total global)
-        UPDATE products
-        SET stock_product = (
-            SELECT COALESCE(SUM(stock_inventory), 0)
-            FROM product_inventory
+    IF NEW.status_sale = 'Completada' AND OLD.status_sale != 'Completada' THEN
+        
+        SELECT is_compound_product INTO v_is_combo FROM products WHERE id_product = NEW.id_product_sale;
+
+        IF v_is_combo = 1 THEN
+            -- Descontar stock de cada componente
+            UPDATE product_inventory pi
+            INNER JOIN combo_items ci ON pi.id_product_inventory = ci.id_product_ci
+            SET pi.stock_inventory = COALESCE(pi.stock_inventory, 0) - (ci.qty_ci * NEW.qty_sale)
+            WHERE ci.id_combo_ci = NEW.id_product_sale AND pi.id_office_inventory = NEW.id_office_sale;
+            
+            -- Actualizar global de componentes
+            UPDATE products p
+            INNER JOIN combo_items ci ON p.id_product = ci.id_product_ci
+            SET p.stock_product = (
+                SELECT COALESCE(SUM(pi2.stock_inventory), 0)
+                FROM product_inventory pi2
+                WHERE pi2.id_product_inventory = p.id_product
+            )
+            WHERE ci.id_combo_ci = NEW.id_product_sale;
+
+        ELSE
+            -- Descontar stock en product_inventory para la sucursal de la venta
+            UPDATE product_inventory
+            SET stock_inventory = COALESCE(stock_inventory, 0) - NEW.qty_sale
             WHERE id_product_inventory = NEW.id_product_sale
-        )
-        WHERE id_product = NEW.id_product_sale;
+              AND id_office_inventory   = NEW.id_office_sale;
+
+            -- Mantener compatibilidad: actualizar products.stock_product (total global)
+            UPDATE products
+            SET stock_product = (
+                SELECT COALESCE(SUM(stock_inventory), 0)
+                FROM product_inventory
+                WHERE id_product_inventory = NEW.id_product_sale
+            )
+            WHERE id_product = NEW.id_product_sale;
+        END IF;
 
         -- Registrar movimiento en warehouse_assignments
         INSERT INTO warehouse_assignments

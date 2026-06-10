@@ -1,35 +1,41 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useAuthStore } from '~/stores/auth'
+import { decodeText } from '~/utils/format'
 
+definePageMeta({
+  middleware: ['auth', 'permission'],
+  permission: 'productos'
+})
+
+const api = useApi()
 const auth = useAuthStore()
 const toast = useToast()
-const apiHeaders = { Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy' }
-const ajaxBase = '/ajax/pos.ajax.php'
 
 const products = ref<any[]>([])
 const combos = ref<any[]>([])
 const loading = ref(true)
 
-// Slide para editar combo
 const slideOpen = ref(false)
 const editingCombo = ref<any>(null)
 const comboItems = ref<any[]>([])
 const loadingItems = ref(false)
 const newItem = ref({ id_product: '', qty: 1 })
 const savingItem = ref(false)
-
-function decode(s: string) { return s ? decodeURIComponent(s).replace(/\+/g, ' ') : '' }
+const savingMode = ref(false)
+const deletingId = ref<number | null>(null)
 
 async function fetchProducts() {
-  const d = await $fetch<any>('/api/products?linkTo=status_product&equalTo=1', { headers: apiHeaders }).catch(() => null)
+  const d = await api.rest<any>('/api/products?linkTo=status_product&equalTo=1')
   if (d?.status === 200) products.value = d.results || []
 }
 
 async function fetchCombos() {
   loading.value = true
-  const d = await $fetch<any>('/api/products?linkTo=is_compound_product&equalTo=1', { headers: apiHeaders }).catch(() => null)
+  const d = await api.rest<any>('/api/products?linkTo=is_compound_product&equalTo=1')
   combos.value = d?.status === 200 ? (d.results || []) : []
+  if (!d) {
+    toast.add({ title: 'Error', description: 'No se pudieron cargar los combos', color: 'error' })
+  }
   loading.value = false
 }
 
@@ -37,36 +43,62 @@ async function openCombo(combo: any) {
   editingCombo.value = combo
   slideOpen.value = true
   loadingItems.value = true
-  const res = await $fetch<any>(ajaxBase, {
-    method: 'POST',
-    body: new URLSearchParams({ getComboItems: 'ok', id_combo: String(combo.id_product) }).toString(),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-  }).catch(() => null)
-  const d = typeof res === 'string' ? JSON.parse(res) : res
-  comboItems.value = d?.status === 200 ? d.results : []
+  const d = await api.ajax({ getComboItems: 'ok', id_combo: combo.id_product })
+  comboItems.value = d?.status === 200 ? (d.results || []) : []
+  if (d?.status !== 200) {
+    toast.add({ title: 'Error', description: d?.message || 'No se pudieron cargar los componentes', color: 'error' })
+  }
   loadingItems.value = false
 }
 
 async function addItem() {
   if (!newItem.value.id_product || newItem.value.qty <= 0) return
   savingItem.value = true
-  const res = await $fetch<any>(ajaxBase, {
-    method: 'POST',
-    body: new URLSearchParams({ saveComboItem: 'ok', id_combo: String(editingCombo.value.id_product), id_product: newItem.value.id_product, qty: String(newItem.value.qty) }).toString(),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-  }).catch(() => null)
-  const d = typeof res === 'string' ? JSON.parse(res) : res
+  const d = await api.ajax({
+    saveComboItem: 'ok',
+    id_combo: editingCombo.value.id_product,
+    id_product: newItem.value.id_product,
+    qty: newItem.value.qty
+  })
   if (d?.status === 200) {
     newItem.value = { id_product: '', qty: 1 }
     await openCombo(editingCombo.value)
     toast.add({ title: 'Componente agregado', color: 'success' })
+  } else {
+    toast.add({ title: 'Error', description: d?.message || 'No se pudo agregar', color: 'error' })
   }
   savingItem.value = false
 }
 
 async function deleteItem(id: number) {
-  await $fetch<any>(ajaxBase, { method: 'POST', body: new URLSearchParams({ deleteComboItem: 'ok', id_combo_item: String(id) }).toString(), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }).catch(() => null)
-  await openCombo(editingCombo.value)
+  if (!confirm('¿Eliminar este componente del combo?')) return
+  deletingId.value = id
+  const d = await api.ajax({ deleteComboItem: 'ok', id_combo_item: id })
+  if (d?.status === 200) {
+    await openCombo(editingCombo.value)
+    toast.add({ title: 'Componente eliminado', color: 'success' })
+  } else {
+    toast.add({ title: 'Error', description: d?.message || 'No se pudo eliminar', color: 'error' })
+  }
+  deletingId.value = null
+}
+
+async function saveComboMode() {
+  if (!editingCombo.value || !auth.token) return
+  savingMode.value = true
+  const body = new URLSearchParams()
+  body.append('combo_price_mode', editingCombo.value.combo_price_mode || 'descuento')
+  const d = await api.rest<any>(`/api/products?id=${editingCombo.value.id_product}&nameId=id_product&token=${auth.token}&table=admins&suffix=admin`, {
+    method: 'PUT',
+    body: body.toString(),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  })
+  savingMode.value = false
+  if (d?.status === 200) {
+    toast.add({ title: 'Modo de precio actualizado', color: 'success' })
+  } else {
+    toast.add({ title: 'Error', description: 'No se pudo guardar el modo de precio', color: 'error' })
+  }
 }
 
 onMounted(async () => {
@@ -102,68 +134,57 @@ onMounted(async () => {
       >
         <div class="flex items-center gap-3">
           <div class="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 flex items-center justify-center shrink-0">
-            <UIcon name="i-lucide-package" class="w-6 h-6 text-purple-500" />
+            <UIcon name="i-lucide-layers" class="w-6 h-6 text-purple-600" />
           </div>
           <div class="min-w-0">
-            <h3 class="font-bold text-slate-800 dark:text-white truncate">{{ decode(combo.title_product) }}</h3>
-            <p class="text-xs text-slate-500">SKU: {{ combo.sku_product }}</p>
+            <p class="font-semibold truncate">{{ decodeText(combo.title_product) }}</p>
+            <p class="text-xs text-slate-500">{{ combo.combo_price_mode === 'fijo' ? 'Precio fijo' : 'Descuento %' }}</p>
           </div>
-        </div>
-        <div class="mt-3 flex items-center justify-between">
-          <UBadge color="secondary" variant="subtle">Combo</UBadge>
-          <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-settings-2">Editar componentes</UButton>
         </div>
       </UCard>
     </div>
 
-    <!-- Slideover: componentes del combo -->
-    <USlideover v-model:open="slideOpen" :title="editingCombo ? `Componentes: ${decode(editingCombo.title_product)}` : 'Combo'">
+    <USlideover v-model:open="slideOpen" :title="editingCombo ? decodeText(editingCombo.title_product) : 'Combo'">
       <template #body>
-        <div class="space-y-4 p-1">
-          <div v-if="loadingItems" class="flex justify-center py-8">
-            <UIcon name="i-lucide-loader-2" class="w-6 h-6 animate-spin text-green-500" />
-          </div>
-          <template v-else>
-            <!-- Lista de componentes -->
-            <div class="space-y-2">
-              <div v-for="item in comboItems" :key="item.id_combo_item"
-                class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2.5"
-              >
-                <div>
-                  <p class="text-sm font-semibold text-slate-800 dark:text-white">{{ decode(item.title_product) }}</p>
-                  <p class="text-xs text-slate-500">{{ item.sku_product }} · {{ item.unit_product }}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <UBadge color="neutral" variant="soft">× {{ item.qty_combo_item }}</UBadge>
-                  <UButton icon="i-lucide-trash" color="error" variant="ghost" size="xs" @click="deleteItem(item.id_combo_item)" />
-                </div>
-              </div>
-              <div v-if="comboItems.length === 0" class="text-center py-4 text-slate-400 text-sm">Sin componentes aún</div>
-            </div>
+        <div v-if="editingCombo" class="space-y-6 p-4">
+          <UFormField label="Modo de precio">
+            <USelect
+              v-model="editingCombo.combo_price_mode"
+              :items="[{ label: 'Descuento %', value: 'descuento' }, { label: 'Precio fijo', value: 'fijo' }]"
+            />
+          </UFormField>
+          <UButton :loading="savingMode" @click="saveComboMode">Guardar modo</UButton>
 
-            <!-- Agregar componente -->
-            <div class="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3">
-              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Agregar Componente</p>
+          <hr class="border-slate-200 dark:border-slate-700">
+
+          <h4 class="font-semibold">Componentes</h4>
+          <div v-if="loadingItems" class="flex justify-center py-8">
+            <UIcon name="i-lucide-loader-2" class="animate-spin" />
+          </div>
+          <ul v-else class="space-y-2">
+            <li v-for="item in comboItems" :key="item.id_combo_item" class="flex justify-between items-center text-sm border-b pb-2">
+              <span>{{ decodeText(item.title_product) }} × {{ item.qty_ci }}</span>
+              <UButton
+                size="xs" color="error" variant="ghost" icon="i-lucide-trash"
+                :loading="deletingId === item.id_combo_item"
+                @click.stop="deleteItem(item.id_combo_item)"
+              />
+            </li>
+          </ul>
+
+          <div class="flex gap-2 items-end">
+            <UFormField label="Producto" class="flex-1">
               <USelect
                 v-model="newItem.id_product"
-                :items="products.filter(p => p.is_compound_product != 1).map(p => ({ value: String(p.id_product), label: `${decode(p.title_product)} (${p.sku_product})` }))"
-                placeholder="Seleccionar producto..."
-                class="w-full"
+                :items="products.map(p => ({ label: decodeText(p.title_product), value: String(p.id_product) }))"
+                placeholder="Seleccionar..."
               />
-              <div class="flex gap-2 items-center">
-                <UFormField label="Cantidad" class="flex-1">
-                  <UInput v-model.number="newItem.qty" type="number" step="0.5" min="0.1" class="w-full" />
-                </UFormField>
-                <UButton class="mt-5" color="primary" icon="i-lucide-plus" :loading="savingItem" @click="addItem">Agregar</UButton>
-              </div>
-            </div>
-
-            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3">
-              <p class="text-xs text-amber-700 dark:text-amber-300">
-                Al vender este combo, el sistema descontará automáticamente el inventario de cada componente en las cantidades definidas aquí.
-              </p>
-            </div>
-          </template>
+            </UFormField>
+            <UFormField label="Cant.">
+              <UInput v-model.number="newItem.qty" type="number" min="1" class="w-20" />
+            </UFormField>
+            <UButton :loading="savingItem" icon="i-lucide-plus" @click="addItem">Agregar</UButton>
+          </div>
         </div>
       </template>
     </USlideover>

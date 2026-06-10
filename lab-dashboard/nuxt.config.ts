@@ -20,17 +20,15 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/ajax/**': { proxy: 'http://api/ajax/**' },
-    '/api/**': { proxy: 'http://api/**' },
     '/views/**': { proxy: 'http://api/views/**' }
   },
 
   runtimeConfig: {
+    apiInternalUrl: process.env.API_INTERNAL_URL || 'http://localhost:8081',
+    apiToken: process.env.API_TOKEN || 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy',
     public: {
-      // Base de la API REST y del endpoint AJAX del POS.
-      apiBase: '',
-      ajaxBase: '/ajax/pos.ajax.php',
-      // Token de la API. Configurable por entorno (no hardcodear en cada página).
-      apiToken: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+      apiBase: '/api',
+      ajaxBase: '/ajax/pos.ajax.php'
     }
   },
 

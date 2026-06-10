@@ -17,8 +17,8 @@ if(isset($_GET["id"]) && isset($_GET["nameId"])){
 		if (strpos($key, 'password_') === 0) {
 			if (empty($value)) {
 				unset($data[$key]);
-			} else if (strpos($value, '$2a$07$') !== 0) {
-				$data[$key] = crypt($value, '$2a$07$azybxcags23425sdg23sdfhsd$');
+			} else if (strpos($value, '$2y$') !== 0 && strpos($value, '$2a$') !== 0) {
+				$data[$key] = Connection::hashPassword($value);
 			}
 		}
 	}
@@ -58,112 +58,31 @@ if(isset($_GET["id"]) && isset($_GET["nameId"])){
 
 	if(isset($_GET["token"])){
 
-		/*=============================================
-		Peticion PUT para usuarios no autorizados
-		=============================================*/
+		$tableToken = $_GET["table"] ?? "users";
+		$suffix = $_GET["suffix"] ?? "user";
+		$validate = Connection::tokenValidate($_GET["token"],$tableToken,$suffix);
 
-		if($_GET["token"] == "no" && isset($_GET["except"])){
-
-			/*=============================================
-			Validar la tabla y las columnas
-			=============================================*/
-
-			$columns = array($_GET["except"]);
-
-			if(empty(Connection::getColumnsData($table, $columns))){
-
-				$json = array(
-				 	'status' => 400,
-				 	'results' => "Error: Fields in the form do not match the database"
-				);
-
-				echo json_encode($json, http_response_code($json["status"]));
-
-				return;
-
-			}
-
-			/*=============================================
-			Solicitamos respuesta del controlador para crear datos en cualquier tabla
-			=============================================*/		
-
+		if($validate == "ok"){
 			$response = new PutController();
 			$response -> putData($table,$data,$_GET["id"],$_GET["nameId"]);
-			
-		/*=============================================
-		Peticion PUT para usuarios autorizados
-		=============================================*/
-
-		}else{
-
-			$tableToken = $_GET["table"] ?? "users";
-			$suffix = $_GET["suffix"] ?? "user";
-
-			$validate = Connection::tokenValidate($_GET["token"],$tableToken,$suffix);
-
-			/*=============================================
-			Solicitamos respuesta del controlador para editar datos en cualquier tabla
-			=============================================*/		
-
-			if($validate == "ok"){
-				
-				$response = new PutController();
-				$response -> putData($table,$data,$_GET["id"],$_GET["nameId"]);
-
-			}
-
-			/*=============================================
-			Error cuando el token ha expirado
-			=============================================*/	
-
-			if($validate == "expired"){
-
-				$json = array(
-				 	'status' => 303,
-				 	'results' => "Error: The token has expired"
-				);
-
-				echo json_encode($json, http_response_code($json["status"]));
-
-				return;
-
-			}
-
-			/*=============================================
-			Error cuando el token no coincide en BD
-			=============================================*/	
-
-			if($validate == "no-auth"){
-
-				$json = array(
-				 	'status' => 400,
-				 	'results' => "Error: The user is not authorized"
-				);
-
-				echo json_encode($json, http_response_code($json["status"]));
-
-				return;
-
-			}
-
+			return;
 		}
 
-	/*=============================================
-	Error cuando no envía token
-	=============================================*/	
+		if($validate == "expired"){
+			http_response_code(303);
+			echo json_encode(['status' => 303, 'results' => "Error: The token has expired"]);
+			return;
+		}
 
-	}else{
+		http_response_code(400);
+		echo json_encode(['status' => 400, 'results' => "Error: The user is not authorized"]);
+		return;
 
-		$json = array(
-		 	'status' => 400,
-		 	'results' => "Error: Authorization required"
-		);
+	}
 
-		echo json_encode($json, http_response_code($json["status"]));
-
-		return;	
-
-	}	
+	http_response_code(400);
+	echo json_encode(['status' => 400, 'results' => "Error: Authorization required"]);
+	return;
 
 
 }

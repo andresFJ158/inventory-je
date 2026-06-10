@@ -236,8 +236,8 @@ class DynamicController{
 
 				if($isBill && $billOffice > 0){
 					
-					// Verificar que exista una caja abierta para hoy
-				$urlCash = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".date("Y-m-d").",1,".$billOffice."&select=*";
+					// Verificar que exista una caja abierta
+				$urlCash = "cashs?linkTo=status_cash,id_office_cash&equalTo=1,".$billOffice."&select=*";
 				$methodCash = "GET";
 				$fieldsCash = array();
 
@@ -267,7 +267,7 @@ class DynamicController{
 
 							fncMatPreloader("off");
 							fncFormatInputs();
-							fncSweetAlert("error","No hay caja abierta el día de hoy. Debe abrir una caja antes de registrar gastos", "");
+							fncSweetAlert("error","No hay caja abierta. Debe abrir una caja antes de registrar gastos", "");
 
 						</script>
 
@@ -275,37 +275,6 @@ class DynamicController{
 					
 					return;
 					
-					}else{
-
-						/*=============================================
-						Validar que la caja del día anterior haya sido cerrada
-						=============================================*/
-
-						$yesterday = date("Y-m-d", strtotime(date("Y-m-d")."- 1 days"));
-						
-						$urlCashYesterday = "cashs?linkTo=date_created_cash,status_cash,id_office_cash&equalTo=".$yesterday.",1,".$billOffice."&select=status_cash"; 
-						$methodCashYesterday = "GET";
-						$fieldsCashYesterday = array();
-
-						$cashYesterday = CurlController::request($urlCashYesterday,$methodCashYesterday,$fieldsCashYesterday);
-
-						if(isset($cashYesterday->status) && $cashYesterday->status == 200){
-							echo '
-
-								<script>
-
-									fncMatPreloader("off");
-									fncFormatInputs();
-									fncSweetAlert("error","No ha cerrado la caja del día anterior. Debe cerrar la caja anterior antes de registrar gastos", "");
-
-								</script>
-
-							';
-							
-							return;
-
-						}
-
 					}
 
 				}
@@ -690,10 +659,14 @@ class DynamicController{
 		$cashOffice = isset($row->id_office_cash) ? (int)$row->id_office_cash : (int)$officeId;
 
 		$cashRow = json_decode(json_encode($row), true);
-		list($tStart, $tEnd) = TemplateController::cashSessionTimeBounds($cashRow);
+		
+		$startStr = $cashRow["date_start_cash"] ?? $cashRow["date_created_cash"] ?? "2000-01-01";
+		$endStr = $cashRow["date_end_cash"] ?? date("Y-m-d H:i:s");
+		$tStart = substr($startStr, 0, 10);
+		$tEnd = substr($endStr, 0, 10);
 
 		$totalBills = 0.0;
-		$urlBills = TemplateController::billsSessionApiUrl($cashOffice, $tStart, $tEnd);
+		$urlBills = "bills?linkTo=date_created_bill&between1=".$tStart."&between2=".$tEnd."&filterTo=id_office_bill&inTo=".$cashOffice."&select=cost_bill";
 		$bills = CurlController::request($urlBills, "GET", array());
 		if(isset($bills->status) && $bills->status == 200 && !empty($bills->results)){
 			foreach($bills->results as $b){
@@ -713,7 +686,7 @@ class DynamicController{
 		$totalOrders = 0.0;
 		$totalEfectivo = 0.0;
 		$totalQr = 0.0;
-		$urlOrders = TemplateController::ordersSessionApiUrl($cashOffice, $tStart, $tEnd);
+		$urlOrders = "orders?linkTo=date_created_order&between1=".$tStart."&between2=".$tEnd."&filterTo=id_office_order&inTo=".$cashOffice."&select=id_admin_order,status_order,total_order,method_order";
 		$orders = CurlController::request($urlOrders, "GET", array());
 		if(isset($orders->status) && $orders->status == 200 && !empty($orders->results)){
 			foreach($orders->results as $o){

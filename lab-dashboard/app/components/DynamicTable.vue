@@ -289,7 +289,9 @@ async function handleDelete(item: any) {
       query: {
         id: idValue,
         nameId: idKey,
-        token: 'no',
+        token: auth.token,
+        table: 'admins',
+        suffix: 'admin',
         except: idKey
       }
     })
@@ -314,6 +316,44 @@ function onFormSaved() {
 // Order PDF Logic
 const isReceiptModalOpen = ref(false)
 const selectedOrderId = ref<number | string | null>(null)
+
+function exportToCSV() {
+  if (filteredRows.value.length === 0) {
+    toast.add({ title: 'No hay datos para exportar', color: 'error' })
+    return
+  }
+
+  const visibleCols = columns.value.filter(c => c.visible_column === 1)
+  const header = visibleCols.map(c => `"${(c.alias_column || c.title_column).replace(/"/g, '""')}"`).join(',')
+  
+  const csvRows = filteredRows.value.map((row: any) => {
+    return visibleCols.map(col => {
+      let cellData = row[col.title_column]
+      if (col.type_column === 'money') {
+        cellData = typeof cellData === 'number' ? cellData.toFixed(2) : cellData
+      } else if (col.type_column === 'date' || col.type_column === 'timestamp') {
+        cellData = String(cellData || '')
+      } else if (col.type_column === 'relations') {
+        cellData = getRelationLabel(col.matrix_column, cellData)
+      } else {
+        cellData = cellData !== null ? decodeURIComponent(String(cellData)).replace(/\+/g, ' ') : '-'
+      }
+      const safeData = String(cellData ?? '').replace(/"/g, '""')
+      return `"${safeData}"`
+    }).join(',')
+  })
+
+  const csvString = [header, ...csvRows].join('\n')
+  const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', `${moduleConfig.value?.title_module || 'export'}_${new Date().toISOString().split('T')[0]}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
 
 function openReceipt(id: string | number) {
   selectedOrderId.value = id
@@ -350,6 +390,14 @@ function openCashDetails(cashRow: any) {
           placeholder="Buscar..."
           class="w-full sm:w-64"
         />
+        <UButton
+          icon="i-lucide-file-spreadsheet"
+          color="white"
+          variant="ghost"
+          @click="exportToCSV"
+        >
+          Exportar CSV
+        </UButton>
         <UButton
           v-slot:default
           v-if="auth.role === 'superadmin' || auth.role === 'admin' || moduleConfig?.editable_module === 1"
@@ -484,9 +532,9 @@ function openCashDetails(cashRow: any) {
           Mostrando {{ (page - 1) * itemsPerPage + 1 }} a {{ Math.min(page * itemsPerPage, totalItems) }} de {{ totalItems }} registros
         </span>
         <UPagination
-          v-model="page"
+          v-model:page="page"
           :total="totalItems"
-          :page-count="itemsPerPage"
+          :items-per-page="itemsPerPage"
         />
       </div>
     </div>

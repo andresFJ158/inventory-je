@@ -4,6 +4,20 @@ require_once "connection.php";
 
 class GetModel{
 
+	private static function sqlOrderLimit($table, $selectArray, $orderBy, $orderMode, $startAt, $endAt){
+		$clause = "";
+		if ($orderBy != null && $orderMode != null) {
+			$col = Connection::sanitizeOrderBy($orderBy, $table, $selectArray);
+			if ($col !== null) {
+				$clause .= " ORDER BY " . $col . " " . Connection::sanitizeOrderMode($orderMode);
+			}
+		}
+		if ($startAt != null && $endAt != null) {
+			$clause .= " LIMIT " . max(0, intval($startAt)) . ", " . max(1, intval($endAt));
+		}
+		return $clause;
+	}
+
 	/*=============================================
 	Peticiones GET sin filtro
 	=============================================*/
@@ -26,37 +40,7 @@ class GetModel{
 		Sin ordenar y sin limitar datos
 		=============================================*/
 
-		$sql = "SELECT $select FROM $table";
-
-		/*=============================================
-		Ordenar datos sin limites
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-			$sql = "SELECT $select FROM $table ORDER BY $orderBy $orderMode";
-
-		}
-
-		/*=============================================
-		Ordenar y limitar datos
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-		}
-
-		/*=============================================
-		Limitar datos sin ordenar
-		=============================================*/
-
-		if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table LIMIT $startAt, $endAt";
-
-		}
+		$sql = "SELECT $select FROM $table" . GetModel::sqlOrderLimit($table, $selectArray, $orderBy, $orderMode, $startAt, $endAt);
 
 		$stmt = Connection::connect()->prepare($sql);
 
@@ -123,37 +107,8 @@ class GetModel{
 		Sin ordenar y sin limitar datos
 		=============================================*/
 
-		$sql = "SELECT $select FROM $table WHERE $linkToArray[0] = :$linkToArray[0] $linkToText";
-
-		/*=============================================
-		Ordenar datos sin limites
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkToArray[0] = :$linkToArray[0] $linkToText ORDER BY $orderBy $orderMode";
-
-		}
-
-		/*=============================================
-		Ordenar y limitar datos
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkToArray[0] = :$linkToArray[0] $linkToText ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-		}
-
-		/*=============================================
-		Limitar datos sin ordenar
-		=============================================*/
-
-		if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkToArray[0] = :$linkToArray[0] $linkToText LIMIT $startAt, $endAt";
-
-		}
+		$sql = "SELECT $select FROM $table WHERE $linkToArray[0] = :$linkToArray[0] $linkToText"
+			. GetModel::sqlOrderLimit($table, $selectArray, $orderBy, $orderMode, $startAt, $endAt);
 
 		$stmt = Connection::connect()->prepare($sql);
 
@@ -218,41 +173,10 @@ class GetModel{
 			}
 
 
-			/*=============================================
-			Sin ordenar y sin limitar datos
-			=============================================*/
+			$selectArray = explode(",", $select);
 
-			$sql = "SELECT $select FROM $relArray[0] $innerJoinText";
-
-			/*=============================================
-			Ordenar datos sin limites
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText ORDER BY $orderBy $orderMode";
-
-			}
-
-			/*=============================================
-			Ordenar y limitar datos
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-			}
-
-			/*=============================================
-			Limitar datos sin ordenar
-			=============================================*/
-
-			if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText LIMIT $startAt, $endAt";
-
-			}
+			$sql = "SELECT $select FROM $relArray[0] $innerJoinText"
+				. GetModel::sqlOrderLimit($relArray[0], $selectArray, $orderBy, $orderMode, $startAt, $endAt);
 
 			$stmt = Connection::connect()->prepare($sql);
 
@@ -337,41 +261,10 @@ class GetModel{
 			}
 
 
-			/*=============================================
-			Sin ordenar y sin limitar datos
-			=============================================*/
+			$selectArray = explode(",", $select);
 
-			$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] = :$linkToArray[0] $linkToText";
-
-			/*=============================================
-			Ordenar datos sin limites
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] = :$linkToArray[0] $linkToText ORDER BY $orderBy $orderMode";
-
-			}
-
-			/*=============================================
-			Ordenar y limitar datos
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] = :$linkToArray[0] $linkToText ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-			}
-
-			/*=============================================
-			Limitar datos sin ordenar
-			=============================================*/
-
-			if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] = :$linkToArray[0] $linkToText LIMIT $startAt, $endAt";
-
-			}
+			$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] = :$linkToArray[0] $linkToText"
+				. GetModel::sqlOrderLimit($relArray[0], $selectArray, $orderBy, $orderMode, $startAt, $endAt);
 
 			$stmt = Connection::connect()->prepare($sql);
 
@@ -453,39 +346,12 @@ class GetModel{
 		Sin ordenar y sin limitar datos
 		=============================================*/
 
-		$sql = "SELECT $select FROM $table WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText";
-
-		/*=============================================
-		Ordenar datos sin limites
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText ORDER BY $orderBy $orderMode";
-
-		}
-
-		/*=============================================
-		Ordenar y limitar datos
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-		}
-
-		/*=============================================
-		Limitar datos sin ordenar
-		=============================================*/
-
-		if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText LIMIT $startAt, $endAt";
-
-		}
+		$sql = "SELECT $select FROM $table WHERE $linkToArray[0] LIKE :search0 $linkToText"
+			. GetModel::sqlOrderLimit($table, $selectArray, $orderBy, $orderMode, $startAt, $endAt);
 
 		$stmt = Connection::connect()->prepare($sql);
+		$searchTerm = '%' . ($searchArray[0] ?? '') . '%';
+		$stmt->bindValue(':search0', $searchTerm, PDO::PARAM_STR);
 
 		foreach ($linkToArray as $key => $value) {
 
@@ -578,39 +444,12 @@ class GetModel{
 			Sin ordenar y sin limitar datos
 			=============================================*/
 
-			$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText";
-
-			/*=============================================
-			Ordenar datos sin limites
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText ORDER BY $orderBy $orderMode";
-
-			}
-
-			/*=============================================
-			Ordenar y limitar datos
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-			}
-
-			/*=============================================
-			Limitar datos sin ordenar
-			=============================================*/
-
-			if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] LIKE '%$searchArray[0]%' $linkToText LIMIT $startAt, $endAt";
-
-			}
+			$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkToArray[0] LIKE :search0 $linkToText"
+				. GetModel::sqlOrderLimit($relArray[0], explode(",", $select), $orderBy, $orderMode, $startAt, $endAt);
 
 			$stmt = Connection::connect()->prepare($sql);
+			$searchTerm = '%' . ($searchArray[0] ?? '') . '%';
+			$stmt->bindValue(':search0', $searchTerm, PDO::PARAM_STR);
 
 			foreach ($linkToArray as $key => $value) {
 
@@ -686,54 +525,43 @@ class GetModel{
 		}
 
 		$filter = "";
+		$inParams = [];
 		if($filterTo != null && $inTo != null){
 			$filterToArray = explode(",",$filterTo);
 			$inToArray = explode(",",$inTo);
 			foreach($filterToArray as $key => $value){
-				if(isset($inToArray[$key])){
-					$inVals = str_replace("_", ",", $inToArray[$key]);
-					$filter .= ' AND '.$value.' IN ('.$inVals.')';
+				$col = Connection::sanitizeIdentifier($value);
+				if($col === null || !isset($inToArray[$key])){
+					continue;
 				}
+				$ints = Connection::sanitizeIntList(str_replace("_", ",", $inToArray[$key]));
+				if($ints === null || count($ints) === 0){
+					continue;
+				}
+				$ph = [];
+				foreach($ints as $i => $n){
+					$p = ':in_'.$col.'_'.$i;
+					$ph[] = $p;
+					$inParams[$p] = $n;
+				}
+				$filter .= ' AND '.$col.' IN ('.implode(',', $ph).')';
 			}
 		}
 
-		/*=============================================
-		Sin ordenar y sin limitar datos
-		=============================================*/
-
-		$sql = "SELECT $select FROM $table WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter";
-
-		/*=============================================
-		Ordenar datos sin limites
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter ORDER BY $orderBy $orderMode";
-
+		$linkCol = Connection::sanitizeIdentifier($linkTo);
+		if($linkCol === null){
+			return null;
 		}
 
-		/*=============================================
-		Ordenar y limitar datos
-		=============================================*/
-
-		if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-		}
-
-		/*=============================================
-		Limitar datos sin ordenar
-		=============================================*/
-
-		if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-			$sql = "SELECT $select FROM $table WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter LIMIT $startAt, $endAt";
-
-		}
+		$sql = "SELECT $select FROM $table WHERE $linkCol BETWEEN :between1 AND :between2 $filter"
+			. GetModel::sqlOrderLimit($table, $selectArray, $orderBy, $orderMode, $startAt, $endAt);
 
 		$stmt = Connection::connect()->prepare($sql);
+		$stmt->bindValue(':between1', $between1, PDO::PARAM_STR);
+		$stmt->bindValue(':between2', $between2, PDO::PARAM_STR);
+		foreach($inParams as $p => $n){
+			$stmt->bindValue($p, $n, PDO::PARAM_INT);
+		}
 
 		try{
 
@@ -811,41 +639,10 @@ class GetModel{
 				}
 			}
 
-			/*=============================================
-			Sin ordenar y sin limitar datos
-			=============================================*/
+			$selectArray = explode(",", $select);
 
-			$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter";
-
-			/*=============================================
-			Ordenar datos sin limites
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt == null && $endAt == null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter ORDER BY $orderBy $orderMode";
-
-			}
-
-			/*=============================================
-			Ordenar y limitar datos
-			=============================================*/
-
-			if($orderBy != null && $orderMode != null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter ORDER BY $orderBy $orderMode LIMIT $startAt, $endAt";
-
-			}
-
-			/*=============================================
-			Limitar datos sin ordenar
-			=============================================*/
-
-			if($orderBy == null && $orderMode == null && $startAt != null && $endAt != null){
-
-				$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter LIMIT $startAt, $endAt";
-
-			}
+			$sql = "SELECT $select FROM $relArray[0] $innerJoinText WHERE $linkTo BETWEEN '$between1' AND '$between2' $filter"
+				. GetModel::sqlOrderLimit($relArray[0], $selectArray, $orderBy, $orderMode, $startAt, $endAt);
 
 			$stmt = Connection::connect()->prepare($sql);
 

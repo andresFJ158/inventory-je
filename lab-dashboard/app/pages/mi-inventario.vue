@@ -123,7 +123,7 @@ async function fetchInventory() {
       body: new URLSearchParams({
         getSubWarehouseStock: 'true',
         id_admin: String(auth.user?.id_admin || 1),
-        id_office: String(auth.officeId || 3),
+        id_office: String(auth.officeId ?? 3),
         role: auth.role || 'cajero'
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -147,7 +147,7 @@ async function fetchMovements() {
       body: new URLSearchParams({
         getMyWarehouseMovements: 'true',
         id_admin: String(auth.user?.id_admin || 1),
-        id_office: String(auth.officeId || 3)
+        id_office: String(auth.officeId ?? 3)
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })

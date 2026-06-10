@@ -51,11 +51,11 @@ async function handleSaveExpense() {
     const body = new URLSearchParams({
       concept_bill: 'Gasto POS: ' + expenseModel.value.description,
       cost_bill: String(expenseModel.value.amount),
-      id_office_bill: String(auth.officeId || 3),
+      id_office_bill: String(auth.officeId ?? 3),
       id_admin_bill: String(auth.user?.id_admin || 1),
       id_cash_bill: String(activeCashId.value)
     })
-    const res = await $fetch<any>('/api/bills?token=no&except=id_bill', {
+    const res = await $fetch<any>(`/api/bills?token=${auth.token}&table=admins&suffix=admin&except=id_bill`, {
       method: 'POST',
       body: body.toString(),
       headers: { 
@@ -95,11 +95,11 @@ async function handleSaveIncome() {
     const body = new URLSearchParams({
       concept_income: 'Ingreso Extra POS: ' + incomeModel.value.description,
       amount_income: String(incomeModel.value.amount),
-      id_office_income: String(auth.officeId || 3),
+      id_office_income: String(auth.officeId ?? 3),
       id_admin_income: String(auth.user?.id_admin || 1),
       id_cash_income: String(activeCashId.value)
     })
-    const res = await $fetch<any>('/api/incomes?token=no&except=id_income', {
+    const res = await $fetch<any>(`/api/incomes?token=${auth.token}&table=admins&suffix=admin&except=id_income`, {
       method: 'POST',
       body: body.toString(),
       headers: { 
@@ -161,7 +161,7 @@ async function fetchCatalog() {
     }
 
     // 2. Fetch inventory for current office
-    const officeId = auth.officeId || 3 // fallback to office 3
+    const officeId = auth.officeId ?? 3 // fallback to office 3
     const invData = await $fetch<any>(`/api/product_inventory?linkTo=id_office_inventory&equalTo=${officeId}`, {
       headers: apiHeaders
     })
@@ -310,7 +310,7 @@ async function checkCashRegister() {
     return
   }
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     
     const data = await $fetch<any>(`/api/cashs?linkTo=id_office_cash,status_cash&equalTo=${officeId},1&select=id_cash,status_cash`, {
       headers: apiHeaders
@@ -342,7 +342,7 @@ async function submitCashOpen() {
   cashModalLoading.value = true
   try {
     const today = new Date().toISOString().split('T')[0]
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
 
     const localDateTime = new Date().toLocaleString('sv-SE').replace('T', ' ')
 
@@ -357,7 +357,7 @@ async function submitCashOpen() {
     payload.append('money_cash', '0')
     payload.append('diff_cash', '0')
 
-    const res = await ($fetch as any)(`/api/cashs?token=no&except=date_end_cash,end_cash,gap_cash`, {
+    const res = await ($fetch as any)(`/api/cashs?token=${auth.token}&table=admins&suffix=admin&except=date_end_cash,end_cash,gap_cash`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -396,7 +396,7 @@ onMounted(async () => {
 // Generate new Order
 async function handleNewOrder() {
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
@@ -477,7 +477,7 @@ async function addToCart(product: any) {
   }
 
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     // Call POS ajax to create/add
@@ -662,7 +662,7 @@ watch(isWholesaleGlobal, async () => {
 async function handleRegisterClient() {
   if (!newClient.value.name || !newClient.value.dni) return
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({

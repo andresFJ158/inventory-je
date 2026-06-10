@@ -22,7 +22,8 @@ async function checkSession() {
       body: new URLSearchParams({
         getLoggedUser: 'ok'
       }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
     })
     const data = typeof response === 'string' ? JSON.parse(response) : response
     if (data.status === 200) {
@@ -43,7 +44,8 @@ async function handleLogout() {
       body: new URLSearchParams({
         logoutLabUser: 'ok'
       }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
     })
   } catch (e) {
     console.error('Logout error:', e)
@@ -155,14 +157,14 @@ const notificationItems = computed(() => {
     items.push({
       label: `Ingresos Pendientes (${pendingEntries.value.length})`,
       icon: 'i-lucide-truck',
-      to: '/entradas',
+      to: '/ingreso-egreso',
       class: 'text-amber-500 font-bold bg-amber-50/50 dark:bg-amber-950/20'
     })
     pendingEntries.value.slice(0, 3).forEach((e: any) => {
       items.push({
         label: `Lote ${e.lot_number_entry || ('ENT-' + e.id_entry)}: ${e.name_raw_material || 'M.P.'}`,
         icon: 'i-lucide-arrow-right',
-        to: '/entradas'
+        to: '/ingreso-egreso'
       })
     })
   }
@@ -271,6 +273,9 @@ const sidebarItems = computed(() => {
     if (hasPerm('clientes')) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
     if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-tags' })
     if (hasPerm('productos')) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
+    if (role === 'superadmin' || role === 'admin' || hasPerm('productos')) {
+      items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
+    }
     if (hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
     if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
     if (hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
@@ -297,6 +302,9 @@ const sidebarItems = computed(() => {
     if (role === 'superadmin' || role === 'admin' || role === 'cajero' || hasPerm('reports') || hasPerm('reportes')) {
       items.push({ label: 'Reportes', to: '/reportes', icon: 'i-lucide-bar-chart-2' })
     }
+    if (role === 'superadmin' || (role === 'admin' && auth.officeId === 0)) {
+      items.push({ label: 'Reporte Empresa', to: '/reportes-empresa', icon: 'i-lucide-building-2' })
+    }
   }
 
   // Módulos de Laboratorio
@@ -305,7 +313,7 @@ const sidebarItems = computed(() => {
     items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
     items.push({ label: 'Insumos Lab', to: '/insumos-lab', icon: 'i-lucide-beaker' })
     items.push({ label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' })
-    items.push({ label: 'Entradas M.P.', to: '/entradas', icon: 'i-lucide-truck' })
+    items.push({ label: 'Entradas M.P.', to: '/ingreso-egreso', icon: 'i-lucide-truck' })
     items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })
     items.push({ label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' })
     if (role !== 'lab_worker') {

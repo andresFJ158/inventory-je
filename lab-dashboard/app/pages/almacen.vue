@@ -106,7 +106,7 @@ async function fetchOffices() {
 async function fetchStock() {
   loadingStock.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     
     // 1. Fetch products inventory of this office
     const prodData = await $fetch<any>(`/api/relations?rel=product_inventory,products&type=inventory,product&linkTo=id_office_inventory,status_inventory&equalTo=${officeId},1`, {
@@ -147,7 +147,7 @@ async function fetchStock() {
 async function fetchSubWarehouses() {
   loadingSubs.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
@@ -170,7 +170,7 @@ async function fetchSubWarehouses() {
 async function fetchMovements() {
   loadingMoves.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const adminId = auth.user?.id_admin || 1
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -195,7 +195,7 @@ async function fetchMovements() {
 async function fetchWastePackaged() {
   loadingWaste.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
@@ -248,7 +248,7 @@ async function confirmAssign() {
 
   processingAction.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     const res = await $fetch<any>('/ajax/pos.ajax.php', {
@@ -283,7 +283,7 @@ async function confirmAssign() {
 
 // Traspasos entre almacenes
 const destinationOffices = computed(() => {
-  const currentOfficeId = String(auth.officeId || 3)
+  const currentOfficeId = String(auth.officeId ?? 3)
   return officesList.value
     .filter((o: any) => String(o.id_office) !== currentOfficeId)
     .map((o: any) => ({
@@ -322,7 +322,7 @@ async function confirmTransfer() {
 
   processingAction.value = true
   try {
-    const officeId = auth.officeId || 3
+    const officeId = auth.officeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     const res = await $fetch<any>('/ajax/pos.ajax.php', {
@@ -752,7 +752,7 @@ function exportCSV() {
           <!-- Source Office -->
           <div>
             <span class="text-[10px] text-slate-500 block">Almacén de Origen:</span>
-            <span class="text-xs font-bold text-slate-350">{{ officesMap[auth.officeId || 3] || 'Almacén Principal' }}</span>
+            <span class="text-xs font-bold text-slate-350">{{ officesMap[auth.officeId ?? 3] || 'Almacén Principal' }}</span>
           </div>
 
           <!-- Destination Office -->

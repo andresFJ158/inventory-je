@@ -28,9 +28,68 @@ class Connection{
 	=============================================*/
 
 	static public function apikey(){
+		$key = getenv("API_KEY") ?: getenv("API_AUTHORIZATION");
+		return $key ?: "gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy";
+	}
 
-		return "gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy";
+	static public function jwtSecret(){
+		return getenv("JWT_SECRET") ?: "dfhsdfg34dfchs4xgsrsdry46";
+	}
 
+	static public function hashPassword($password){
+		return password_hash($password, PASSWORD_BCRYPT, ["cost" => 10]);
+	}
+
+	static public function verifyPassword($password, $hash){
+		if ($password === null || $password === "" || $hash === null || $hash === "") {
+			return false;
+		}
+		if (password_verify($password, $hash)) {
+			return true;
+		}
+		$legacy = crypt($password, '$2a$07$azybxcags23425sdg23sdfhsd$');
+		return hash_equals((string)$hash, (string)$legacy);
+	}
+
+	static public function sanitizeIdentifier($name){
+		if (!is_string($name) || !preg_match('/^[a-zA-Z0-9_]+$/', $name)) {
+			return null;
+		}
+		return $name;
+	}
+
+	static public function sanitizeOrderMode($orderMode){
+		$mode = strtoupper(trim((string)$orderMode));
+		return in_array($mode, ["ASC", "DESC"], true) ? $mode : "ASC";
+	}
+
+	static public function sanitizeOrderBy($orderBy, $table, $allowedColumns){
+		$col = Connection::sanitizeIdentifier($orderBy);
+		if ($col === null) {
+			return null;
+		}
+		$allowed = Connection::getColumnsData($table, is_array($allowedColumns) ? $allowedColumns : explode(",", $allowedColumns));
+		if (empty($allowed)) {
+			return null;
+		}
+		foreach ($allowed as $c) {
+			if ($c->item === $col) {
+				return $col;
+			}
+		}
+		return null;
+	}
+
+	static public function sanitizeIntList($csv){
+		$parts = array_filter(array_map('trim', explode(",", (string)$csv)), 'strlen');
+		$ints = [];
+		foreach ($parts as $p) {
+			if (!preg_match('/^-?\d+$/', $p)) {
+				return null;
+			}
+			$ints[] = intval($p);
+		}
+		return $ints;
 	}
 
 	/*=============================================
@@ -130,9 +189,15 @@ class Connection{
 		Traer todas las columnas de una tabla
 		=============================================*/
 
-		$validate = Connection::connect()
-		->query("SELECT COLUMN_NAME AS item FROM information_schema.columns WHERE table_schema = '$database' AND table_name = '$table'")
-		->fetchAll(PDO::FETCH_OBJ);
+		if (Connection::sanitizeIdentifier($database) === null || Connection::sanitizeIdentifier($table) === null) {
+			return null;
+		}
+
+		$stmtMeta = Connection::connect()->prepare(
+			"SELECT COLUMN_NAME AS item FROM information_schema.columns WHERE table_schema = :db AND table_name = :tbl"
+		);
+		$stmtMeta->execute([":db" => $database, ":tbl" => $table]);
+		$validate = $stmtMeta->fetchAll(PDO::FETCH_OBJ);
 
 		/*=============================================
 		Validamos existencia de la tabla

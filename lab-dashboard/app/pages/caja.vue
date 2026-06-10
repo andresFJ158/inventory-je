@@ -108,7 +108,7 @@ async function openCash() {
       money_cash: '0',
       diff_cash: '0'
     })
-    const res = await $fetch<any>('/api/cashs?token=no&except=date_end_cash', {
+    const res = await $fetch<any>(`/api/cashs?token=${auth.token}&table=admins&suffix=admin&except=date_end_cash`, {
       method: 'POST',
       body: body.toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...apiHeaders }

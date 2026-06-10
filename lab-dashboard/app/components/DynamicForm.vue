@@ -315,7 +315,9 @@ async function handleSubmit() {
     let url = `/api/${config.title_module}`
     let method: 'POST' | 'PUT' = 'POST'
     const queryParams: Record<string, any> = {
-      token: 'no',
+      token: auth.token,
+      table: 'admins',
+      suffix: 'admin',
       except: idKey
     }
 

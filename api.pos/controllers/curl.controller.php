@@ -15,7 +15,7 @@ class CurlController{
 						 : "https://api.desarrolloweb24siete.com";
 
 		$apiBaseUrl = getenv("API_BASE_URL") ?: $defaultApiUrl;
-		$apiToken = getenv("API_AUTHORIZATION") ?: "gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy";
+		$apiToken = getenv("API_KEY") ?: getenv("API_AUTHORIZATION") ?: "gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy";
 
 		curl_setopt_array($curl, array(
 			CURLOPT_URL => rtrim($apiBaseUrl, '/').'/'.$url,

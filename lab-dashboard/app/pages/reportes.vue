@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
+import { decodeText } from '~/utils/format'
+
+definePageMeta({ middleware: ['auth', 'permission'], permission: 'reportes' })
+
+const api = useApi()
 
 // Chart.js registration
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement, LineElement, PointElement } from 'chart.js'
@@ -16,6 +21,7 @@ const orders = ref<any[]>([])
 const sales = ref<any[]>([])
 const productions = ref<any[]>([])
 const offices = ref<any[]>([])
+const admins = ref<any[]>([])
 const statsByOffice = ref<any[]>([])
 
 const loading = ref(true)
@@ -41,15 +47,15 @@ const items = [{
   label: 'Laboratorio (Producción)',
   icon: 'i-lucide-flask-conical',
   slot: 'laboratorio'
+}, {
+  label: 'Vendedores / Comisiones',
+  icon: 'i-lucide-users',
+  slot: 'vendedores'
 }]
-
-const apiHeaders = {
-  Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
-}
 
 async function fetchOffices() {
   try {
-    const data = await $fetch<any>('/api/offices', { headers: apiHeaders })
+    const data = await api.rest<any>('/api/offices')
     if (data.status === 200 && data.results) {
       offices.value = data.results
     }
@@ -66,8 +72,13 @@ async function fetchReportData() {
   statsByOffice.value = []
   
   try {
-    const isSuperAdmin = auth.officeId === 0 || auth.role === 'superadmin' || auth.role === 'admin'
-    const myOfficeId = auth.officeId || 3
+    const isSuperAdmin = auth.officeId === 0 || auth.role === 'superadmin'
+    const myOfficeId = auth.officeId
+    if (!isSuperAdmin && !myOfficeId) {
+      toast.add({ title: 'Error', description: 'No tiene sucursal asignada', color: 'error' })
+      loading.value = false
+      return
+    }
 
     // Params for Orders
     const orderParams = new URLSearchParams({
@@ -136,10 +147,12 @@ async function fetchReportData() {
     }
 
     // Fetch in parallel
-    const [ordersData, salesData, prodsData] = await Promise.all([
-      $fetch<any>(`/api/relations?${orderParams.toString()}`, { headers: apiHeaders }).catch(() => null),
-      $fetch<any>(`/api/relations?${saleParams.toString()}`, { headers: apiHeaders }).catch(() => null),
-      $fetch<any>(`/api/relations?${prodParams.toString()}`, { headers: apiHeaders }).catch(() => null)
+    const adminFilter = isSuperAdmin ? '' : `?linkTo=id_office_admin&equalTo=${myOfficeId}`
+    const [ordersData, salesData, prodsData, adminsRes] = await Promise.all([
+      api.rest<any>(`/api/relations?${orderParams.toString()}`),
+      api.rest<any>(`/api/relations?${saleParams.toString()}`),
+      api.rest<any>(`/api/relations?${prodParams.toString()}`),
+      api.rest<any>(`/api/admins${adminFilter}`)
     ])
 
     if (ordersData && ordersData.status === 200 && ordersData.results) {
@@ -152,6 +165,10 @@ async function fetchReportData() {
 
     if (prodsData && prodsData.status === 200 && prodsData.results) {
       productions.value = prodsData.results
+    }
+
+    if (adminsRes && adminsRes.status === 200 && adminsRes.results) {
+      admins.value = adminsRes.results
     }
 
     // If superadmin, calculate stats by office
@@ -183,6 +200,7 @@ async function fetchReportData() {
 
   } catch (e) {
     console.error('Error fetching reports:', e)
+    toast.add({ title: 'Error', description: 'No se pudieron cargar los reportes', color: 'error' })
   } finally {
     loading.value = false
   }
@@ -205,6 +223,30 @@ const sumSubtotal = computed(() => orders.value.reduce((acc, o) => acc + parseFl
 const sumDiscount = computed(() => orders.value.reduce((acc, o) => acc + parseFloat(o.discount_order || 0), 0))
 const totalProductsQty = computed(() => sales.value.reduce((acc, s) => acc + parseInt(s.qty_sale || 0), 0))
 const avgOrder = computed(() => orders.value.length > 0 ? (totalVentasBs.value / orders.value.length) : 0)
+
+const sellersStats = computed(() => {
+  if (orders.value.length === 0) return []
+  const map: Record<string, any> = {}
+  orders.value.forEach(o => {
+    const adminId = String(o.id_admin_order)
+    if (!map[adminId]) {
+      const admin = admins.value.find(a => String(a.id_admin) === adminId)
+      map[adminId] = {
+        name: admin ? `${decodeStr(admin.name_admin)} ${decodeStr(admin.surname_admin)}`.trim() : `Vendedor #${adminId}`,
+        pct_commission: admin ? parseFloat(admin.pct_commission_admin || 0) : 0,
+        total_sales: 0,
+        orders_count: 0
+      }
+    }
+    map[adminId].total_sales += parseFloat(o.total_order || 0)
+    map[adminId].orders_count += 1
+  })
+  
+  return Object.values(map).map(s => {
+    s.commission_earned = s.total_sales * (s.pct_commission / 100)
+    return s
+  }).sort((a, b) => b.total_sales - a.total_sales)
+})
 
 // ----------------------------------------
 // Charts Configuration
@@ -323,13 +365,19 @@ function formatCurrency(val: number) {
   return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(val)
 }
 
+function csvCell(val: unknown): string {
+  const s = String(val ?? '')
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+  return s
+}
+
 function handleExportCSV() {
   if (orders.value.length === 0) return
-  
+
   const headers = ['Transaccion', 'Cliente', 'Sucursal', 'Fecha', 'Metodo', 'Estado', 'Subtotal', 'Descuento', 'Impuesto', 'Total']
   const rows = orders.value.map(o => [
     o.transaction_order,
-    decodeStr(o.name_client) + ' ' + decodeStr(o.surname_client),
+    `${decodeStr(o.name_client)} ${decodeStr(o.surname_client)}`.trim(),
     decodeStr(o.title_office),
     o.date_order,
     o.method_order,
@@ -339,18 +387,20 @@ function handleExportCSV() {
     o.tax_order,
     o.total_order
   ])
-  
-  const csvContent = "data:text/csv;charset=utf-8," 
-    + headers.join(',') + "\n"
-    + rows.map(r => r.join(',')).join("\n")
-    
-  const encodedUri = encodeURI(csvContent)
-  const link = document.createElement("a")
-  link.setAttribute("href", encodedUri)
-  link.setAttribute("download", `reporte_ventas_${startDate.value}_${endDate.value}.csv`)
+
+  const lines = [
+    headers.map(csvCell).join(','),
+    ...rows.map(r => r.map(csvCell).join(','))
+  ]
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `reporte_ventas_${startDate.value}_${endDate.value}.csv`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 const isReceiptModalOpen = ref(false)
@@ -382,6 +432,14 @@ const salesCols = [
   { accessorKey: 'discount_sale', header: 'Dscto%' },
   { accessorKey: 'subtotal_sale', header: 'Subtotal' }
 ]
+
+const sellerCols = [
+  { accessorKey: 'name', header: 'Vendedor' },
+  { accessorKey: 'orders_count', header: 'Ventas Realizadas' },
+  { accessorKey: 'total_sales', header: 'Total Vendido (Bs)' },
+  { accessorKey: 'pct_commission', header: '% Comisión' },
+  { accessorKey: 'commission_earned', header: 'Comisión Ganada (Bs)' }
+]
 </script>
 
 <template>
@@ -400,7 +458,7 @@ const salesCols = [
         <UInput type="date" v-model="startDate" size="sm" />
         <span class="text-slate-500">hasta</span>
         <UInput type="date" v-model="endDate" size="sm" />
-        <UButton color="neutral" variant="solid" icon="i-lucide-filter" @click="applyFilter">Filtrar</UButton>
+        <UButton color="neutral" variant="solid" icon="i-lucide-filter" :loading="loading" @click="applyFilter">Filtrar</UButton>
         <UButton color="primary" class="bg-green-600" icon="i-lucide-download" @click="handleExportCSV">Exportar Excel</UButton>
       </div>
     </div>
@@ -532,6 +590,23 @@ const salesCols = [
             </div>
           </UCard>
         </div>
+
+        <UCard v-else-if="item.slot === 'vendedores'" class="mt-4">
+           <UTable :data="sellersStats" :columns="sellerCols" :loading="loading">
+             <template #name-cell="{ row }">
+               <span class="font-medium text-blue-600">{{ row.original.name }}</span>
+             </template>
+             <template #total_sales-cell="{ row }">
+               <span class="font-bold">{{ formatCurrency(row.original.total_sales) }}</span>
+             </template>
+             <template #pct_commission-cell="{ row }">
+               {{ row.original.pct_commission }}%
+             </template>
+             <template #commission_earned-cell="{ row }">
+               <span class="font-bold text-green-600">{{ formatCurrency(row.original.commission_earned) }}</span>
+             </template>
+           </UTable>
+        </UCard>
       </template>
     </UTabs>
 

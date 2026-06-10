@@ -1,5 +1,6 @@
 <?php 
 
+/** Modo simulación facturación ($modeTV = "demo"); usar integración real en producción. */
 class OrdersController{
 
 	/*=============================================
@@ -494,8 +495,6 @@ class OrdersController{
 			}
 
 		}
-
-	}
 
 	/*=============================================
 	Actualizar caja abierta: mismos totales que tras un gasto (ventas Completadas en la ventana de sesión)

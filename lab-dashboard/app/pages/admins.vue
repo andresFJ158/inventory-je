@@ -4,11 +4,15 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
+definePageMeta({ middleware: ['auth', 'permission'], permission: 'admins' })
+
 const auth = useAuthStore()
+const api = useApi()
 const toast = useToast()
 
-const apiHeaders = {
-  Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+function apiQuery(extra: Record<string, string | number> = {}) {
+  if (!auth.token) throw new Error('Sin token de sesión')
+  return { token: auth.token, table: 'admins', suffix: 'admin', ...extra }
 }
 
 // State
@@ -32,19 +36,38 @@ const resettingPassword = ref(false)
 const isPermissionsOpen = ref(false)
 const permAdmin = ref<any>(null)
 const permForm = ref<Record<string, boolean>>({
+  // POS
   pos: false,
+  sucursales: false,
+  admins: false,
+  clientes: false,
+  categorias: false,
+  productos: false,
+  combos: false,
+  compras: false,
   ordenes: false,
   ventas: false,
   caja: false,
   gastos: false,
-  productos: false,
-  categorias: false,
-  compras: false,
   proveedores: false,
+  almacenes: false,
   almacen: false,
+  despachos: false,
   mi_inventario: false,
   solicitar_inventario: false,
-  reportes: false
+  reportes: false,
+  reportes_empresa: false,
+  
+  // Laboratorio
+  dashboard_lab: false,
+  materiales: false,
+  insumos_lab: false,
+  inventario_mp: false,
+  entradas: false,
+  recetas: false,
+  produccion: false,
+  calidad: false,
+  inventario_final: false
 })
 const savingPerms = ref(false)
 const ignoreRoleWatch = ref(false)
@@ -58,6 +81,8 @@ const formModel = ref({
   rol_admin: 'cajero',
   id_office_admin: '',
   id_warehouse_admin: '',
+  id_inventory_admin: '',
+  pct_commission_admin: 0,
   status_admin: true
 })
 const savingAdmin = ref(false)
@@ -65,9 +90,7 @@ const savingAdmin = ref(false)
 async function fetchAdmins() {
   loading.value = true
   try {
-    const data = await $fetch<any>('/api/admins?orderBy=id_admin&orderMode=DESC', {
-      headers: apiHeaders
-    })
+    const data = await api.rest<any>('/api/admins?orderBy=id_admin&orderMode=DESC')
     if (data.status === 200) {
       admins.value = data.results || []
     }
@@ -80,9 +103,7 @@ async function fetchAdmins() {
 
 async function fetchOffices() {
   try {
-    const data = await $fetch<any>('/api/offices', {
-      headers: apiHeaders
-    })
+    const data = await api.rest<any>('/api/offices')
     if (data.status === 200) {
       offices.value = data.results || []
     }
@@ -93,9 +114,7 @@ async function fetchOffices() {
 
 async function fetchWarehouses() {
   try {
-    const data = await $fetch<any>('/api/warehouses', {
-      headers: apiHeaders
-    })
+    const data = await api.rest<any>('/api/warehouses')
     if (data.status === 200) {
       warehouses.value = data.results || []
     }
@@ -136,6 +155,10 @@ const paginatedAdmins = computed(() => {
   return filteredAdmins.value.slice(start, start + itemsPerPage)
 })
 
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAdmins.value.length / itemsPerPage)))
+
+watch(search, () => { page.value = 1 })
+
 function decode(s: string) {
   if (!s) return '-'
   return decodeURIComponent(s).replace(/\+/g, ' ')
@@ -147,11 +170,11 @@ async function toggleStatus(admin: any) {
   try {
     const body = new URLSearchParams()
     body.append('status_admin', String(newStatus))
-    const res = await $fetch<any>(`/api/admins`, {
+    const res = await api.rest<any>('/api/admins', {
       method: 'PUT',
-      headers: { ...apiHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
-      query: { id: admin.id_admin, nameId: 'id_admin', token: 'no', except: 'id_admin' },
-      body: body.toString()
+      query: apiQuery({ id: admin.id_admin, nameId: 'id_admin' }),
+      body: body.toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
     if (res.status === 200) {
       toast.add({ title: 'Estado actualizado correctamente', color: 'success' })
@@ -172,19 +195,19 @@ function openResetPassword(admin: any) {
 }
 
 async function handleResetPassword() {
-  if (!newPassword.value || newPassword.value.length < 4) {
-    alert('Ingresa una contraseña de al menos 4 caracteres')
+  if (!newPassword.value || newPassword.value.length < 8) {
+    toast.add({ title: 'Contraseña débil', description: 'Mínimo 8 caracteres', color: 'warning' })
     return
   }
   resettingPassword.value = true
   try {
     const body = new URLSearchParams()
     body.append('password_admin', newPassword.value)
-    const res = await $fetch<any>('/api/admins', {
+    const res = await api.rest<any>('/api/admins', {
       method: 'PUT',
-      headers: { ...apiHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
-      query: { id: resetPasswordAdminId.value, nameId: 'id_admin', token: 'no', except: 'id_admin' },
-      body: body.toString()
+      query: apiQuery({ id: resetPasswordAdminId.value!, nameId: 'id_admin' }),
+      body: body.toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
     if (res.status === 200) {
       toast.add({ title: 'Contraseña actualizada correctamente', color: 'success' })
@@ -236,11 +259,11 @@ async function savePermissions() {
     const body = new URLSearchParams()
     body.append('permissions_admin', JSON.stringify(resultObj))
 
-    const res = await $fetch<any>('/api/admins', {
+    const res = await api.rest<any>('/api/admins', {
       method: 'PUT',
-      headers: { ...apiHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
-      query: { id: permAdmin.value.id_admin, nameId: 'id_admin', token: 'no', except: 'id_admin' },
-      body: body.toString()
+      query: apiQuery({ id: permAdmin.value.id_admin, nameId: 'id_admin' }),
+      body: body.toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
 
     if (res.status === 200) {
@@ -314,6 +337,8 @@ function openCreate() {
     rol_admin: 'cajero',
     id_office_admin: '',
     id_warehouse_admin: '',
+    id_inventory_admin: '',
+    pct_commission_admin: 0,
     status_admin: true
   }
   // Reset permissions form
@@ -344,6 +369,8 @@ function openEdit(admin: any) {
     rol_admin: admin.rol_admin || 'cajero',
     id_office_admin: admin.id_office_admin ? String(admin.id_office_admin) : '',
     id_warehouse_admin: admin.id_warehouse_admin ? String(admin.id_warehouse_admin) : '',
+    id_inventory_admin: admin.id_inventory_admin ? String(admin.id_inventory_admin) : '',
+    pct_commission_admin: admin.pct_commission_admin ? parseFloat(admin.pct_commission_admin) : 0,
     status_admin: admin.status_admin == 1
   }
   // Load permissions form
@@ -367,13 +394,17 @@ function openEdit(admin: any) {
 
 async function handleSaveAdmin() {
   if (!formModel.value.name_admin || !formModel.value.email_admin) {
-    alert('Por favor ingresa nombre y correo')
+    toast.add({ title: 'Datos incompletos', description: 'Ingrese nombre y correo', color: 'warning' })
+    return
+  }
+  const isEdit = !!selectedAdmin.value
+  if (!isEdit && (!formModel.value.password_admin || formModel.value.password_admin.length < 8)) {
+    toast.add({ title: 'Contraseña requerida', description: 'Mínimo 8 caracteres al crear usuario', color: 'warning' })
     return
   }
 
   savingAdmin.value = true
   try {
-    const isEdit = !!selectedAdmin.value
     const body = new URLSearchParams()
     body.append('name_admin', formModel.value.name_admin)
     body.append('surname_admin', formModel.value.surname_admin)
@@ -384,6 +415,8 @@ async function handleSaveAdmin() {
     body.append('rol_admin', formModel.value.rol_admin)
     body.append('id_office_admin', formModel.value.id_office_admin || '0')
     body.append('id_warehouse_admin', formModel.value.id_warehouse_admin || '0')
+    body.append('id_inventory_admin', formModel.value.id_inventory_admin || '0')
+    body.append('pct_commission_admin', String(formModel.value.pct_commission_admin || 0))
     body.append('status_admin', formModel.value.status_admin ? '1' : '0')
 
     // Append visual permissions directly
@@ -393,35 +426,27 @@ async function handleSaveAdmin() {
     })
     body.append('permissions_admin', JSON.stringify(resultObj))
 
-    let url = '/api/admins'
-    let method: 'POST' | 'PUT' = 'POST'
-    const queryParams: Record<string, any> = {
-      token: 'no',
-      except: 'id_admin'
-    }
+    const method: 'POST' | 'PUT' = isEdit ? 'PUT' : 'POST'
+    const queryParams = isEdit
+      ? apiQuery({ id: selectedAdmin.value.id_admin, nameId: 'id_admin' })
+      : apiQuery()
 
-    if (isEdit) {
-      method = 'PUT'
-      queryParams.id = selectedAdmin.value.id_admin
-      queryParams.nameId = 'id_admin'
-    }
-
-    const res = await $fetch<any>(url, {
+    const res = await api.rest<any>('/api/admins', {
       method,
-      headers: { ...apiHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
       query: queryParams,
-      body: body.toString()
+      body: body.toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
 
-    if (res.status === 200) {
+    if (res && res.status === 200) {
       toast.add({ title: isEdit ? 'Administrador actualizado' : 'Administrador creado', color: 'success' })
       isSlideoverOpen.value = false
       await fetchAdmins()
     } else {
-      toast.add({ title: res.results || 'Error al guardar', color: 'error' })
+      toast.add({ title: (res && res.results) ? res.results : 'Error al guardar', color: 'error' })
     }
-  } catch {
-    toast.add({ title: 'Error de red', color: 'error' })
+  } catch (err: any) {
+    toast.add({ title: 'Error de red', description: err.message || String(err), color: 'error' })
   } finally {
     savingAdmin.value = false
   }
@@ -430,10 +455,9 @@ async function handleSaveAdmin() {
 async function handleDelete(admin: any) {
   if (!confirm(`¿Eliminar al administrador ${decode(admin.name_admin)}?`)) return
   try {
-    const res = await $fetch<any>('/api/admins', {
+    const res = await api.rest<any>('/api/admins', {
       method: 'DELETE',
-      headers: apiHeaders,
-      query: { id: admin.id_admin, nameId: 'id_admin', token: 'no', except: 'id_admin' }
+      query: apiQuery({ id: admin.id_admin, nameId: 'id_admin' })
     })
     if (res.status === 200) {
       toast.add({ title: 'Eliminado correctamente', color: 'success' })
@@ -637,6 +661,12 @@ onMounted(async () => {
             </tr>
           </tbody>
         </table>
+        <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <p class="text-sm text-slate-500">
+            {{ filteredAdmins.length }} administrador(es) — página {{ page }} de {{ totalPages }}
+          </p>
+          <UPagination v-model:page="page" :total="filteredAdmins.length" :items-per-page="itemsPerPage" />
+        </div>
       </div>
     </div>
 
@@ -688,6 +718,21 @@ onMounted(async () => {
               </option>
             </select>
           </UFormField>
+          
+          <div class="grid grid-cols-2 gap-3" v-if="['cajero', 'vendedor'].includes(formModel.rol_admin)">
+            <UFormField label="Inventario Asignado">
+              <select v-model="formModel.id_inventory_admin" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                <option value="">Ninguno</option>
+                <option v-for="o in offices" :key="o.id_office" :value="String(o.id_office)">
+                  {{ decodeURIComponent(o.title_office || '').replace(/\+/g, ' ') }}
+                </option>
+              </select>
+            </UFormField>
+            
+            <UFormField label="% de Comisión">
+              <UInput v-model.number="formModel.pct_commission_admin" type="number" min="0" max="100" step="0.1" placeholder="0" class="w-full text-sm" />
+            </UFormField>
+          </div>
 
           <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
             <span class="text-sm font-bold text-slate-500 uppercase">Estado Cuenta</span>
@@ -716,24 +761,55 @@ onMounted(async () => {
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400">Selecciona los módulos o pantallas que esta cuenta tendrá permitido visualizar e interactuar.</p>
             
-            <div class="grid grid-cols-1 gap-1 max-h-60 overflow-y-auto pr-1 border border-slate-100 dark:border-slate-800/60 rounded-lg p-2 bg-slate-50/50 dark:bg-slate-900/40">
-              <div v-for="(val, key) in permForm" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/40 last:border-b-0">
-                <span class="text-sm font-bold text-slate-700 dark:text-slate-300 capitalize">{{ key.replace('_', ' ') }}</span>
-                <button
-                  type="button"
-                  @click="permForm[key] = !permForm[key]"
-                  :class="[
-                    permForm[key] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-800',
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
-                  ]"
-                >
-                  <span
-                    :class="[
-                      permForm[key] ? 'translate-x-5' : 'translate-x-0',
-                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
-                    ]"
-                  />
-                </button>
+            <div class="grid grid-cols-1 gap-4 max-h-80 overflow-y-auto pr-1">
+              <!-- POS Section -->
+              <div class="border border-slate-100 dark:border-slate-800/60 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/40">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">Módulos POS</h4>
+                <div class="space-y-1">
+                  <div v-for="key in ['pos', 'sucursales', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'solicitar_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300 capitalize">{{ key.replace(/_/g, ' ') }}</span>
+                    <button
+                      type="button"
+                      @click="permForm[key] = !permForm[key]"
+                      :class="[
+                        permForm[key] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-800',
+                        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
+                      ]"
+                    >
+                      <span
+                        :class="[
+                          permForm[key] ? 'translate-x-5' : 'translate-x-0',
+                          'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+                        ]"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Lab Section -->
+              <div class="border border-slate-100 dark:border-slate-800/60 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/40">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">Módulos Laboratorio</h4>
+                <div class="space-y-1">
+                  <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'inventario_mp', 'entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300 capitalize">{{ key.replace(/_/g, ' ') }}</span>
+                    <button
+                      type="button"
+                      @click="permForm[key] = !permForm[key]"
+                      :class="[
+                        permForm[key] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-800',
+                        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
+                      ]"
+                    >
+                      <span
+                        :class="[
+                          permForm[key] ? 'translate-x-5' : 'translate-x-0',
+                          'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+                        ]"
+                      />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

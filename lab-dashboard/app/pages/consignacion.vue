@@ -36,7 +36,7 @@ const fmt = formatBob
 async function fetchProducts() {
   const [pd, id] = await Promise.all([
     api.rest<any>('/api/products?linkTo=status_product&equalTo=1'),
-    api.rest<any>(`/api/product_inventory?linkTo=id_office_inventory&equalTo=${auth.officeId || 3}`)
+    api.rest<any>(`/api/product_inventory?linkTo=id_office_inventory&equalTo=${auth.officeId ?? 3}`)
   ])
   if (pd?.status === 200) products.value = pd.results || []
   if (id?.status === 200 && id.results) {

@@ -23,14 +23,17 @@ services:
       dockerfile: Dockerfile
     container_name: pos-api
     restart: unless-stopped
+    env_file:
+      - ./api.pos/.env
     environment:
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: u228744577_pos
       DB_USER: root
       DB_PASS: root
-      API_BASE_URL: http://localhost
-      API_AUTHORIZATION: gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy
+      API_BASE_URL: http://api
+      API_KEY: ${API_KEY:-gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy}
+      JWT_SECRET: ${JWT_SECRET:-dfhsdfg34dfchs4xgsrsdry46}
     depends_on:
       db:
         condition: service_healthy
@@ -43,9 +46,11 @@ services:
       dockerfile: Dockerfile
     container_name: pos-frontend
     restart: unless-stopped
+    env_file:
+      - ./lab-dashboard/.env
     environment:
-      PROXY_API_URL: http://api/**
-      PROXY_AJAX_URL: http://api/ajax/**
+      API_INTERNAL_URL: http://api
+      API_TOKEN: ${API_TOKEN:-gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy}
       PORT: 3000
       HOST: 0.0.0.0
     depends_on:

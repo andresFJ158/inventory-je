@@ -66,7 +66,8 @@ async function handleLogin() {
         email: email.value,
         password: password.value
       }).toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
     })
 
     const data = typeof response === 'string' ? JSON.parse(response) : response
@@ -122,8 +123,9 @@ async function handleLogin() {
     } else {
       errorMessage.value = data.message || 'Credenciales incorrectas.'
     }
-  } catch {
-    errorMessage.value = 'Error de conexión con el servidor.'
+  } catch (error: any) {
+    console.error('Fetch error:', error)
+    errorMessage.value = 'Error: ' + (error.message || JSON.stringify(error))
   } finally {
     loading.value = false
   }

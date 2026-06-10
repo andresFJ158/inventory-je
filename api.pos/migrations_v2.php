@@ -16,6 +16,10 @@ $queries = [
     "ALTER TABLE purchases ADD COLUMN may_product DOUBLE DEFAULT 0",
     "ALTER TABLE purchases ADD COLUMN wholesale_quantity INT DEFAULT 0",
     
+    "ALTER TABLE raw_materials ADD COLUMN measure_type ENUM('weight','volume','unit') DEFAULT 'unit'",
+    "ALTER TABLE raw_material_entries ADD COLUMN type_entry VARCHAR(50) DEFAULT 'ingreso'",
+    "ALTER TABLE raw_material_entries ADD COLUMN concept_entry TEXT NULL",
+    
     "CREATE TABLE IF NOT EXISTS raw_materials (
       id_raw_material           INT AUTO_INCREMENT PRIMARY KEY,
       name_raw_material         TEXT NOT NULL,
@@ -259,7 +263,31 @@ $queries = [
 
     "ALTER TABLE productions ADD COLUMN waste_qty_production DOUBLE DEFAULT 0",
     "ALTER TABLE productions ADD COLUMN waste_packaged_qty DOUBLE DEFAULT 0",
-    "ALTER TABLE productions ADD COLUMN waste_loss_qty DOUBLE DEFAULT 0"
+    "ALTER TABLE productions ADD COLUMN waste_loss_qty DOUBLE DEFAULT 0",
+
+    "ALTER TABLE admins ADD COLUMN id_inventory_admin INT DEFAULT NULL",
+    "ALTER TABLE admins ADD COLUMN pct_commission_admin DOUBLE DEFAULT 0",
+    "CREATE TABLE IF NOT EXISTS stock_transfers (
+      id_transfer              INT AUTO_INCREMENT PRIMARY KEY,
+      id_origin_office         INT NOT NULL,
+      id_dest_office           INT NOT NULL,
+      id_product_transfer      INT NOT NULL,
+      qty_transfer             DOUBLE NOT NULL,
+      id_admin_transfer        INT NOT NULL,
+      notes_transfer           TEXT NULL,
+      status_transfer          VARCHAR(50) DEFAULT 'pendiente',
+      date_created_transfer    DATE NULL,
+      date_updated_transfer    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )",
+    "CREATE TABLE IF NOT EXISTS combo_items (
+      id_combo_item       INT AUTO_INCREMENT PRIMARY KEY,
+      id_combo_ci         INT NOT NULL,
+      id_product_ci       INT NOT NULL,
+      qty_ci              INT NOT NULL DEFAULT 1,
+      date_created_ci     DATE NULL,
+      date_updated_ci     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )",
+    "ALTER TABLE products ADD COLUMN combo_price_mode VARCHAR(20) DEFAULT 'descuento'"
 ];
 
 $success = true;
