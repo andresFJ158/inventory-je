@@ -627,27 +627,7 @@ async function cancelOrder() {
   }
 }
 
-// Sync client changes to the order
-watch(selectedClient, async (newVal) => {
-  if (!orderId.value || !newVal) return
-  try {
-    await $fetch('/ajax/pos.ajax.php', {
-      method: 'POST',
-      body: new URLSearchParams({
-        idOrderUpdate: orderId.value,
-        idClient: newVal,
-        subtotalOrder: String(subtotal.value),
-        discountOrder: String(totalDiscount.value),
-        taxOrder: '0',
-        totalOrder: String(total.value),
-        token: auth.token || ''
-      }).toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    })
-  } catch (e) {
-    console.error('Error updating order client:', e)
-  }
-})
+
 
 // Trigger wholesale switch recalculation
 watch(isWholesaleGlobal, async () => {
@@ -708,6 +688,45 @@ const total = computed(() => {
   return subtotal.value - totalDiscount.value
 })
 
+// Sync order totals to the backend when cart or client changes
+watch([selectedClient, subtotal, totalDiscount, total], async ([newClientVal, newSub, newDisc, newTot]) => {
+  if (!orderId.value || !newClientVal) return
+  try {
+    await $fetch('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        idOrderUpdate: orderId.value,
+        idClient: String(newClientVal),
+        subtotalOrder: String(newSub),
+        discountOrder: String(newDisc),
+        taxOrder: '0',
+        totalOrder: String(newTot),
+        token: auth.token || ''
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+  } catch (e) {
+    console.error('Error updating order:', e)
+  }
+})
+
+const qrImage = ref('')
+
+async function fetchQRImage() {
+  qrImage.value = ''
+  try {
+    const officeId = auth.officeId ?? 3
+    const data = await $fetch<any>(`/api/qrs?linkTo=id_office_qr&equalTo=${officeId}`, {
+      headers: apiHeaders
+    })
+    if (data && data.status === 200 && data.results && data.results.length > 0) {
+      qrImage.value = data.results[0].image_qr || ''
+    }
+  } catch (e) {
+    console.error('Error fetching QR image:', e)
+  }
+}
+
 // Payment Modal Open
 function openPayment() {
   if (cartItems.value.length === 0) {
@@ -719,6 +738,7 @@ function openPayment() {
   payMethod.value = 'efectivo'
   wantInvoice.value = false
   isPaying.value = true
+  fetchQRImage()
 }
 
 // Return cash change calculation
@@ -729,8 +749,8 @@ const cashChange = computed(() => {
 
 // Finalize Checkout
 async function handleCheckout() {
-  if (payMethod.value === 'transferencia' && !transferId.value) {
-    toast.add({ title: 'Ingresa el ID de la transferencia para confirmar.', color: 'error' })
+  if (payMethod.value === 'QR' && !transferId.value) {
+    toast.add({ title: 'Ingresa el ID o código de referencia del pago QR para confirmar.', color: 'error' })
     return
   }
   if (payMethod.value === 'efectivo' && (cashReceived.value || 0) < total.value) {
@@ -1219,14 +1239,14 @@ function printReceipt() {
                 Efectivo
               </UButton>
               <UButton
-                :color="payMethod === 'transferencia' ? 'primary' : 'neutral'"
+                :color="payMethod === 'QR' ? 'primary' : 'neutral'"
                 variant="soft"
-                icon="i-lucide-arrow-right-left"
+                icon="i-lucide-qr-code"
                 size="sm"
                 class="flex-col py-3.5"
-                @click="payMethod = 'transferencia'"
+                @click="payMethod = 'QR'"
               >
-                Transfer
+                QR
               </UButton>
               <UButton
                 v-if="auth.role === 'vendedor' || auth.user?.type_seller === 'vendedor' || auth.user?.type_seller === 'calle' || auth.user?.type_seller === 'tienda'"
@@ -1259,16 +1279,24 @@ function printReceipt() {
             </div>
           </div>
 
-          <!-- Transfer details form -->
-          <div v-if="payMethod === 'transferencia'">
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">ID / Código de Transferencia *</label>
+          <!-- QR details form -->
+          <div v-if="payMethod === 'QR'">
+            
+            <div v-if="qrImage" class="flex justify-center my-6">
+              <img :src="getImageUrl(qrImage)" alt="Código QR" class="max-w-[350px] w-full border-4 border-white rounded-xl shadow-xl" />
+            </div>
+            <div v-else class="text-center text-xs text-slate-400 my-4 italic">
+              No hay código QR configurado para esta sucursal.
+            </div>
+
+            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">ID / Código de Referencia *</label>
             <UInput
               v-model="transferId"
-              placeholder="Ingresa el número de referencia"
+              placeholder="Ingresa el número de referencia del pago"
             />
           </div>
           
-          <div v-if="payMethod === 'transferencia' && (auth.role === 'vendedor' || auth.user?.type_seller)">
+          <div v-if="payMethod === 'QR' && (auth.role === 'vendedor' || auth.user?.type_seller)">
             <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Link Imagen / QR de Confirmación</label>
             <UInput
               v-model="qrRefOrder"

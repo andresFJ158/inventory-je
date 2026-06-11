@@ -22,7 +22,8 @@ const MODULE_MAPPING: Record<string, { id_module: number, title_module: string, 
   caja: { id_module: 18, title_module: 'cashs', suffix_module: 'cash', title: 'Caja', editable_module: 1 },
   gastos: { id_module: 20, title_module: 'bills', suffix_module: 'bill', title: 'Gastos', editable_module: 1 },
   proveedores: { id_module: 40, title_module: 'suppliers', suffix_module: 'supplier', title: 'Proveedores', editable_module: 1 },
-  almacenes: { id_module: 42, title_module: 'warehouses', suffix_module: 'warehouse', title: 'Almacenes', editable_module: 1 }
+  almacenes: { id_module: 44, title_module: 'warehouses', suffix_module: 'warehouse', title: 'Almacenes', editable_module: 1 },
+  qrs: { id_module: 99, title_module: 'qrs', suffix_module: 'qr', title: 'Códigos QR', editable_module: 1 }
 }
 
 const moduleConfig = computed(() => MODULE_MAPPING[props.moduleName])
@@ -216,6 +217,22 @@ function getMoneyColorClass(colName: string, val: any) {
     return num > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400' // Ventas/Ingresos en verde
   }
   return 'text-teal-600 dark:text-teal-400' // Default money color
+}
+
+// Fix dead domains in image URLs
+function getImageUrl(imgStr: string) {
+  if (!imgStr) return '/views/assets/img/multimedia.png'
+  const decoded = decodeURIComponent(imgStr).replace(/\+/g, ' ')
+  
+  const viewsIndex = decoded.indexOf('views/')
+  if (viewsIndex !== -1) {
+    return '/' + decoded.substring(viewsIndex)
+  }
+
+  if (decoded.startsWith('http') || decoded.startsWith('/')) {
+    return decoded
+  }
+  return '/' + decoded
 }
 
 // Filtered Rows
@@ -438,7 +455,7 @@ function openCashDetails(cashRow: any) {
                 <!-- Image -->
                 <div v-if="col.type_column === 'image'" class="flex items-center">
                   <UAvatar
-                    :src="row[col.title_column] ? decodeURIComponent(row[col.title_column]).replace(/\+/g, ' ') : '/views/assets/img/multimedia.png'"
+                    :src="getImageUrl(row[col.title_column])"
                     size="lg"
                     class="border border-slate-700 bg-slate-800"
                   />

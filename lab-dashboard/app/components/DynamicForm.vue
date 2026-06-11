@@ -23,7 +23,8 @@ const MODULE_MAPPING: Record<string, { id_module: number, title_module: string, 
   caja: { id_module: 18, title_module: 'cashs', suffix_module: 'cash', title: 'Caja', editable_module: 1 },
   gastos: { id_module: 20, title_module: 'bills', suffix_module: 'bill', title: 'Gastos', editable_module: 1 },
   proveedores: { id_module: 40, title_module: 'suppliers', suffix_module: 'supplier', title: 'Proveedores', editable_module: 1 },
-  almacenes: { id_module: 42, title_module: 'warehouses', suffix_module: 'warehouse', title: 'Almacenes', editable_module: 1 }
+  almacenes: { id_module: 44, title_module: 'warehouses', suffix_module: 'warehouse', title: 'Almacenes', editable_module: 1 },
+  qrs: { id_module: 99, title_module: 'qrs', suffix_module: 'qr', title: 'Códigos QR', editable_module: 1 }
 }
 
 const moduleConfig = computed(() => MODULE_MAPPING[props.moduleName])
@@ -339,6 +340,19 @@ async function handleSubmit() {
 
     if (res.status === 200) {
       toast.add({ title: 'Registro guardado exitosamente', color: 'success' })
+      
+      // Update cash totals instantly in the backend if this was an expense or income
+      if (props.moduleName === 'gastos' || props.moduleName === 'ingresos') {
+        const cashField = props.moduleName === 'gastos' ? formModel.value.id_cash_bill : formModel.value.id_cash_income
+        if (cashField) {
+          $fetch('/ajax/pos.ajax.php', {
+            method: 'POST',
+            body: new URLSearchParams({ getCashDetails: 'ok', id_cash: String(cashField) }),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+          }).catch(console.error)
+        }
+      }
+
       emit('saved')
     } else {
       toast.add({ title: `Error al guardar: ${res.results || 'Verifica los campos e intenta de nuevo'}`, color: 'error' })

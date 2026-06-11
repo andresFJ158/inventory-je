@@ -377,7 +377,7 @@ onMounted(async () => {
               </div>
               <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
                 <p class="text-slate-500 text-xs">Gastos</p>
-                <p class="font-bold text-lg text-rose-500">{{ formatCurrency(parseFloat(cashDetails.total_bills || 0)) }}</p>
+                <p class="font-bold text-lg text-rose-500">{{ formatCurrency(parseFloat(cashDetails.bills_cash || 0)) }}</p>
               </div>
               <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
                 <p class="text-green-600 text-xs font-semibold">Saldo Final</p>

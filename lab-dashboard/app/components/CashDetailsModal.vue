@@ -14,6 +14,8 @@ const expenses = ref<any[]>([])
 const sales = ref<any[]>([])
 const incomes = ref<any[]>([])
 
+const salesEfectivo = computed(() => sales.value.filter((s: any) => s.method_order !== 'QR'))
+const salesQR = computed(() => sales.value.filter((s: any) => s.method_order === 'QR'))
 const isOpenModel = computed({
   get: () => props.isOpen,
   set: (val) => {
@@ -46,10 +48,10 @@ async function fetchCashDetails(cashId: string | number) {
     if (cashRes && cashRes.status === 200 && cashRes.results && cashRes.results.length > 0) {
       cashData.value = cashRes.results[0]
       const rawStart = cashData.value.date_start_cash
-      const rawEnd = cashData.value.date_end_cash && cashData.value.date_end_cash !== '0000-00-00 00:00:00' ? cashData.value.date_end_cash : new Date()
+      const rawEnd = cashData.value.date_end_cash && cashData.value.date_end_cash !== '0000-00-00 00:00:00' ? cashData.value.date_end_cash : ''
       
-      const startDate = formatToMySQLDate(rawStart)
-      const endDate = formatToMySQLDate(rawEnd)
+      const startDate = rawStart
+      const endDate = rawEnd || formatToMySQLDate(new Date())
       
       const officeId = cashData.value.id_office_cash
       
@@ -74,10 +76,10 @@ async function fetchCashDetails(cashId: string | number) {
       }
 
       // Get Sales inside these dates for this office
-      const salesRes = await $fetch<any>(`/api/relations?rel=orders,clients&type=order,client&linkTo=id_office_order,date_order&between1=${officeId},${startDate}&between2=${officeId},${endDate}&select=transaction_order,date_order,method_order,total_order,name_client`, { headers: apiHeaders })
+      const salesRes = await $fetch<any>(`/api/relations?rel=orders,clients&type=order,client&linkTo=date_order&between1=${startDate}&between2=${endDate}&filterTo=id_office_order&inTo=${officeId}&select=transaction_order,date_order,method_order,total_order,status_order,name_client`, { headers: apiHeaders })
       if (salesRes && salesRes.status === 200 && salesRes.results) {
-        // filter only completed ones if necessary
-        sales.value = salesRes.results
+        // filter only completed ones
+        sales.value = salesRes.results.filter((s: any) => s.status_order === 'Completada' || s.status_order === 'Venta Confirmada')
       }
     }
   } catch (e) {
@@ -135,6 +137,10 @@ function decodeStr(str: string) {
             <div class="text-3xl sm:text-4xl font-black text-emerald-900 dark:text-emerald-200 break-words leading-tight">
               {{ formatCurrency(cashData.money_cash) }}
             </div>
+            <div class="mt-2 text-[10px] sm:text-xs text-emerald-700 dark:text-emerald-500 font-semibold flex flex-col gap-0.5">
+              <span>Efectivo: {{ formatCurrency(cashData.cash_efectivo || 0) }}</span>
+              <span>QR: {{ formatCurrency(cashData.cash_qr || 0) }}</span>
+            </div>
           </div>
           <div class="bg-rose-50/50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 rounded-xl p-4 flex flex-col justify-between transition-all hover:scale-[1.02] duration-200">
             <div class="text-xs sm:text-lg font-semibold text-rose-600 dark:text-rose-400 mb-2">Gastos</div>
@@ -150,34 +156,66 @@ function decodeStr(str: string) {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <!-- Ingresos -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Ingresos Efectivo -->
           <div>
-            <h4 class="font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-800 pb-2 mb-3 flex items-center gap-2">
-              <UIcon name="i-lucide-arrow-up-right" class="text-green-500" /> Ingresos Registrados
+            <h4 class="font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-800 pb-2 mb-3 flex items-center gap-2 text-sm">
+              <UIcon name="i-lucide-banknote" class="text-emerald-500" /> Efectivo Registrado
             </h4>
             
-            <div v-if="sales.length === 0 && incomes.length === 0" class="text-center py-6 text-gray-400 text-sm italic">
-              No hay ingresos en este turno.
+            <div v-if="salesEfectivo.length === 0 && incomes.length === 0" class="text-center py-6 text-gray-400 text-sm italic">
+              No hay pagos en efectivo.
             </div>
             <div v-else class="space-y-3">
-              <div v-for="inc in incomes" :key="inc.id_income" class="flex justify-between items-center p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/50">
+              <div v-for="inc in incomes" :key="'inc-'+inc.id_income" class="flex justify-between items-center p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50">
                 <div class="min-w-0 flex-1">
                   <div class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{{ decodeStr(inc.concept_income) }}</div>
-                  <div class="text-[10px] text-gray-500 font-mono">{{ new Date(inc.date_income).toLocaleString('es-ES') }}</div>
+                  <div class="text-[10px] text-gray-500 font-mono mt-0.5 flex items-center gap-2">
+                    {{ new Date(inc.date_income).toLocaleString('es-ES') }}
+                    <UBadge color="emerald" size="xs" variant="subtle">EFECTIVO</UBadge>
+                  </div>
                 </div>
-                <div class="font-bold text-green-600 dark:text-green-400 font-mono text-sm shrink-0 ml-3">
+                <div class="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm shrink-0 ml-3">
                   +{{ formatCurrency(inc.amount_income) }}
                 </div>
               </div>
-              <div v-for="sale in sales" :key="sale.id_order" class="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm border border-gray-100 dark:border-slate-700">
+              <div v-for="sale in salesEfectivo" :key="'sale-ef-'+sale.id_order" class="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm border border-gray-100 dark:border-slate-700">
                 <div>
-                  <div class="font-bold">{{ sale.transaction_order }}</div>
-                  <div class="text-xs text-gray-500">{{ decodeStr(sale.name_client) }}</div>
+                  <div class="font-bold text-slate-800 dark:text-slate-200">{{ sale.transaction_order }}</div>
+                  <div class="text-xs text-gray-500 flex items-center gap-2 mt-1">
+                    <span>{{ decodeStr(sale.name_client) }}</span>
+                    <UBadge color="emerald" size="xs" variant="subtle" class="uppercase">EFECTIVO</UBadge>
+                  </div>
                 </div>
                 <div class="text-right">
-                  <div class="font-bold text-green-600">+ {{ formatCurrency(sale.total_order) }}</div>
-                  <div class="text-xs text-gray-400">{{ sale.date_order }}</div>
+                  <div class="font-bold text-emerald-600">+ {{ formatCurrency(sale.total_order) }}</div>
+                  <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ new Date(sale.date_order).toLocaleString('es-ES') }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ingresos QR -->
+          <div>
+            <h4 class="font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-800 pb-2 mb-3 flex items-center gap-2 text-sm">
+              <UIcon name="i-lucide-qr-code" class="text-purple-500" /> QR Registrado
+            </h4>
+            
+            <div v-if="salesQR.length === 0" class="text-center py-6 text-gray-400 text-sm italic">
+              No hay pagos con QR.
+            </div>
+            <div v-else class="space-y-3">
+              <div v-for="sale in salesQR" :key="'sale-qr-'+sale.id_order" class="flex justify-between items-center p-3 bg-gray-50 dark:bg-slate-800 rounded-lg text-sm border border-gray-100 dark:border-slate-700">
+                <div>
+                  <div class="font-bold text-slate-800 dark:text-slate-200">{{ sale.transaction_order }}</div>
+                  <div class="text-xs text-gray-500 flex items-center gap-2 mt-1">
+                    <span>{{ decodeStr(sale.name_client) }}</span>
+                    <UBadge color="purple" size="xs" variant="subtle" class="uppercase">QR</UBadge>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-purple-600">+ {{ formatCurrency(sale.total_order) }}</div>
+                  <div class="text-[10px] text-gray-400 font-mono mt-0.5">{{ new Date(sale.date_order).toLocaleString('es-ES') }}</div>
                 </div>
               </div>
             </div>
@@ -185,7 +223,7 @@ function decodeStr(str: string) {
           
           <!-- Gastos -->
           <div>
-            <h4 class="font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-800 pb-2 mb-3 flex items-center gap-2">
+            <h4 class="font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-800 pb-2 mb-3 flex items-center gap-2 text-sm">
               <UIcon name="i-lucide-arrow-down-right" class="text-red-500" /> Gastos Registrados
             </h4>
             <div v-if="expenses.length === 0" class="text-sm text-gray-500 italic">No hay gastos registrados en esta sesión.</div>

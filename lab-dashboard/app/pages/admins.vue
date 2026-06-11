@@ -57,6 +57,7 @@ const permForm = ref<Record<string, boolean>>({
   solicitar_inventario: false,
   reportes: false,
   reportes_empresa: false,
+  qrs: false,
   
   // Laboratorio
   dashboard_lab: false,
@@ -766,7 +767,7 @@ onMounted(async () => {
               <div class="border border-slate-100 dark:border-slate-800/60 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/40">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">Módulos POS</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['pos', 'sucursales', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'solicitar_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
+                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'solicitar_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 dark:text-slate-300 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"

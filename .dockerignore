@@ -1,7 +1,8 @@
-api.pos
-.git
-.gitignore
-**/.DS_Store
+node_modules
+.output
+.nuxt
+.env
+api.pos/.env
 lab-dashboard/node_modules
 lab-dashboard/.nuxt
-
+lab-dashboard/.output

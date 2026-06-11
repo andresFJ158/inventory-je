@@ -599,9 +599,21 @@ function updateCashTotals($db, $idCash) {
     $endDate = $cash['date_end_cash'] && $cash['date_end_cash'] !== '0000-00-00 00:00:00' ? $cash['date_end_cash'] : date('Y-m-d H:i:s');
     $officeId = $cash['id_office_cash'];
 
-    $stmtS = $db->prepare("SELECT SUM(total_order) FROM orders WHERE id_office_order = :o AND status_order = 'Completada' AND date_order >= :start AND date_order <= :end");
+    $stmtS = $db->prepare("SELECT SUM(total_order) FROM orders WHERE id_office_order = :o AND status_order IN ('Completada', 'Venta Confirmada') AND date_order >= :start AND date_order <= :end");
     $stmtS->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
     $sales = floatval($stmtS->fetchColumn() ?: 0);
+
+    // Calculate Efectivo vs QR
+    $stmtEf = $db->prepare("SELECT SUM(total_order) FROM orders WHERE id_office_order = :o AND status_order IN ('Completada', 'Venta Confirmada') AND method_order = 'efectivo' AND date_order >= :start AND date_order <= :end");
+    $stmtEf->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
+    $sales_efectivo = floatval($stmtEf->fetchColumn() ?: 0);
+
+    $stmtQr = $db->prepare("SELECT SUM(total_order) FROM orders WHERE id_office_order = :o AND status_order IN ('Completada', 'Venta Confirmada') AND method_order = 'QR' AND date_order >= :start AND date_order <= :end");
+    $stmtQr->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
+    $sales_qr = floatval($stmtQr->fetchColumn() ?: 0);
+
+    $cash_efectivo = $sales_efectivo + $incomes;
+    $cash_qr = $sales_qr;
 
     $money_cash = $sales + $incomes;
     $start_cash = floatval($cash['start_cash']);
@@ -623,6 +635,8 @@ function updateCashTotals($db, $idCash) {
         'sales_cash' => $sales,
         'incomes_cash' => $incomes,
         'money_cash' => $money_cash,
+        'cash_efectivo' => $cash_efectivo,
+        'cash_qr' => $cash_qr,
         'end_cash' => $end_cash,
         'diff_cash' => $diff_cash,
         'final_cash' => $end_cash
@@ -738,4 +752,54 @@ if (isset($_POST['createStockTransfer'])) {
         echo json_encode(['status' => 500, 'message' => 'Error interno en traspaso']);
     }
     exit;
+}
+
+if (isset($_POST['uploadQR'])) {
+    $db = LocalConnection::connect();
+    $officeId = (int)($_POST['id_office_qr'] ?? 0);
+    if ($officeId <= 0) {
+        echo json_encode(["status" => 400, "message" => "Sucursal no válida"]);
+        return;
+    }
+
+    if (!isset($_FILES['qrImage']) || $_FILES['qrImage']['error'] !== UPLOAD_ERR_OK) {
+        echo json_encode(["status" => 400, "message" => "Debe seleccionar una imagen"]);
+        return;
+    }
+
+    try {
+        $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'];
+        $ext = strtolower(pathinfo($_FILES['qrImage']['name'], PATHINFO_EXTENSION));
+        if (!isset($allowed[$ext])) throw new Exception('Formato de imagen no permitido (solo JPG, PNG o WEBP)');
+        
+        $dir = __DIR__ . '/../../views/assets/files/qrs';
+        if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+        $fileName = 'qr_' . $officeId . '_' . time() . '.' . $ext;
+        
+        if (!move_uploaded_file($_FILES['qrImage']['tmp_name'], $dir . '/' . $fileName)) {
+            throw new Exception('No se pudo guardar la imagen en el servidor');
+        }
+        $qrPath = 'views/assets/files/qrs/' . $fileName;
+
+        // Check if QR already exists for this office
+        $stmt = $db->prepare("SELECT id_qr, image_qr FROM qrs WHERE id_office_qr = :o LIMIT 1");
+        $stmt->execute([':o' => $officeId]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existing) {
+            $stmtU = $db->prepare("UPDATE qrs SET image_qr = :img, date_updated_qr = NOW() WHERE id_qr = :id");
+            $stmtU->execute([':img' => $qrPath, ':id' => $existing['id_qr']]);
+            $oldPath = __DIR__ . '/../../' . $existing['image_qr'];
+            if (is_file($oldPath)) { @unlink($oldPath); }
+        } else {
+            $stmtI = $db->prepare("INSERT INTO qrs (id_office_qr, image_qr) VALUES (:o, :img)");
+            $stmtI->execute([':o' => $officeId, ':img' => $qrPath]);
+        }
+
+        echo json_encode(["status" => 200, "message" => "QR guardado correctamente", "path" => $qrPath]);
+
+    } catch (Exception $e) {
+        echo json_encode(["status" => 500, "message" => $e->getMessage()]);
+    }
+    return;
 }

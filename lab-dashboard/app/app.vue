@@ -269,6 +269,7 @@ const sidebarItems = computed(() => {
   if (role === 'superadmin' || role === 'admin' || role === 'cajero' || role === 'vendedor' || role === 'editor' || role === 'despachador') {
     if (hasPerm('pos')) items.push({ label: 'Punto de Venta POS', to: '/pos', icon: 'i-lucide-shopping-cart' })
     if (hasPerm('sucursales')) items.push({ label: 'Sucursales', to: '/sucursales', icon: 'i-lucide-store' })
+    if (hasPerm('qrs')) items.push({ label: 'Códigos QR', to: '/qrs', icon: 'i-lucide-qr-code' })
     if (hasPerm('admins')) items.push({ label: 'Administradores', to: '/admins', icon: 'i-lucide-user-cog' })
     if (hasPerm('clientes')) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
     if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-tags' })

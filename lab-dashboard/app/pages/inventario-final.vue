@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
@@ -61,6 +61,23 @@ async function fetchOffices() {
   }
 }
 
+const officeOptions = computed(() => {
+  const defaultOption = { value: '', label: 'Seleccionar Sucursal' }
+  if (!offices.value || !Array.isArray(offices.value)) return [defaultOption]
+
+  const filtered = offices.value.filter((o: any) => {
+    const currentId = auth.officeId || 6
+    return String(o.id_office) !== String(currentId)
+  })
+
+  const mapped = filtered.map((o: any) => ({
+    value: String(o.id_office),
+    label: String(o.title_office || o.name_office || 'Sucursal ' + o.id_office)
+  }))
+
+  return [defaultOption, ...mapped]
+})
+
 function openDispatchModal(item: any) {
   dispatchForm.value = {
     id_product: String(item.id),
@@ -83,12 +100,12 @@ async function submitDispatch() {
   submittingDispatch.value = true
   try {
     const response = await api.ajax({
-      createDirectTransfer: 'true',
+      createStockTransfer: 'true',
       id_product: dispatchForm.value.id_product,
       qty: String(dispatchForm.value.qty),
       id_admin: String(auth.id || 1),
-      id_office_origin: String(auth.officeId || 6),
-      id_office_dest: String(dispatchForm.value.id_office_dest),
+      id_origin_office: String(auth.officeId || 6),
+      id_dest_office: String(dispatchForm.value.id_office_dest),
       notes: 'Despacho directo desde Laboratorio'
     })
 
@@ -224,9 +241,13 @@ onMounted(() => {
 
             <div class="space-y-1.5">
               <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Sucursal Destino *</label>
-              <USelect
+              <USelectMenu
                 v-model="dispatchForm.id_office_dest"
-                :options="[{value: '', label: 'Seleccionar Sucursal'}, ...offices.filter(o => String(o.id_office) !== String(auth.officeId || 6)).map(o => ({ value: String(o.id_office), label: String(o.title_office || o.name_office || 'Sucursal ' + o.id_office) }))]"
+                :items="officeOptions"
+                value-key="value"
+                label-key="label"
+                placeholder="Seleccionar Sucursal..."
+                class="w-full"
                 required
               />
             </div>
