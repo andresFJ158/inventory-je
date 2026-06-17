@@ -12,6 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
   const role = computed(() => user.value?.rol_admin || 'lab_worker')
   const officeId = computed(() => office.value?.id_office || user.value?.id_office_admin || null)
   const warehouseId = computed(() => user.value?.id_warehouse_admin || 0)
+  // Si el usuario tiene almacén asignado con su propio office, se usa ese para inventario/ventas
+  const effectiveOfficeId = computed(() => user.value?.warehouse_office_id || officeId.value)
   const permissions = computed(() => user.value?.permissions_admin || {})
 
   function setAuth(data: any) {
@@ -52,6 +54,7 @@ export const useAuthStore = defineStore('auth', () => {
     role,
     officeId,
     warehouseId,
+    effectiveOfficeId,
     permissions,
     setAuth,
     setMode,

@@ -217,17 +217,17 @@ onMounted(async () => {
             </UCard>
 
             <UCard>
-              <p class="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Monto Inicial</p>
-              <h2 class="text-2xl font-black text-slate-800 dark:text-white mt-1">
+              <p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Monto Inicial</p>
+              <h2 class="text-2xl font-black text-slate-800 mt-1">
                 {{ formatCurrency(parseFloat(todaysCash.start_cash || 0)) }}
               </h2>
               <p class="text-xs text-slate-400 mt-1">Capital de apertura</p>
             </UCard>
 
-            <UCard class="flex items-center justify-center gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors" @click="() => { closeModal = true; loadCashDetails() }">
+            <UCard class="flex items-center justify-center gap-4 cursor-pointer hover:bg-slate-50 transition-colors" @click="() => { closeModal = true; loadCashDetails() }">
               <UIcon name="i-lucide-x-circle" class="w-10 h-10 text-rose-400" />
               <div>
-                <p class="font-bold text-slate-700 dark:text-slate-200">Cerrar Caja</p>
+                <p class="font-bold text-slate-700">Cerrar Caja</p>
                 <p class="text-xs text-slate-500">Finalizar jornada del día</p>
               </div>
             </UCard>
@@ -238,12 +238,12 @@ onMounted(async () => {
         <!-- Caja CERRADA / Sin abrir -->
         <template v-else>
           <div class="flex flex-col items-center justify-center py-20 space-y-6">
-            <div class="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+            <div class="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center">
               <UIcon name="i-lucide-wallet" class="w-12 h-12 text-slate-400" />
             </div>
             <div class="text-center">
-              <h2 class="text-2xl font-bold text-slate-700 dark:text-slate-200">Caja Cerrada</h2>
-              <p class="text-slate-500 dark:text-slate-400 mt-1">No hay caja abierta para hoy. Abre la caja para comenzar a operar.</p>
+              <h2 class="text-2xl font-bold text-slate-700">Caja Cerrada</h2>
+              <p class="text-slate-500 mt-1">No hay caja abierta para hoy. Abre la caja para comenzar a operar.</p>
             </div>
             <UButton size="lg" color="primary" icon="i-lucide-plus-circle" @click="openModal = true">
               Abrir Caja
@@ -268,8 +268,8 @@ onMounted(async () => {
     <template v-else>
       <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-lg font-bold text-slate-800 dark:text-white">Cajas por Sucursal — Hoy</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">{{ todayStr }}</p>
+          <h2 class="text-lg font-bold text-slate-800">Cajas por Sucursal — Hoy</h2>
+          <p class="text-xs text-slate-500">{{ todayStr }}</p>
         </div>
         <UButton icon="i-lucide-refresh-cw" variant="ghost" color="neutral" @click="fetchCashStatus">Actualizar</UButton>
       </div>
@@ -286,8 +286,8 @@ onMounted(async () => {
         <UCard v-for="cash in allCashs" :key="cash.id_cash">
           <div class="flex items-start justify-between mb-3">
             <div>
-              <h3 class="font-bold text-slate-800 dark:text-white">{{ getOfficeName(cash.id_office_cash) }}</h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400">Caja #{{ cash.id_cash }}</p>
+              <h3 class="font-bold text-slate-800">{{ getOfficeName(cash.id_office_cash) }}</h3>
+              <p class="text-xs text-slate-500">Caja #{{ cash.id_cash }}</p>
             </div>
             <UBadge :color="cash.status_cash == 1 ? 'success' : 'neutral'" variant="subtle">
               {{ cash.status_cash == 1 ? 'Abierta' : 'Cerrada' }}
@@ -295,11 +295,11 @@ onMounted(async () => {
           </div>
           <div class="space-y-1 text-sm">
             <div class="flex justify-between">
-              <span class="text-slate-500 dark:text-slate-400">Apertura:</span>
+              <span class="text-slate-500">Apertura:</span>
               <span class="font-semibold">{{ formatCurrency(parseFloat(cash.start_cash || 0)) }}</span>
             </div>
             <div v-if="cash.end_cash" class="flex justify-between">
-              <span class="text-slate-500 dark:text-slate-400">Cierre:</span>
+              <span class="text-slate-500">Cierre:</span>
               <span class="font-semibold text-rose-500">{{ formatCurrency(parseFloat(cash.end_cash || 0)) }}</span>
             </div>
           </div>
@@ -330,7 +330,7 @@ onMounted(async () => {
     <UModal v-model:open="openModal" title="Abrir Caja del Día">
       <template #body>
         <div class="space-y-4 p-1">
-          <p class="text-sm text-slate-600 dark:text-slate-400">
+          <p class="text-sm text-slate-600">
             Ingresa el monto inicial con el que abres la caja para hoy <strong>({{ todayStr }})</strong>.
           </p>
           <UFormField label="Monto Inicial (Bs.)">
@@ -339,7 +339,7 @@ onMounted(async () => {
               type="text"
               inputmode="decimal"
               placeholder="0,00"
-              class="block w-full py-3 px-4 text-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500/50"
+              class="block w-full py-3 px-4 text-lg bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500/50"
               @input="onOpenAmountInput($event)"
               @keydown="blockNegative($event as KeyboardEvent)"
             />
@@ -365,21 +365,21 @@ onMounted(async () => {
           </div>
           <template v-else-if="cashDetails">
             <div class="grid grid-cols-2 gap-3 text-sm">
-              <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
+              <div class="bg-slate-50 rounded-lg p-3">
                 <p class="text-slate-500 text-xs">Apertura</p>
                 <p class="font-bold text-lg">{{ formatCurrency(parseFloat(cashDetails.start_cash || 0)) }}</p>
               </div>
-              <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
+              <div class="bg-slate-50 rounded-lg p-3">
                 <p class="text-slate-500 text-xs">Total Ventas</p>
                 <p class="font-bold text-lg text-green-600">{{ formatCurrency(parseFloat(cashDetails.money_cash || cashDetails.total_sales || 0)) }}</p>
                 <p class="text-xs text-slate-400 mt-1">Efectivo: {{ formatCurrency(parseFloat(cashDetails.cash_efectivo || 0)) }}</p>
                 <p class="text-xs text-slate-400">QR: {{ formatCurrency(parseFloat(cashDetails.cash_qr || 0)) }}</p>
               </div>
-              <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
+              <div class="bg-slate-50 rounded-lg p-3">
                 <p class="text-slate-500 text-xs">Gastos</p>
                 <p class="font-bold text-lg text-rose-500">{{ formatCurrency(parseFloat(cashDetails.bills_cash || 0)) }}</p>
               </div>
-              <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
+              <div class="bg-green-50 rounded-lg p-3 border border-green-200">
                 <p class="text-green-600 text-xs font-semibold">Saldo Final</p>
                 <p class="font-black text-xl text-green-600">{{ formatCurrency(parseFloat(cashDetails.final_cash || 0)) }}</p>
               </div>
@@ -387,7 +387,7 @@ onMounted(async () => {
           </template>
           <div v-else class="text-center py-4 text-slate-400 text-sm">No hay detalles disponibles.</div>
 
-          <div v-if="!isSuperAdmin && todaysCash?.status_cash == 1" class="pt-2 border-t border-slate-200 dark:border-slate-700">
+          <div v-if="!isSuperAdmin && todaysCash?.status_cash == 1" class="pt-2 border-t border-slate-200">
             <UFormField label="Efectivo físico en caja (Bs.)" class="mb-4">
               <input
                 v-model="physicalCash"
@@ -395,10 +395,10 @@ onMounted(async () => {
                 step="0.01"
                 min="0"
                 placeholder="Ingresa lo que contaste..."
-                class="block w-full py-2 px-3 text-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                class="block w-full py-2 px-3 text-lg bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500/50"
               />
             </UFormField>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            <p class="text-xs text-slate-500 mb-3">
               Al cerrar la caja se finalizará la jornada y se registrará cualquier faltante o sobrante basado en el efectivo físico que indiques. Esta acción no se puede deshacer.
             </p>
           </div>

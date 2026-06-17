@@ -4,15 +4,20 @@ if(isset($_POST["getLoggedUser"])){
 	if (isset($_SESSION["admin"])) {
 		$db = LocalConnection::connect();
 		$id_office = intval($_SESSION["admin"]->id_office_admin);
-		if ($id_office === 0 && isset($_SESSION["admin"]->id_warehouse_admin) && intval($_SESSION["admin"]->id_warehouse_admin) > 0) {
+		$warehouse_office_id = 0;
+
+		if (isset($_SESSION["admin"]->id_warehouse_admin) && intval($_SESSION["admin"]->id_warehouse_admin) > 0) {
 			$stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh");
 			$stmtWH->execute([':wh' => intval($_SESSION["admin"]->id_warehouse_admin)]);
 			$whOffice = $stmtWH->fetchColumn();
 			if ($whOffice) {
-				$id_office = intval($whOffice);
+				$warehouse_office_id = intval($whOffice);
+				if ($id_office === 0) {
+					$id_office = $warehouse_office_id;
+				}
 			}
 		}
-		
+
 		$stmt = $db->prepare("SELECT * FROM offices WHERE id_office = :id");
 		$stmt->execute([':id' => $id_office]);
 		$office = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -30,6 +35,7 @@ if(isset($_POST["getLoggedUser"])){
 				'rol_admin' => $_SESSION["admin"]->rol_admin,
 				'id_office_admin' => intval($_SESSION["admin"]->id_office_admin),
 				'id_warehouse_admin' => isset($_SESSION["admin"]->id_warehouse_admin) ? intval($_SESSION["admin"]->id_warehouse_admin) : 0,
+				'warehouse_office_id' => $warehouse_office_id,
 				'permissions_admin' => $permissions
 			],
 			'office' => $office,
@@ -62,16 +68,13 @@ if(isset($_POST["payPosOrder"])){
 	ob_start();
 	$orderCtrl = new OrdersController();
 	$orderCtrl->manageOrder();
-	$output = ob_get_clean();
-	
-	if (strpos($output, "La �rden") !== false || strpos($output, "�xito") !== false || strpos($output, "completada") !== false || strpos($output, "Correcto") !== false) {
-		echo json_encode(["status" => 200, "message" => "ok"]);
+	$output = trim(ob_get_clean());
+
+	$decoded = json_decode($output, true);
+	if ($decoded && isset($decoded['status'])) {
+		echo json_encode($decoded);
 	} else {
-		$errorMsg = "Error al procesar el pago";
-		if (preg_match('/alert-danger[^>]*>([\s\S]*?)<\/div>/i', $output, $matches)) {
-			$errorMsg = trim(strip_tags($matches[1]));
-		}
-		echo json_encode(["status" => 400, "message" => $errorMsg]);
+		echo json_encode(["status" => 400, "message" => $output ?: "Error al procesar el pago"]);
 	}
 	exit;
 }
@@ -98,7 +101,7 @@ if(isset($_POST["loginLabUser"])){
 	if (empty($email) || empty($password)) {
 		echo json_encode([
 			'status' => 400,
-			'message' => 'El correo y la contrase�a son requeridos'
+			'message' => 'El correo y la contraseña son requeridos'
 		]);
 		exit;
 	}
@@ -120,19 +123,24 @@ if(isset($_POST["loginLabUser"])){
 		require_once __DIR__ . '/../../models/connection.php';
 		if (Connection::verifyPassword($password, $admin->password_admin)) {
 			pos_rate_limit_clear($email);
-			// Establecemos la sesi�n PHP como el login original
+			// Establecemos la sesión PHP como el login original
 			$_SESSION["admin"] = $admin;
 			
 			$id_office = intval($admin->id_office_admin);
-			if ($id_office === 0 && isset($admin->id_warehouse_admin) && intval($admin->id_warehouse_admin) > 0) {
+			$warehouse_office_id = 0; // office del almacén asignado (puede diferir de la sucursal)
+
+			if (isset($admin->id_warehouse_admin) && intval($admin->id_warehouse_admin) > 0) {
 				$stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh");
 				$stmtWH->execute([':wh' => intval($admin->id_warehouse_admin)]);
 				$whOffice = $stmtWH->fetchColumn();
 				if ($whOffice) {
-					$id_office = intval($whOffice);
+					$warehouse_office_id = intval($whOffice);
+					if ($id_office === 0) {
+						$id_office = $warehouse_office_id;
+					}
 				}
 			}
-			
+
 			$stmtOffice = $db->prepare("SELECT * FROM offices WHERE id_office = :id");
 			$stmtOffice->execute([':id' => $id_office]);
 			$office = $stmtOffice->fetch(PDO::FETCH_ASSOC);
@@ -168,6 +176,7 @@ if(isset($_POST["loginLabUser"])){
 					'rol_admin' => $admin->rol_admin,
 					'id_office_admin' => intval($admin->id_office_admin),
 					'id_warehouse_admin' => isset($admin->id_warehouse_admin) ? intval($admin->id_warehouse_admin) : 0,
+					'warehouse_office_id' => $warehouse_office_id,
 					'permissions_admin' => $permissions
 				],
 				'office' => $office,
@@ -179,14 +188,14 @@ if(isset($_POST["loginLabUser"])){
 	
 	echo json_encode([
 		'status' => 401,
-		'message' => 'Correo o contrase�a incorrectos, o el usuario est� inactivo.'
+		'message' => 'Correo o contraseña incorrectos, o el usuario está inactivo.'
 	]);
 	exit;
 }
 
 
 //=====================================
-// SAVE PRODUCTION (Iniciar Producci�n)
+// SAVE PRODUCTION (Iniciar Producción)
 //=====================================
 if(isset($_POST["saveProduction"])){
 	$db = LocalConnection::connect();
@@ -203,7 +212,8 @@ if(isset($_POST["saveProduction"])){
 		// 1. Fetch recipe ingredients
 		$stmtIng = $db->prepare("
 			SELECT ri.id_raw_material_ingredient AS id_rm, ri.qty_ingredient,
-			       rm.stock_raw_material, rm.name_raw_material
+			       rm.stock_raw_material, rm.name_raw_material, rm.no_stock_raw_material,
+			       rm.price_raw_material
 			FROM recipe_ingredients ri
 			JOIN raw_materials rm ON ri.id_raw_material_ingredient = rm.id_raw_material
 			WHERE ri.id_recipe_ingredient = :id_recipe
@@ -211,11 +221,11 @@ if(isset($_POST["saveProduction"])){
 		$stmtIng->execute([':id_recipe' => $id_recipe]);
 		$ingredients = $stmtIng->fetchAll(PDO::FETCH_ASSOC);
 
-		// 2. Check stock for each ingredient
+		// 2. Check stock for each ingredient (skip special supplies with no_stock_raw_material=1)
 		$totalMatCost = 0;
 		foreach ($ingredients as $ing) {
 			$needed = $ing['qty_ingredient'] * $batches;
-			if ($ing['stock_raw_material'] < $needed - 0.001) {
+			if (!intval($ing['no_stock_raw_material']) && $ing['stock_raw_material'] < $needed - 0.001) {
 				echo "stock_insuficiente|" . $ing['name_raw_material'];
 				exit;
 			}
@@ -251,23 +261,29 @@ if(isset($_POST["saveProduction"])){
 		foreach ($ingredients as $ing) {
 			$needed = $ing['qty_ingredient'] * $batches;
 
-			// Get latest entry price
-			$stmtPrice = $db->prepare("
-				SELECT unit_price_entry FROM raw_material_entries
-				WHERE id_raw_material_entry = :id_rm AND status_entry = 'aprobado'
-				ORDER BY date_approved_entry DESC, id_entry DESC LIMIT 1
-			");
-			$stmtPrice->execute([':id_rm' => $ing['id_rm']]);
-			$unitPrice = floatval($stmtPrice->fetchColumn() ?: 0);
+			// Get unit price: use fixed price for special supplies, otherwise last entry price
+			if (intval($ing['no_stock_raw_material'])) {
+				$unitPrice = floatval($ing['price_raw_material'] ?? 0);
+			} else {
+				$stmtPrice = $db->prepare("
+					SELECT unit_price_entry FROM raw_material_entries
+					WHERE id_raw_material_entry = :id_rm AND status_entry = 'aprobado'
+					ORDER BY date_approved_entry DESC, id_entry DESC LIMIT 1
+				");
+				$stmtPrice->execute([':id_rm' => $ing['id_rm']]);
+				$unitPrice = floatval($stmtPrice->fetchColumn() ?: 0);
+			}
 			$subtotal  = $unitPrice * $needed;
 			$totalMatCost += $subtotal;
 
-			// Deduct from stock
-			$stmtDeduct = $db->prepare("
-				UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty
-				WHERE id_raw_material = :id_rm
-			");
-			$stmtDeduct->execute([':qty' => $needed, ':id_rm' => $ing['id_rm']]);
+			// Deduct from stock (skip special supplies with no_stock_raw_material=1)
+			if (!intval($ing['no_stock_raw_material'])) {
+				$stmtDeduct = $db->prepare("
+					UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty
+					WHERE id_raw_material = :id_rm
+				");
+				$stmtDeduct->execute([':qty' => $needed, ':id_rm' => $ing['id_rm']]);
+			}
 
 			// Get entry id for traceability
 			$stmtEntry = $db->prepare("
@@ -316,7 +332,8 @@ if(isset($_POST["saveProduction"])){
 
 		echo "ok";
 	} catch (Exception $e) {
-		echo "error|" . $e->getMessage();
+		error_log('updateProductionUnitCost error: ' . $e->getMessage());
+		echo "error|Error al actualizar el costo unitario.";
 	}
 	exit;
 }

@@ -1,88 +1,116 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-@theme static {
-  --font-sans: 'Public Sans', sans-serif;
+/* Force dark: variants to ONLY activate with .dark class, never via media query.
+   Since colorMode preference is always 'light', .dark is never added to html,
+   so dark: classes never apply — this keeps every page in light mode. */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --color-green-50: #EFFDF5;
-  --color-green-100: #D9FBE8;
-  --color-green-200: #B3F5D1;
-  --color-green-300: #75EDAE;
-  --color-green-400: #00DC82;
-  --color-green-500: #00C16A;
-  --color-green-600: #00A155;
-  --color-green-700: #007F45;
-  --color-green-800: #016538;
-  --color-green-900: #0A5331;
-  --color-green-950: #052E16;
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+html, body {
+  scroll-behavior: smooth;
+  background-color: #f8f9fa;
+  color: #1f2937;
+}
+
+body {
+  background-color: #f8f9fa;
+}
+
+@theme static {
+  --font-sans: 'Public Sans', 'Segoe UI', sans-serif;
+
+  --color-emerald-50: #F0FDF4;
+  --color-emerald-100: #DCFCE7;
+  --color-emerald-200: #BBF7D0;
+  --color-emerald-300: #86EFAC;
+  --color-emerald-400: #4ADE80;
+  --color-emerald-500: #10B981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065F46;
+  --color-emerald-900: #064E3B;
+  --color-emerald-950: #022C1D;
+}
+
+/* ============================================================
+   LIGHT-MODE BACKGROUNDS — prevent any stray dark bg values
+   ============================================================ */
+.bg-gray-600, .bg-gray-700, .bg-gray-800, .bg-gray-900,
+.bg-slate-600, .bg-slate-700, .bg-slate-800, .bg-slate-900, .bg-slate-950,
+.bg-neutral-600, .bg-neutral-700, .bg-neutral-800, .bg-neutral-900 {
+  background-color: #ffffff !important;
+}
+
+/* Modal y cards */
+.modal-content, [role="dialog"], .card {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================================================
+   TABLA ERP
+   ============================================================ */
 .erp-content {
-  --table-cell-x: 0.65rem;
-  --table-cell-y: 0.48rem;
+  --table-cell-x: 0.75rem;
+  --table-cell-y: 0.6rem;
 }
 
 .erp-content table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  background-color: #ffffff;
 }
 
 .erp-content th {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgb(248 250 252);
-  color: rgb(71 85 105);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   white-space: nowrap;
-}
-
-.dark .erp-content th {
-  background: rgb(15 23 42);
-  color: rgb(203 213 225);
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .erp-content th,
 .erp-content td {
-  padding: var(--table-cell-y) var(--table-cell-x) !important;
+  padding: var(--table-cell-y) var(--table-cell-x);
   vertical-align: middle;
-  border-bottom: 1px solid rgb(226 232 240 / 0.8);
-}
-
-.dark .erp-content th,
-.dark .erp-content td {
-  border-bottom-color: rgb(30 41 59 / 0.9);
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .erp-content td {
-  color: rgb(51 65 85);
-}
-
-.dark .erp-content td {
-  color: rgb(203 213 225);
+  color: #4b5563;
+  font-weight: 500;
+  background-color: #ffffff;
 }
 
 .erp-content tbody tr {
-  min-height: 2.45rem;
+  min-height: 2.75rem;
+  transition: background-color 0.15s ease-in-out;
+  background-color: #ffffff;
 }
 
 .erp-content tbody tr:hover {
-  background: rgb(241 245 249 / 0.72);
-}
-
-.dark .erp-content tbody tr:hover {
-  background: rgb(30 41 59 / 0.42);
+  background-color: #f8fafc;
 }
 
 .erp-content .table-scroll {
   max-height: calc(100vh - 15.5rem);
   overflow: auto;
+  background-color: #ffffff;
 }
 
 .erp-content .table-cell-text {
@@ -92,48 +120,149 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .erp-content .table-cell-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', ui-monospace, monospace;
   white-space: nowrap;
+  background-color: #f3f4f6;
+  color: #1f2937;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
 }
 
 .erp-content .table-actions {
   position: sticky;
   right: 0;
   z-index: 5;
-  min-width: 6.5rem;
-  background: rgb(255 255 255 / 0.96);
-  box-shadow: -10px 0 18px -18px rgb(15 23 42 / 0.75);
-}
-
-.dark .erp-content .table-actions {
-  background: rgb(2 6 23 / 0.96);
+  min-width: 7rem;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.98) 40%);
+  box-shadow: -8px 0 12px -8px rgba(0,0,0,0.08);
+  padding-left: 1rem;
 }
 
 .erp-content th.table-actions {
   z-index: 20;
-  background: rgb(248 250 252);
-}
-
-.dark .erp-content th.table-actions {
-  background: rgb(15 23 42);
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
 }
 
 .erp-content .table-index {
-  width: 3rem;
-  min-width: 3rem;
+  width: 3.5rem;
+  min-width: 3.5rem;
   white-space: nowrap;
+  color: #9ca3af;
+  text-align: center;
+  font-size: 0.8125rem;
 }
 
 .erp-content .table-compact-card {
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+}
+
+.erp-content .table-compact-card:hover {
+  border-color: #10b981;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.08);
+}
+
+/* ============================================================
+   INPUTS
+   ============================================================ */
+input::placeholder, textarea::placeholder {
+  color: #9ca3af;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #10b981;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+}
+
+/* ============================================================
+   NAVEGACIÓN LATERAL
+   ============================================================ */
+nav a.router-link-active,
+a.router-link-active {
+  color: #ffffff;
+  font-weight: 600;
+  background-color: #16a34a;
+}
+
+nav a.router-link-active:hover {
+  background-color: #15803d;
+  color: #ffffff;
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ============================================================
+   PRODUCT CARDS
+   ============================================================ */
+.product-card, [class*="product-card"], .catalog-item {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
+  transition: all 0.3s ease-in-out;
 }
 
-/* Fix active sidebar link/button text and icon color on hover in light mode */
-html:not(.dark) nav a.router-link-active:hover,
-html:not(.dark) nav a.router-link-active:hover * {
-  color: var(--color-slate-600) !important;
+.product-card:hover, [class*="product-card"]:hover {
+  border-color: #10b981;
+  box-shadow: 0 8px 16px rgba(16,185,129,0.12);
+  transform: translateY(-2px);
 }
 
+/* ============================================================
+   PRECIOS POS — amarillo
+   ============================================================ */
+span.pos-price, .pos-price {
+  color: #eab308 !important;
+}
+
+/* ============================================================
+   SHAKE ANIMATION (validación de formularios)
+   ============================================================ */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15%       { transform: translateX(-6px); }
+  30%       { transform: translateX(6px); }
+  45%       { transform: translateX(-4px); }
+  60%       { transform: translateX(4px); }
+  75%       { transform: translateX(-2px); }
+  90%       { transform: translateX(2px); }
+}
+
+.animate-shake {
+  animation: shake 0.45s ease-in-out;
+}
+
+/* ============================================================
+   HOVER TRANSITIONS
+   ============================================================ */
+.btn:hover, button:hover, [role="button"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}

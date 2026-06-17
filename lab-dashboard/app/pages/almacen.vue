@@ -4,6 +4,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
+const toast = useToast()
 
 function onAssignQtyInput(e: Event) {
   const input = e.target as HTMLInputElement
@@ -39,6 +40,7 @@ const products = ref<any[]>([])
 const admins = ref<any[]>([])
 const officesMap = ref<Record<string, string>>({})
 const assignedMap = ref<Record<string, number>>({})
+const pendingMap = ref<Record<string, number>>({})
 const subWarehouses = ref<any[]>([])
 const movements = ref<any[]>([])
 
@@ -106,7 +108,7 @@ async function fetchOffices() {
 async function fetchStock() {
   loadingStock.value = true
   try {
-    const officeId = auth.officeId ?? 3
+    const officeId = auth.effectiveOfficeId ?? 3
     
     // 1. Fetch products inventory of this office
     const prodData = await $fetch<any>(`/api/relations?rel=product_inventory,products&type=inventory,product&linkTo=id_office_inventory,status_inventory&equalTo=${officeId},1`, {
@@ -129,12 +131,15 @@ async function fetchStock() {
 
     const assignResults = typeof assignData === 'string' ? JSON.parse(assignData) : assignData
     const map: Record<string, number> = {}
+    const pending: Record<string, number> = {}
     if (Array.isArray(assignResults)) {
       assignResults.forEach((item: any) => {
         map[item.id_product] = parseInt(item.total_assigned) || 0
+        pending[item.id_product] = parseInt(item.total_pending) || 0
       })
     }
     assignedMap.value = map
+    pendingMap.value = pending
   } catch (e) {
     console.error('Error fetching warehouse stock:', e)
     products.value = []
@@ -147,7 +152,7 @@ async function fetchStock() {
 async function fetchSubWarehouses() {
   loadingSubs.value = true
   try {
-    const officeId = auth.officeId ?? 3
+    const officeId = auth.effectiveOfficeId ?? 3
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
@@ -170,7 +175,7 @@ async function fetchSubWarehouses() {
 async function fetchMovements() {
   loadingMoves.value = true
   try {
-    const officeId = auth.officeId ?? 3
+    const officeId = auth.effectiveOfficeId ?? 3
     const adminId = auth.user?.id_admin || 1
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -195,7 +200,7 @@ async function fetchMovements() {
 async function fetchWastePackaged() {
   loadingWaste.value = true
   try {
-    const officeId = auth.officeId ?? 3
+    const officeId = auth.effectiveOfficeId ?? 3
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
@@ -236,19 +241,19 @@ function startAssign(prod: any) {
 // Action: Confirm Assign
 async function confirmAssign() {
   if (!selectedProduct.value || !assignUser.value) {
-    alert('Por favor completa todos los campos requeridos.')
+    toast.add({ title: 'Por favor completa todos los campos requeridos.', color: 'error' })
     return
   }
-  
+
   const availableStock = parseFloat(selectedProduct.value.stock_inventory) || 0
   if (assignQty.value <= 0 || assignQty.value > availableStock) {
-    alert('La cantidad ingresada no es válida o supera el stock disponible.')
+    toast.add({ title: 'La cantidad ingresada no es válida o supera el stock disponible.', color: 'error' })
     return
   }
 
   processingAction.value = true
   try {
-    const officeId = auth.officeId ?? 3
+    const officeId = auth.effectiveOfficeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     const res = await $fetch<any>('/ajax/pos.ajax.php', {
@@ -266,16 +271,17 @@ async function confirmAssign() {
     })
 
     if (String(res).trim() === 'ok') {
+      toast.add({ title: 'Reposición enviada.', description: 'El destino debe confirmar la recepción para sumar stock.', color: 'success' })
       isAssignOpen.value = false
       await fetchStock()
       await fetchSubWarehouses()
       await fetchMovements()
     } else {
-      alert(res || 'Error al asignar stock.')
+      toast.add({ title: String(res) || 'Error al asignar stock.', color: 'error' })
     }
   } catch (e) {
     console.error('Assign error:', e)
-    alert('Error al conectar con la API de almacenes.')
+    toast.add({ title: 'Error al conectar con la API de almacenes.', color: 'error' })
   } finally {
     processingAction.value = false
   }
@@ -283,7 +289,7 @@ async function confirmAssign() {
 
 // Traspasos entre almacenes
 const destinationOffices = computed(() => {
-  const currentOfficeId = String(auth.officeId ?? 3)
+  const currentOfficeId = String(auth.effectiveOfficeId ?? 3)
   return officesList.value
     .filter((o: any) => String(o.id_office) !== currentOfficeId)
     .map((o: any) => ({
@@ -310,19 +316,19 @@ function startTransfer(prod: any) {
 
 async function confirmTransfer() {
   if (!selectedProduct.value || !transferOffice.value) {
-    alert('Por favor completa todos los campos requeridos.')
+    toast.add({ title: 'Por favor completa todos los campos requeridos.', color: 'error' })
     return
   }
 
   const availableStock = parseFloat(selectedProduct.value.stock_inventory) || 0
   if (transferQty.value <= 0 || transferQty.value > availableStock) {
-    alert('La cantidad ingresada no es válida o supera el stock disponible.')
+    toast.add({ title: 'La cantidad ingresada no es válida o supera el stock disponible.', color: 'error' })
     return
   }
 
   processingAction.value = true
   try {
-    const officeId = auth.officeId ?? 3
+    const officeId = auth.effectiveOfficeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     const res = await $fetch<any>('/ajax/pos.ajax.php', {
@@ -340,16 +346,17 @@ async function confirmTransfer() {
     })
 
     if (String(res).trim() === 'ok') {
+      toast.add({ title: 'Traspaso enviado.', description: 'El stock quedó en tránsito hasta recepción.', color: 'success' })
       isTransferOpen.value = false
       await fetchStock()
       await fetchSubWarehouses()
       await fetchMovements()
     } else {
-      alert(res || 'Error al traspasar stock.')
+      toast.add({ title: String(res) || 'Error al traspasar stock.', color: 'error' })
     }
   } catch (e) {
     console.error('Transfer error:', e)
-    alert('Error al conectar con la API de traspasos.')
+    toast.add({ title: 'Error al conectar con la API de traspasos.', color: 'error' })
   } finally {
     processingAction.value = false
   }
@@ -365,12 +372,13 @@ const tabsItems = [
 function exportCSV() {
   if (activeTab.value === 0) {
     if (products.value.length === 0) return
-    const headers = ['SKU', 'Producto', 'Stock Total', 'Asignado', 'Disponible']
+    const headers = ['SKU', 'Producto', 'Stock Confirmado', 'Asignado', 'En Transito', 'Disponible']
     const rows = products.value.map(p => [
       p.sku_product,
       decodeURIComponent(p.title_product || '').replace(/\+/g, ' '),
       (parseFloat(p.stock_inventory) || 0) + (assignedMap.value[p.id_product] || 0),
       assignedMap.value[p.id_product] || 0,
+      pendingMap.value[p.id_product] || 0,
       parseFloat(p.stock_inventory) || 0
     ])
     const csvContent = "\ufeff" + [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
@@ -405,17 +413,35 @@ function exportCSV() {
     link.click()
     document.body.removeChild(link)
   } else {
-    alert('Exportación disponible para inventario y movimientos.')
+    toast.add({ title: 'Exportación disponible para inventario y movimientos.', color: 'info' })
   }
+}
+
+function getMovementColor(type: string): 'primary' | 'warning' | 'success' | 'error' | 'neutral' {
+  if (type === 'despacho') return 'primary'
+  if (type === 'despacho_pendiente') return 'warning'
+  if (type === 'devolucion') return 'warning'
+  if (type === 'traspaso') return 'success'
+  if (type === 'venta') return 'error'
+  return 'neutral'
+}
+
+function getMovementLabel(type: string): string {
+  if (type === 'despacho') return 'Recibido'
+  if (type === 'despacho_pendiente') return 'En tránsito'
+  if (type === 'devolucion') return 'Devolución'
+  if (type === 'traspaso') return 'Traspaso'
+  if (type === 'venta') return 'Venta'
+  return type || '-'
 }
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="bg-slate-900/60 border border-slate-800 p-6 rounded-xl flex justify-between items-center">
+    <div class="bg-white border border-slate-200 p-6 rounded-xl flex justify-between items-center">
       <div>
-        <h1 class="text-2xl font-extrabold text-white tracking-tight bg-gradient-to-r from-teal-400 to-emerald-300 bg-clip-text text-transparent">
+        <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-300 bg-clip-text text-transparent">
           Almacén Principal
         </h1>
         <p class="text-xs text-slate-400 mt-1">
@@ -455,34 +481,35 @@ function exportCSV() {
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="products.length === 0" class="text-center py-12 bg-slate-900/40 border border-slate-850 rounded-xl text-slate-500">
+          <div v-else-if="products.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
             No se encontraron productos en el almacén principal.
           </div>
 
-          <div v-else class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
-            <table class="w-full text-left border-collapse text-sm text-slate-300">
+          <div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <table class="w-full text-left border-collapse text-sm text-slate-700 bg-white">
               <thead>
-                <tr class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
                   <th class="p-4">Imagen</th>
                   <th class="p-4">SKU</th>
                   <th class="p-4">Producto</th>
-                  <th class="p-4">Stock Total</th>
+                  <th class="p-4">Stock Confirmado</th>
                   <th class="p-4">Asignado</th>
+                  <th class="p-4">En Tránsito</th>
                   <th class="p-4">Disponible (Almacén)</th>
                   <th class="p-4 text-right">Distribución</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="prod in products" :key="prod.id_product" class="border-b border-slate-850 hover:bg-slate-900/20">
+                <tr v-for="prod in products" :key="prod.id_product" class="border-b border-slate-100 hover:bg-slate-50">
                   <td class="p-4">
                     <UAvatar
                       :src="getImageUrl(prod.img_product)"
                       size="sm"
-                      class="bg-slate-800"
+                      class="bg-slate-200"
                     />
                   </td>
                   <td class="p-4 font-mono text-xs">{{ prod.sku_product }}</td>
-                  <td class="p-4 font-semibold text-white">{{ decodeURIComponent(prod.title_product || '').replace(/\+/g, ' ') }}</td>
+                  <td class="p-4 font-semibold text-slate-800">{{ decodeURIComponent(prod.title_product || '').replace(/\+/g, ' ') }}</td>
                   
                   <!-- Total Stock = Main + Assigned -->
                   <td class="p-4">
@@ -495,6 +522,12 @@ function exportCSV() {
                   <td class="p-4">
                     <UBadge color="info" variant="soft" class="font-mono text-xs">
                       {{ assignedMap[prod.id_product] || 0 }}
+                    </UBadge>
+                  </td>
+
+                  <td class="p-4">
+                    <UBadge color="warning" variant="soft" class="font-mono text-xs">
+                      {{ pendingMap[prod.id_product] || 0 }}
                     </UBadge>
                   </td>
 
@@ -540,7 +573,7 @@ function exportCSV() {
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="subWarehouses.length === 0" class="text-center py-12 bg-slate-900/40 border border-slate-850 rounded-xl text-slate-500">
+          <div v-else-if="subWarehouses.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
             No se encontraron sub-almacenes asociados.
           </div>
 
@@ -548,12 +581,12 @@ function exportCSV() {
             <div
               v-for="sw in subWarehouses"
               :key="sw.id_sub_warehouse"
-              class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden flex flex-col justify-between"
+              class="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col justify-between"
             >
               <!-- Card Header -->
-              <div class="p-4 bg-slate-950/60 border-b border-slate-850 flex justify-between items-center">
+              <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                 <div>
-                  <h3 class="font-bold text-white text-sm flex items-center gap-1.5">
+                  <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
                     <UIcon name="i-lucide-user" class="text-teal-400" />
                     {{ sw.name_admin }}
                   </h3>
@@ -568,14 +601,14 @@ function exportCSV() {
               <div class="p-0">
                 <table v-if="sw.products && sw.products.length > 0" class="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr class="bg-slate-950/30 text-slate-400 border-b border-slate-850">
+                    <tr class="bg-slate-100/60 text-slate-400 border-b border-slate-200">
                       <th class="p-2.5">Producto</th>
                       <th class="p-2.5 text-right">Stock Asignado</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="p in sw.products" :key="p.title_product" class="border-b border-slate-850/40 hover:bg-slate-900/10">
-                      <td class="p-2.5 text-slate-300">
+                    <tr v-for="p in sw.products" :key="p.title_product" class="border-b border-slate-200/40 hover:bg-slate-50">
+                      <td class="p-2.5 text-slate-700">
                         {{ decodeURIComponent(p.title_product || '').replace(/\+/g, ' ') }}
                       </td>
                       <td class="p-2.5 text-right font-mono font-bold text-teal-400">
@@ -598,14 +631,14 @@ function exportCSV() {
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="movements.length === 0" class="text-center py-12 bg-slate-900/40 border border-slate-850 rounded-xl text-slate-500">
+          <div v-else-if="movements.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
             No se encontraron movimientos registrados en la bitácora.
           </div>
 
-          <div v-else class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
-            <table class="w-full text-left border-collapse text-sm text-slate-300">
+          <div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <table class="w-full text-left border-collapse text-sm text-slate-700 bg-white">
               <thead>
-                <tr class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
                   <th class="p-4">Fecha</th>
                   <th class="p-4">Tipo</th>
                   <th class="p-4">Producto</th>
@@ -617,18 +650,18 @@ function exportCSV() {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="m in movements" :key="m.date_created_assignment" class="border-b border-slate-850 hover:bg-slate-900/20">
+                <tr v-for="m in movements" :key="m.date_created_assignment" class="border-b border-slate-100 hover:bg-slate-50">
                   <td class="p-4 font-mono text-xs">{{ m.date_created_assignment }}</td>
                   <td class="p-4">
                     <UBadge
-                      :color="m.type_assignment === 'despacho' ? 'primary' : m.type_assignment === 'devolucion' ? 'warning' : m.type_assignment === 'traspaso' ? 'success' : 'error'"
+                      :color="getMovementColor(m.type_assignment)"
                       variant="subtle"
                       class="capitalize font-semibold"
                     >
-                      {{ m.type_assignment }}
+                      {{ getMovementLabel(m.type_assignment) }}
                     </UBadge>
                   </td>
-                  <td class="p-4 font-semibold text-white">{{ decodeURIComponent(m.title_product || '').replace(/\+/g, ' ') }}</td>
+                  <td class="p-4 font-semibold text-slate-800">{{ decodeURIComponent(m.title_product || '').replace(/\+/g, ' ') }}</td>
                   <td class="p-4 text-center font-mono font-bold">{{ m.qty_assignment }}</td>
                   <td class="p-4">{{ m.name_admin }}</td>
                   <td class="p-4">{{ m.office_name ? decodeURIComponent(m.office_name).replace(/\+/g, ' ') : '-' }}</td>
@@ -645,14 +678,14 @@ function exportCSV() {
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="wastePackaged.length === 0" class="text-center py-12 bg-slate-900/40 border border-slate-850 rounded-xl text-slate-500">
+          <div v-else-if="wastePackaged.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
             No se encontró merma envasada.
           </div>
 
-          <div v-else class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden">
-            <table class="w-full text-left border-collapse text-sm text-slate-300">
+          <div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <table class="w-full text-left border-collapse text-sm text-slate-700 bg-white">
               <thead>
-                <tr class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
                   <th class="p-4">ID Producción</th>
                   <th class="p-4">Fecha de Registro</th>
                   <th class="p-4">Producto Final Envasado</th>
@@ -661,10 +694,10 @@ function exportCSV() {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="w in wastePackaged" :key="w.id_waste" class="border-b border-slate-850 hover:bg-slate-900/20">
+                <tr v-for="w in wastePackaged" :key="w.id_waste" class="border-b border-slate-100 hover:bg-slate-50">
                   <td class="p-4 font-mono text-xs">#{{ w.id_production_waste }}</td>
                   <td class="p-4 font-mono text-xs">{{ w.date_created_waste }}</td>
-                  <td class="p-4 font-semibold text-white">{{ decodeURIComponent(w.pkg_name_production || w.title_product || '').replace(/\+/g, ' ') }}</td>
+                  <td class="p-4 font-semibold text-slate-800">{{ decodeURIComponent(w.pkg_name_production || w.title_product || '').replace(/\+/g, ' ') }}</td>
                   <td class="p-4 text-center font-mono font-bold text-rose-400">{{ w.qty_waste }} {{ w.unit_product }}</td>
                   <td class="p-4">
                     <UBadge color="warning" variant="soft">{{ w.status_waste === 'en_almacen' ? 'En Almacén' : w.status_waste }}</UBadge>
@@ -681,10 +714,10 @@ function exportCSV() {
     <UModal v-model:open="isAssignOpen" title="Asignar Stock a Vendedor">
       <template #body>
         <div v-if="selectedProduct" class="space-y-4">
-          <div class="bg-slate-950 p-3 rounded-lg border border-slate-850 flex justify-between items-center">
+          <div class="bg-slate-100 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
             <div>
               <span class="text-[10px] text-slate-500 block">Producto:</span>
-              <span class="text-xs font-bold text-white">{{ decodeURIComponent(selectedProduct.title_product).replace(/\+/g, ' ') }}</span>
+              <span class="text-xs font-bold text-slate-800">{{ decodeURIComponent(selectedProduct.title_product).replace(/\+/g, ' ') }}</span>
             </div>
             <div>
               <span class="text-[10px] text-slate-500 block text-right">Disponible en Almacén:</span>
@@ -695,7 +728,7 @@ function exportCSV() {
           </div>
 
           <div>
-            <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Destinatario (Vendedor/Cajero) *</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Destinatario (Vendedor/Cajero) *</label>
             <USelect
               v-model="assignUser"
               :items="admins.map(a => ({ value: String(a.id_admin), label: `${a.name_admin} (${officesMap[a.id_office_admin] || 'Sin Sucursal'})` }))"
@@ -706,24 +739,24 @@ function exportCSV() {
           </div>
 
           <div>
-            <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Cantidad a Asignar *</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Cantidad a Asignar *</label>
             <input
               :value="assignQty > 0 ? assignQty.toLocaleString('de-DE') : ''"
               type="text"
               inputmode="numeric"
               placeholder="0"
-              class="block w-full py-2.5 px-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
+              class="block w-full py-2.5 px-3 bg-white border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
               @input="onAssignQtyInput($event)"
               @keydown="blockNegative($event as KeyboardEvent)"
             />
           </div>
 
           <div>
-            <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Notas de Asignación</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Notas de Asignación</label>
             <UTextarea v-model="assignNotes" :rows="2" placeholder="Opcional..." class="w-full" />
           </div>
 
-          <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
             <UButton color="neutral" variant="ghost" @click="isAssignOpen = false">Cancelar</UButton>
             <UButton color="primary" :loading="processingAction" @click="confirmAssign">Realizar Asignación</UButton>
           </div>
@@ -736,10 +769,10 @@ function exportCSV() {
       <template #body>
         <div v-if="selectedProduct" class="space-y-4">
           <!-- Product and Availability Info -->
-          <div class="bg-slate-950 p-3 rounded-lg border border-slate-850 flex justify-between items-center">
+          <div class="bg-slate-100 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
             <div>
               <span class="text-[10px] text-slate-500 block">Producto:</span>
-              <span class="text-xs font-bold text-white">{{ decodeURIComponent(selectedProduct.title_product).replace(/\+/g, ' ') }}</span>
+              <span class="text-xs font-bold text-slate-800">{{ decodeURIComponent(selectedProduct.title_product).replace(/\+/g, ' ') }}</span>
             </div>
             <div>
               <span class="text-[10px] text-slate-500 block text-right">Disponible en Almacén:</span>
@@ -752,12 +785,12 @@ function exportCSV() {
           <!-- Source Office -->
           <div>
             <span class="text-[10px] text-slate-500 block">Almacén de Origen:</span>
-            <span class="text-xs font-bold text-slate-350">{{ officesMap[auth.officeId ?? 3] || 'Almacén Principal' }}</span>
+            <span class="text-xs font-bold text-slate-600">{{ officesMap[auth.effectiveOfficeId ?? 3] || 'Almacén Principal' }}</span>
           </div>
 
           <!-- Destination Office -->
           <div>
-            <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Almacén de Destino *</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Almacén de Destino *</label>
             <USelect
               v-model="transferOffice"
               :items="destinationOffices"
@@ -769,13 +802,13 @@ function exportCSV() {
 
           <!-- Transfer Quantity -->
           <div>
-            <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Cantidad a Traspasar *</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Cantidad a Traspasar *</label>
             <input
               :value="transferQty > 0 ? transferQty.toLocaleString('de-DE') : ''"
               type="text"
               inputmode="numeric"
               placeholder="0"
-              class="block w-full py-2.5 px-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
+              class="block w-full py-2.5 px-3 bg-white border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
               @input="onTransferQtyInput($event)"
               @keydown="blockNegative($event as KeyboardEvent)"
             />
@@ -783,12 +816,12 @@ function exportCSV() {
 
           <!-- Notes -->
           <div>
-            <label class="block text-[10px] font-semibold text-slate-350 uppercase mb-1">Notas de Traspaso</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Notas de Traspaso</label>
             <UTextarea v-model="transferNotes" :rows="2" placeholder="Opcional..." class="w-full" />
           </div>
 
           <!-- Actions -->
-          <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
             <UButton color="neutral" variant="ghost" @click="isTransferOpen = false">Cancelar</UButton>
             <UButton color="primary" :loading="processingAction" @click="confirmTransfer">Confirmar Traspaso</UButton>
           </div>

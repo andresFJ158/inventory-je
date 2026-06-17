@@ -12,6 +12,7 @@ const selectedMode = ref<'lab' | 'pos'>('lab')
 
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
 
@@ -135,10 +136,10 @@ const cfg = computed(() => modeConfig[selectedMode.value])
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 px-4 py-12 relative overflow-hidden">
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 px-4 py-12 relative overflow-hidden">
     <!-- Blur orbs -->
-    <div class="absolute -top-40 -left-40 w-96 h-96 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
-    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
     <div class="w-full max-w-md relative z-10">
 
@@ -155,33 +156,31 @@ const cfg = computed(() => modeConfig[selectedMode.value])
         <div v-if="step === 'select'" key="select" class="space-y-6">
           <!-- Header -->
           <div class="text-center space-y-2">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/5 border border-white/10 mb-2">
-              <UIcon name="i-lucide-layers" class="w-9 h-9 text-white" />
-            </div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">UniTech ERP</h1>
-            <p class="text-slate-400 text-sm">Selecciona el módulo al que deseas acceder</p>
+            <img :src="'/logo.png'" alt="J.E Bolivia ERP" class="w-20 h-20 object-contain mx-auto mb-2 rounded-xl" />
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">J.E Bolivia ERP</h1>
+            <p class="text-slate-600 text-sm">Selecciona el módulo al que deseas acceder</p>
           </div>
 
           <!-- Cards de módulo -->
           <div class="grid grid-cols-1 gap-4">
             <!-- LAB -->
             <button
-              class="group w-full text-left bg-slate-900/60 backdrop-blur border border-slate-800 hover:border-green-500/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-green-900/20 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+              class="group w-full text-left bg-white border border-emerald-200 hover:border-emerald-500/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-100/30 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               @click="chooseMode('lab')"
             >
               <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 group-hover:bg-green-500/20 transition-colors">
-                  <UIcon name="i-lucide-flask-conical" class="w-7 h-7 text-green-400" />
+                <div class="w-14 h-14 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                  <UIcon name="i-lucide-flask-conical" class="w-7 h-7 text-emerald-600" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h2 class="text-lg font-bold text-white group-hover:text-green-400 transition-colors">Laboratorio</h2>
-                  <p class="text-xs text-slate-400 mt-0.5">Producción, materias primas, calidad</p>
+                  <h2 class="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Laboratorio</h2>
+                  <p class="text-xs text-slate-600 mt-0.5">Producción, materias primas, calidad</p>
                 </div>
-                <UIcon name="i-lucide-arrow-right" class="w-5 h-5 text-slate-600 group-hover:text-green-400 group-hover:translate-x-1 transition-all" />
+                <UIcon name="i-lucide-arrow-right" class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
               </div>
               <div class="mt-4 flex flex-wrap gap-2">
                 <span v-for="tag in ['Entradas M.P.', 'Producción', 'Control Calidad', 'Inventario']" :key="tag"
-                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
+                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                   {{ tag }}
                 </span>
               </div>
@@ -189,29 +188,29 @@ const cfg = computed(() => modeConfig[selectedMode.value])
 
             <!-- POS -->
             <button
-              class="group w-full text-left bg-slate-900/60 backdrop-blur border border-slate-800 hover:border-blue-500/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+              class="group w-full text-left bg-white border border-emerald-200 hover:border-emerald-500/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-100/30 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               @click="chooseMode('pos')"
             >
               <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
-                  <UIcon name="i-lucide-monitor-smartphone" class="w-7 h-7 text-blue-400" />
+                <div class="w-14 h-14 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                  <UIcon name="i-lucide-monitor-smartphone" class="w-7 h-7 text-emerald-600" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <h2 class="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">Sistema POS</h2>
-                  <p class="text-xs text-slate-400 mt-0.5">Ventas, caja, inventario y despachos</p>
+                  <h2 class="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Sistema POS</h2>
+                  <p class="text-xs text-slate-600 mt-0.5">Ventas, caja, inventario y despachos</p>
                 </div>
-                <UIcon name="i-lucide-arrow-right" class="w-5 h-5 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
+                <UIcon name="i-lucide-arrow-right" class="w-5 h-5 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
               </div>
               <div class="mt-4 flex flex-wrap gap-2">
                 <span v-for="tag in ['Punto de Venta', 'Caja', 'Órdenes', 'Despachos', 'Reportes']" :key="tag"
-                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                   {{ tag }}
                 </span>
               </div>
             </button>
           </div>
 
-          <p class="text-center text-xs text-slate-600">UniTech ERP &copy; 2026</p>
+          <p class="text-center text-xs text-slate-500">J.E Bolivia ERP &copy; 2026</p>
         </div>
 
         <!-- ── PASO 2: Formulario de login ── -->
@@ -219,35 +218,35 @@ const cfg = computed(() => modeConfig[selectedMode.value])
           <!-- Header con modo seleccionado -->
           <div class="text-center space-y-3">
             <button
-              class="inline-flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors mb-1"
+              class="inline-flex items-center gap-2 text-xs text-slate-600 hover:text-slate-800 transition-colors mb-1"
               @click="goBack"
             >
               <UIcon name="i-lucide-arrow-left" class="w-3.5 h-3.5" />
               Cambiar módulo
             </button>
 
-            <div :class="['inline-flex items-center justify-center w-16 h-16 rounded-2xl border mb-1', cfg.bg, cfg.border]">
-              <UIcon :name="cfg.icon" :class="['w-9 h-9', cfg.iconColor]" />
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl border border-emerald-200 bg-emerald-50 mb-1">
+              <UIcon :name="cfg.icon" class="w-9 h-9 text-emerald-600" />
             </div>
 
             <div>
-              <h2 :class="['text-2xl font-extrabold bg-gradient-to-r bg-clip-text text-transparent', cfg.gradient]">
+              <h2 class="text-2xl font-extrabold text-emerald-600">
                 {{ cfg.title }}
               </h2>
-              <p class="text-slate-400 text-xs mt-1">{{ cfg.subtitle }}</p>
+              <p class="text-slate-600 text-xs mt-1">{{ cfg.subtitle }}</p>
             </div>
           </div>
 
           <!-- Card de login -->
-          <div class="bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-2xl p-8 space-y-5 shadow-2xl">
+          <div class="bg-white border border-emerald-200 rounded-2xl p-8 space-y-5 shadow-md">
             <!-- Error -->
             <Transition
               enter-active-class="transition duration-200 ease-out"
               enter-from-class="opacity-0 scale-95"
               enter-to-class="opacity-100 scale-100"
             >
-              <div v-if="errorMessage" class="flex items-center gap-3 p-3 text-sm text-red-300 bg-red-950/40 border border-red-800/50 rounded-xl">
-                <UIcon name="i-lucide-alert-triangle" class="w-4 h-4 text-red-400 shrink-0" />
+              <div v-if="errorMessage" class="flex items-center gap-3 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl">
+                <UIcon name="i-lucide-alert-triangle" class="w-4 h-4 text-red-600 shrink-0" />
                 <span>{{ errorMessage }}</span>
               </div>
             </Transition>
@@ -255,39 +254,45 @@ const cfg = computed(() => modeConfig[selectedMode.value])
             <form class="space-y-4" @submit.prevent="handleLogin">
               <!-- Email -->
               <div>
-                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Correo Electrónico
                 </label>
                 <div class="relative">
-                  <UIcon name="i-lucide-mail" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                  <UIcon name="i-lucide-mail" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
                     v-model="email"
                     type="email"
                     autocomplete="email"
                     required
                     placeholder="ejemplo@unitech.com"
-                    class="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all text-sm"
-                    :class="selectedMode === 'lab' ? 'focus:ring-green-500/50' : 'focus:ring-blue-500/50'"
+                    class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all text-sm focus:ring-emerald-500/50"
                   />
                 </div>
               </div>
 
               <!-- Password -->
               <div>
-                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Contraseña
                 </label>
                 <div class="relative">
-                  <UIcon name="i-lucide-lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                  <UIcon name="i-lucide-lock" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <input
                     v-model="password"
-                    type="password"
+                    :type="showPassword ? 'text' : 'password'"
                     autocomplete="current-password"
                     required
                     placeholder="••••••••"
-                    class="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all text-sm"
-                    :class="selectedMode === 'lab' ? 'focus:ring-green-500/50' : 'focus:ring-blue-500/50'"
+                    class="w-full pl-10 pr-11 py-3 bg-gray-50 border border-gray-300 rounded-xl text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all text-sm focus:ring-emerald-500/50"
                   />
+                  <button
+                    type="button"
+                    :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+                    @click="showPassword = !showPassword"
+                  >
+                    <UIcon :name="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
@@ -295,10 +300,7 @@ const cfg = computed(() => modeConfig[selectedMode.value])
               <button
                 type="submit"
                 :disabled="loading"
-                class="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-sm font-bold text-white bg-gradient-to-r transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-                :class="selectedMode === 'lab'
-                  ? 'from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-green-900/30'
-                  : 'from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-900/30'"
+                class="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 transition-all duration-200 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
               >
                 <UIcon v-if="loading" name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
                 <UIcon v-else :name="cfg.icon" class="w-4 h-4" />
@@ -307,7 +309,7 @@ const cfg = computed(() => modeConfig[selectedMode.value])
             </form>
           </div>
 
-          <p class="text-center text-xs text-slate-600">UniTech ERP &copy; 2026</p>
+          <p class="text-center text-xs text-slate-500">J.E Bolivia ERP &copy; 2026</p>
         </div>
       </Transition>
     </div>

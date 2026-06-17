@@ -17,6 +17,9 @@ export default defineNuxtRouteMiddleware((to) => {
   if (role === 'admin' && perm !== 'reportes-empresa') {
     return
   }
+  if (role === 'lab_admin' && ['productos', 'compras', 'proveedores', 'categorias'].includes(perm)) {
+    return
+  }
 
   const perms = auth.permissions || {}
   if (perms[perm] === 'on' || perms['reports'] === 'on' && perm === 'reportes') {

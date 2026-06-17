@@ -16,11 +16,37 @@ function pos_session_start(): void {
 
 function pos_has_session(): bool {
 	pos_session_start();
-	return isset($_SESSION['admin']) && is_object($_SESSION['admin']);
+	if (isset($_SESSION['admin']) && is_object($_SESSION['admin'])) {
+		return true;
+	}
+	
+	// Si no hay sesión PHP, intentar autenticar vía Token (de $_POST o cabeceras)
+	$token = $_POST['token'] ?? null;
+	if (!$token && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+		$token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']);
+	}
+	
+	if ($token) {
+		try {
+			$db = LocalConnection::connect();
+			$stmt = $db->prepare("SELECT * FROM admins WHERE token_admin = :token AND status_admin = 1 LIMIT 1");
+			$stmt->execute([':token' => $token]);
+			$admin = $stmt->fetch(PDO::FETCH_OBJ);
+			
+			if ($admin && $admin->token_exp_admin > time()) {
+				// Establecer la sesión para que el resto del sistema funcione normalmente
+				$_SESSION['admin'] = $admin;
+				return true;
+			}
+		} catch (Throwable $e) {
+			error_log('[pos_auth] error validating token: ' . $e->getMessage());
+		}
+	}
+	
+	return false;
 }
 
 function pos_current_admin(): ?object {
-	pos_session_start();
 	return pos_has_session() ? $_SESSION['admin'] : null;
 }
 

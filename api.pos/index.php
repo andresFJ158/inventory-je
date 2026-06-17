@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/load_env.php';
+
 
 /*=============================================
 Mostrar errores y Zona Horaria

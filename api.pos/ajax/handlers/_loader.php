@@ -5,3 +5,4 @@ require_once __DIR__ . '/03_warehouse_inventory.php';
 require_once __DIR__ . '/04_lab.php';
 require_once __DIR__ . '/05_session_auth.php';
 require_once __DIR__ . '/06_commerce.php';
+require_once __DIR__ . '/07_uploads.php';

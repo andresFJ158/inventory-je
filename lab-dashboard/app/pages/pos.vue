@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useAuthStore } from '~/stores/auth'
+import { getImageUrl } from '~/utils/image'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -14,12 +15,17 @@ const inventory = ref<Record<string, number>>({})
 const pricesMap = ref<Record<string, any>>({})
 const clients = ref<any[]>([])
 const selectedClient = ref<string>('')
+const clientSelectError = ref(false)
+const clientSelectEl = ref<HTMLElement | null>(null)
 const isWholesaleGlobal = ref(false)
 const isCashRegisterOpen = ref(true)
 const activeCashId = ref<string | null>(null)
 const imageErrors = ref<Record<string, boolean>>({})
 
 // Active Order State
+const pendingOrders = ref<any[]>([])
+const activeOrderIndex = ref<number>(0)
+
 const orderId = ref<string | null>(null)
 const transactionOrder = ref<string | null>(null)
 const cartItems = ref<any[]>([])
@@ -120,6 +126,88 @@ async function handleSaveIncome() {
   savingIncome.value = false
 }
 
+// Order Expenses Modal (vendedor: gastos de la orden, no de caja)
+const isOrderExpenseModalOpen = ref(false)
+const orderExpenses = ref<any[]>([])
+const loadingOrderExpenses = ref(false)
+const orderExpenseModel = ref({ concept: '', amount: 0, chargeToClient: false })
+const savingOrderExpense = ref(false)
+
+async function fetchOrderExpenses() {
+  if (!orderId.value) return
+  loadingOrderExpenses.value = true
+  try {
+    const res = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({ getOrderExpenses: 'ok', id_order: String(orderId.value) }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof res === 'string' ? JSON.parse(res) : res
+    orderExpenses.value = data.results || []
+  } catch {
+    orderExpenses.value = []
+  } finally {
+    loadingOrderExpenses.value = false
+  }
+}
+
+async function openOrderExpenseModal() {
+  if (!orderId.value) {
+    toast.add({ title: 'Primero crea una orden.', color: 'error' })
+    return
+  }
+  orderExpenseModel.value = { concept: '', amount: 0, chargeToClient: false }
+  isOrderExpenseModalOpen.value = true
+  await fetchOrderExpenses()
+}
+
+async function handleSaveOrderExpense() {
+  if (!orderId.value || !orderExpenseModel.value.concept.trim() || orderExpenseModel.value.amount <= 0) {
+    toast.add({ title: 'Ingresa un concepto válido y monto mayor a 0.', color: 'error' })
+    return
+  }
+  savingOrderExpense.value = true
+  try {
+    const res = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        addOrderExpense: 'ok',
+        id_order: String(orderId.value),
+        concept: orderExpenseModel.value.concept.trim(),
+        amount: String(orderExpenseModel.value.amount),
+        charge_to_client: orderExpenseModel.value.chargeToClient ? '1' : '0',
+        id_admin: String(auth.user?.id_admin ?? 0)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof res === 'string' ? JSON.parse(res) : res
+    if (data.status === 200) {
+      toast.add({ title: 'Gasto registrado.', color: 'success' })
+      orderExpenseModel.value = { concept: '', amount: 0, chargeToClient: false }
+      await fetchOrderExpenses()
+    } else {
+      toast.add({ title: 'Error al registrar gasto.', color: 'error' })
+    }
+  } catch {
+    toast.add({ title: 'Error de conexión.', color: 'error' })
+  } finally {
+    savingOrderExpense.value = false
+  }
+}
+
+async function deleteOrderExpense(expenseId: number) {
+  try {
+    await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({ deleteOrderExpense: 'ok', id_expense: String(expenseId) }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    await fetchOrderExpenses()
+  } catch {
+    toast.add({ title: 'Error al eliminar gasto.', color: 'error' })
+  }
+}
+
 // Client Modal
 const isClientModalOpen = ref(false)
 const newClient = ref({
@@ -153,15 +241,15 @@ async function fetchCategories() {
 async function fetchCatalog() {
   try {
     // 1. Fetch products
-    const prodData = await $fetch<any>('/api/products?linkTo=status_product&equalTo=1', {
+    const prodData = await $fetch<any>('/api/products?linkTo=status_product&equalTo=1&orderBy=is_compound_product&orderMode=DESC', {
       headers: apiHeaders
     })
     if (prodData.status === 200) {
       products.value = prodData.results || []
     }
 
-    // 2. Fetch inventory for current office
-    const officeId = auth.officeId ?? 3 // fallback to office 3
+    // 2. Fetch inventory for assigned warehouse office (falls back to sucursal if no warehouse)
+    const officeId = auth.effectiveOfficeId ?? 3
     const invData = await $fetch<any>(`/api/product_inventory?linkTo=id_office_inventory&equalTo=${officeId}`, {
       headers: apiHeaders
     })
@@ -173,24 +261,7 @@ async function fetchCatalog() {
       inventory.value = inv
     }
 
-    // 3. Fetch latest purchases to get prices
-    const purchaseData = await $fetch<any>('/api/purchases?orderBy=date_created_purchase&orderMode=DESC', {
-      headers: apiHeaders
-    })
-    if (purchaseData.status === 200 && purchaseData.results) {
-      const prices: Record<string, any> = {}
-      purchaseData.results.forEach((p: any) => {
-        // Only set if not already set (since we sort by date DESC, the first one we see is the newest)
-        if (!prices[p.id_product_purchase]) {
-          prices[p.id_product_purchase] = {
-            price: parseFloat(p.cost_purchase) || 0,
-            wholesalePrice: parseFloat(p.may_product) || 0,
-            wholesaleQty: parseInt(p.wholesale_quantity) || 0
-          }
-        }
-      })
-      pricesMap.value = prices
-    }
+
   } catch (e) {
     console.error('Error fetching catalog data:', e)
   }
@@ -199,15 +270,12 @@ async function fetchCatalog() {
 // --- Price helpers (Fallback por SKU) ---
 function getProductPriceMeta(productId: string | number) {
   const idStr = String(productId)
-  if (pricesMap.value[idStr]) {
-    return pricesMap.value[idStr]
-  }
-  // Fallback
   const prod = products.value.find(p => String(p.id_product) === idStr)
-  if (prod && prod.sku_product) {
-    const fallbackProd = products.value.find(p => p.sku_product === prod.sku_product && pricesMap.value[p.id_product])
-    if (fallbackProd) {
-      return pricesMap.value[fallbackProd.id_product]
+  if (prod) {
+    return {
+      price: parseFloat(prod.price_product) || 0,
+      wholesalePrice: parseFloat(prod.wholesale_price_product) || 0,
+      wholesaleQty: parseInt(prod.wholesale_qty_product) || 0
     }
   }
   return { price: 0, wholesalePrice: 0, wholesaleQty: 0 }
@@ -225,23 +293,6 @@ function getProductDiscountedPrice(prod: any) {
     return base - (base * (discount / 100))
   }
   return base
-}
-
-function getImageUrl(imgStr: string) {
-  if (!imgStr) return ''
-  const decoded = decodeURIComponent(imgStr).replace(/\+/g, ' ')
-  
-  // Si la ruta absoluta incluye nuestro propio directorio de views, la forzamos a ser relativa
-  // Esto arregla el problema de dominios inactivos guardados en BD (ej. pos.desarrolloweb24siete.com)
-  const viewsIndex = decoded.indexOf('views/')
-  if (viewsIndex !== -1) {
-    return '/' + decoded.substring(viewsIndex)
-  }
-
-  if (decoded.startsWith('http') || decoded.startsWith('/')) {
-    return decoded
-  }
-  return '/' + decoded
 }
 
 // Fetch clients
@@ -283,9 +334,29 @@ async function fetchCart() {
   }
 }
 
-// Computed Catalog filtered
+// Sort once when products change; combos always first
+const sortedProducts = computed(() =>
+  [...products.value].sort((a, b) =>
+    parseInt(b.is_compound_product ?? 0) - parseInt(a.is_compound_product ?? 0)
+  )
+)
+
+// Debounced search: filter runs on debounced value, not on every keystroke
+const searchRaw = ref('')
+let _searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchRaw, val => {
+  if (_searchTimer) clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => { search.value = val }, 200)
+})
+
+// Filter from sorted list — sort is stable and not repeated on each keystroke
 const filteredProducts = computed(() => {
-  return products.value.filter(p => {
+  return sortedProducts.value.filter(p => {
+    // Ocultar productos sin stock o desactivados
+    const inStock = (inventory.value[p.id_product] || 0) > 0
+    const isActive = String(p.status_product ?? 1) !== '0'
+    if (!inStock || !isActive) return false
+
     const matchesCategory = activeCategory.value === 'all' || String(p.id_category_product) === String(activeCategory.value)
     const matchesSearch = !search.value ||
       p.title_product.toLowerCase().includes(search.value.toLowerCase()) ||
@@ -296,9 +367,43 @@ const filteredProducts = computed(() => {
 })
 
 // Initialize order on mount
+async function fetchPendingOrders() {
+  try {
+    const officeId = auth.officeId ?? 3
+    const adminId = auth.user?.id_admin || 1
+    const url = `/api/orders?linkTo=id_office_order,id_admin_order,status_order&equalTo=${officeId},${adminId},Pendiente`
+    const data = await $fetch<any>(url, { headers: apiHeaders })
+    if (data.status === 200 && data.results) {
+      pendingOrders.value = data.results
+    } else {
+      pendingOrders.value = []
+    }
+  } catch (e) {
+    console.error('Error fetching pending orders:', e)
+    pendingOrders.value = []
+  }
+}
+
+async function selectOrder(index: number) {
+  activeOrderIndex.value = index
+  const order = pendingOrders.value[index]
+  checkoutSuccess.value = false
+  if (order) {
+    orderId.value = String(order.id_order)
+    transactionOrder.value = order.transaction_order
+    selectedClient.value = order.id_client_order ? String(order.id_client_order) : ''
+    await fetchCart()
+  }
+}
+
 async function checkActiveOrder() {
   try {
-    await handleNewOrder()
+    await fetchPendingOrders()
+    if (pendingOrders.value.length > 0) {
+      await selectOrder(0)
+    } else {
+      await handleNewOrder()
+    }
   } catch (e) {
     console.error('Error checking active order:', e)
   }
@@ -387,10 +492,13 @@ onMounted(async () => {
   await fetchCategories()
   await fetchCatalog()
   await fetchClients()
-  // Ya no creamos órdenes vacías automáticamente al entrar
-  // if (isCashRegisterOpen.value) {
-  //   await checkActiveOrder()
-  // }
+  
+  if (isCashRegisterOpen.value) {
+    await fetchPendingOrders()
+    if (pendingOrders.value.length > 0) {
+      await selectOrder(0)
+    }
+  }
 })
 
 // Generate new Order
@@ -432,14 +540,19 @@ async function handleNewOrder() {
     }
 
     if (data && data.transaction_order) {
-      orderId.value = String(data.id_order)
-      transactionOrder.value = data.transaction_order
-      // No reseteamos el cliente porque puede que ya haya seleccionado uno antes de la auto-creación
-      if (!selectedClient.value) {
-         selectedClient.value = ''
+      await fetchPendingOrders()
+      const newIndex = pendingOrders.value.findIndex((o: any) => String(o.id_order) === String(data.id_order))
+      if (newIndex !== -1) {
+        await selectOrder(newIndex)
+      } else {
+        orderId.value = String(data.id_order)
+        transactionOrder.value = data.transaction_order
+        if (!selectedClient.value) {
+           selectedClient.value = ''
+        }
+        cartItems.value = []
+        checkoutSuccess.value = false
       }
-      cartItems.value = []
-      checkoutSuccess.value = false
     } else {
       toast.add({ title: (data && data.message) || 'Error al iniciar la orden. Asegúrate de tener la caja abierta.', color: 'error' });
     }
@@ -451,11 +564,6 @@ async function handleNewOrder() {
 
 // Add Product to Cart
 async function addToCart(product: any) {
-  if (!selectedClient.value) {
-    toast.add({ title: 'Por favor, selecciona un cliente para la orden.', color: 'error' })
-    return
-  }
-
   if (!orderId.value) {
     await handleNewOrder()
     // Si aún después de intentar crearla, no hay orderId, no continuamos
@@ -477,7 +585,7 @@ async function addToCart(product: any) {
   }
 
   try {
-    const officeId = auth.officeId ?? 3
+    const officeId = auth.effectiveOfficeId ?? 3
     const adminId = auth.user?.id_admin || 1
 
     // Call POS ajax to create/add
@@ -495,22 +603,20 @@ async function addToCart(product: any) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
 
-    if (typeof ajaxRes === 'string' && ajaxRes.trim() !== '') {
-      if (ajaxRes.trim() === 'error stock') {
-        toast.add({ title: 'No hay stock disponible.', color: 'error' })
-        return
-      } else if (ajaxRes.trim() === 'logout') {
-        toast.add({ title: 'Sesión expirada o error de autorización.', color: 'error' })
-        auth.logout()
-        useRouter().push('/login')
-        return
-      } else if (ajaxRes.trim() !== 'product exist') {
-        if (!ajaxRes.trim().includes('<tr')) { // If it's not returning HTML
-           toast.add({ title: 'Error del servidor: ' + ajaxRes.trim(), color: 'error' })
-           return
-        }
-      }
+    const res = typeof ajaxRes === 'string' ? ajaxRes.trim() : ''
+    if (res === 'error stock') {
+      toast.add({ title: 'No hay stock disponible.', color: 'error' })
+      return
+    } else if (res === 'logout') {
+      toast.add({ title: 'Sesión expirada.', color: 'error' })
+      auth.logout()
+      useRouter().push('/login')
+      return
+    } else if (res.startsWith('error')) {
+      toast.add({ title: 'Error: ' + res, color: 'error' })
+      return
     }
+    // res puede ser 'product exist' o 'ok|saleId|canOverride' — en ambos casos refrescamos el carrito
 
     // Refresh cart
     await fetchCart()
@@ -568,9 +674,20 @@ async function updateQty(item: any, change: number) {
   }
 }
 
-// Delete cart item
-async function deleteItem(item: any) {
-  if (!confirm('¿Deseas remover este producto del carrito?')) return
+// Delete cart item — confirmed via UModal
+const showDeleteItemModal = ref(false)
+const pendingDeleteItem   = ref<any>(null)
+
+function confirmDeleteItem(item: any) {
+  pendingDeleteItem.value   = item
+  showDeleteItemModal.value = true
+}
+
+async function doDeleteItem() {
+  const item = pendingDeleteItem.value
+  showDeleteItemModal.value = false
+  pendingDeleteItem.value   = null
+  if (!item) return
   try {
     await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -586,10 +703,17 @@ async function deleteItem(item: any) {
   }
 }
 
-// Clear all items in cart
-async function clearCart() {
+// Clear all items in cart — confirmed via UModal
+const showClearCartModal = ref(false)
+
+function confirmClearCart() {
   if (!orderId.value) return
-  if (!confirm('¿Deseas vaciar todos los productos de esta orden?')) return
+  showClearCartModal.value = true
+}
+
+async function doClearCart() {
+  showClearCartModal.value = false
+  if (!orderId.value) return
   try {
     await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -606,11 +730,24 @@ async function clearCart() {
 }
 
 // Remove order completely
-async function cancelOrder() {
-  if (!orderId.value) return
-  if (!confirm('¿Deseas cancelar y eliminar esta orden?')) return
+const isCancelModalOpen = ref(false)
+
+function cancelOrder() {
+  if (!orderId.value) {
+    toast.add({ title: 'No hay orden seleccionada', color: 'error' })
+    return
+  }
+  isCancelModalOpen.value = true
+}
+
+async function confirmCancelOrder() {
+  if (!orderId.value) {
+    toast.add({ title: 'No hay orden seleccionada', color: 'error' })
+    return
+  }
   try {
-    await $fetch('/ajax/pos.ajax.php', {
+    console.log('Deleting order:', orderId.value)
+    const response = await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
         idOrderDelete: orderId.value,
@@ -618,12 +755,26 @@ async function cancelOrder() {
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
+
+    if (response && response.includes && response.includes('error')) {
+      toast.add({ title: 'Error al eliminar la orden', description: String(response), color: 'error' })
+      return
+    }
+
     orderId.value = null
     transactionOrder.value = null
     selectedClient.value = ''
     cartItems.value = []
-  } catch (e) {
+    isCancelModalOpen.value = false
+    await fetchPendingOrders()
+    if (pendingOrders.value.length > 0) {
+      await selectOrder(0)
+    } else {
+      await handleNewOrder()
+    }
+  } catch (e: any) {
     console.error('Error deleting order:', e)
+    toast.add({ title: 'Error al eliminar la orden', description: e.message, color: 'error' })
   }
 }
 
@@ -692,6 +843,10 @@ const total = computed(() => {
 watch([selectedClient, subtotal, totalDiscount, total], async ([newClientVal, newSub, newDisc, newTot]) => {
   if (!orderId.value || !newClientVal) return
   try {
+    const currentPending = pendingOrders.value[activeOrderIndex.value]
+    if (currentPending && String(currentPending.id_order) === orderId.value) {
+      currentPending.id_client_order = newClientVal
+    }
     await $fetch('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
@@ -733,6 +888,12 @@ function openPayment() {
     toast.add({ title: 'No hay productos en el carrito.', color: 'error' })
     return
   }
+  if (!selectedClient.value) {
+    clientSelectError.value = true
+    nextTick(() => clientSelectEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    setTimeout(() => { clientSelectError.value = false }, 1500)
+    return
+  }
   cashReceived.value = total.value
   transferId.value = ''
   payMethod.value = 'efectivo'
@@ -749,6 +910,10 @@ const cashChange = computed(() => {
 
 // Finalize Checkout
 async function handleCheckout() {
+  if (!selectedClient.value) {
+    toast.add({ title: 'Selecciona un cliente antes de generar el cobro.', color: 'error' })
+    return
+  }
   if (payMethod.value === 'QR' && !transferId.value) {
     toast.add({ title: 'Ingresa el ID o código de referencia del pago QR para confirmar.', color: 'error' })
     return
@@ -804,15 +969,19 @@ async function handleCheckout() {
 
       isPaying.value = false
       checkoutSuccess.value = true
-      
-      // Reset POS cart variables
-      orderId.value = null
-      transactionOrder.value = null
-      selectedClient.value = ''
-      cartItems.value = []
-      
+
       // Update inventory stock catalog
       await fetchCatalog()
+      await fetchPendingOrders()
+      if (pendingOrders.value.length > 0) {
+        await selectOrder(0)
+      } else {
+        // No crear orden automáticamente — dejar el carrito vacío
+        orderId.value = null
+        transactionOrder.value = null
+        selectedClient.value = ''
+        cartItems.value = []
+      }
     } else {
       toast.add({ title: data.message || 'Error al procesar el pago.', color: 'error' })
     }
@@ -880,20 +1049,52 @@ function printReceipt() {
       </div>
     </div>
 
+    <!-- Tab bar for pending orders -->
+    <div v-if="isCashRegisterOpen" class="flex gap-1 items-center overflow-x-auto pb-2 border-b border-slate-200 shrink-0 print:hidden scrollbar-thin">
+      <button
+        v-for="(order, index) in pendingOrders"
+        :key="order.id_order"
+        :style="{
+          backgroundColor: activeOrderIndex === index ? '#f1ee63' : '#f1ee6380'
+        }"
+        class="px-2 py-1 text-xs rounded font-mono transition-all hover:opacity-80 font-medium min-w-fit flex items-center gap-1"
+        @click="selectOrder(index)"
+      >
+        <UIcon name="i-lucide-receipt" class="w-3 h-3" />
+        <span :style="{ color: activeOrderIndex === index ? '#000000' : '#6b7280' }">
+          Ord #{{ order.transaction_order }}
+        </span>
+      </button>
+      
+      <UButton
+        icon="i-lucide-plus-circle"
+        color="primary"
+        size="xs"
+        @click="handleNewOrder"
+      >
+        Nueva Orden
+      </UButton>
+    </div>
+
     <!-- Main View Grid layout (Products left, cart right) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-hidden min-h-0 print:hidden">
       <!-- Left: Products Catalog & Filtering (8 cols) -->
       <div class="lg:col-span-8 flex flex-col space-y-4 min-h-0">
         <!-- Search and Category slider -->
-        <div class="bg-slate-900/60 border border-slate-800 p-4 rounded-xl space-y-4">
+        <div class="bg-white border border-slate-200 p-4 rounded-xl space-y-4">
           <div class="flex justify-between items-center">
-            <h2 class="text-lg font-bold text-white">Catálogo de Productos</h2>
-            <UInput
-              v-model="search"
-              icon="i-lucide-search"
-              placeholder="Buscar producto por nombre o SKU..."
-              class="w-64"
-            />
+            <h2 class="text-lg font-bold text-slate-800">Catálogo de Productos</h2>
+            <div class="relative w-64">
+              <UInput
+                v-model="searchRaw"
+                icon="i-lucide-search"
+                placeholder="Buscar por nombre o SKU..."
+                class="w-full"
+                :trailing-icon="searchRaw ? 'i-lucide-x' : undefined"
+                @click:trailing="searchRaw = ''; search = ''"
+                @keyup.enter="if (filteredProducts.length > 0) { addToCart(filteredProducts[0]); searchRaw = ''; search = '' }"
+              />
+            </div>
           </div>
 
           <!-- Category Slider Pills -->
@@ -920,63 +1121,89 @@ function printReceipt() {
         </div>
 
         <!-- Product Cards Grid -->
-        <div class="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pb-6 scrollbar-thin">
+        <div class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-6 scrollbar-thin">
+          <!-- Estado vacío del catálogo -->
+          <div v-if="filteredProducts.length === 0" class="col-span-full flex flex-col items-center justify-center text-center py-16">
+            <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+              <UIcon :name="searchRaw || activeCategory !== 'all' ? 'i-lucide-search-x' : 'i-lucide-package-open'" class="w-7 h-7 text-slate-400" />
+            </div>
+            <p class="text-sm font-semibold text-slate-700">
+              {{ searchRaw || activeCategory !== 'all' ? 'Sin coincidencias' : 'No hay productos' }}
+            </p>
+            <p class="text-xs text-slate-500 mt-1 max-w-xs">
+              {{ searchRaw || activeCategory !== 'all' ? 'Prueba con otro término o cambia de categoría.' : 'Aún no hay productos disponibles en este catálogo.' }}
+            </p>
+            <UButton
+              v-if="searchRaw || activeCategory !== 'all'"
+              class="mt-4"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              icon="i-lucide-x"
+              @click="searchRaw = ''; search = ''; activeCategory = 'all'"
+            >
+              Limpiar filtros
+            </UButton>
+          </div>
+
           <div
             v-for="prod in filteredProducts"
             :key="prod.id_product"
-            class="bg-slate-900/60 border border-slate-800/80 rounded-xl overflow-hidden shadow hover:border-slate-700/80 hover:shadow-lg transition duration-200 cursor-pointer flex flex-col justify-between h-[300px]"
+            class="bg-white border border-slate-200/80 rounded-lg overflow-hidden shadow-sm hover:border-emerald-400 hover:shadow-md transition duration-200 cursor-pointer flex flex-col justify-between h-[188px]"
             @click="addToCart(prod)"
           >
             <!-- Product Image -->
-            <div class="h-36 bg-slate-950 flex items-center justify-center p-3 relative overflow-hidden shrink-0">
-              <span class="absolute top-2 right-2 text-[10px] font-mono font-bold bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-slate-300 z-10">
-                SKU: {{ prod.sku_product }}
+            <div class="h-20 bg-slate-100 flex items-center justify-center p-2 relative overflow-hidden shrink-0">
+              <span class="absolute top-1 right-1 text-[8px] font-mono font-bold bg-slate-100 border border-slate-300 px-1 py-0.5 rounded text-slate-600 z-10">
+                {{ prod.sku_product }}
+              </span>
+              <span
+                v-if="parseInt(prod.is_compound_product ?? 0) === 1"
+                class="absolute top-1 left-1 text-[8px] font-bold bg-purple-600 text-white px-1 py-0.5 rounded z-10 tracking-wide"
+              >
+                COMBO
               </span>
               <img
                 v-if="prod.img_product && !imageErrors[prod.id_product]"
                 :src="getImageUrl(prod.img_product)"
-                @error="imageErrors[prod.id_product] = true"
                 class="h-full w-full object-contain"
-              />
+                @error="imageErrors[prod.id_product] = true"
+              >
               <UIcon
                 v-else
                 name="i-lucide-image"
-                class="w-12 h-12 text-slate-600"
+                class="w-7 h-7 text-slate-600"
               />
             </div>
 
             <!-- Product Details -->
-            <div class="p-3 flex-1 flex flex-col justify-between min-h-0">
+            <div class="p-2 flex-1 flex flex-col justify-between min-h-0">
               <div>
-                <h3 class="font-bold text-white text-xs line-clamp-2 leading-snug">{{ decodeURIComponent(prod.title_product).replace(/\+/g, ' ') }}</h3>
-                <span class="text-[10px] text-slate-500 block mt-0.5">U.M: {{ prod.unit_product }}</span>
+                <h3 class="font-bold text-slate-800 text-[11px] line-clamp-2 leading-tight">{{ decodeURIComponent(prod.title_product).replace(/\+/g, ' ') }}</h3>
+                <span class="text-[9px] text-slate-500 block mt-0.5">U.M: {{ prod.unit_product }}</span>
               </div>
 
-              <div class="flex justify-between items-center pt-2">
+              <div class="flex justify-between items-end pt-1.5">
                 <!-- Price info lookup -->
-                <div>
-                  <span class="text-[10px] text-slate-400 block">Precio:</span>
-                  <div v-if="Number(prod.discount_product || 0) > 0">
-                    <span class="text-[9px] text-red-400 line-through">Bs. {{ Number(getProductPrice(prod)).toFixed(2) }}</span>
-                    <span class="font-bold text-teal-400 font-mono text-xs ml-1 font-bold">Bs. {{ Number(getProductDiscountedPrice(prod)).toFixed(2) }}</span>
+                <div class="min-w-0">
+                  <div v-if="Number(prod.discount_product || 0) > 0" class="leading-none">
+                    <span class="text-[8px] text-red-400 line-through block">Bs. {{ Number(getProductPrice(prod)).toFixed(2) }}</span>
+                    <span class="pos-price font-bold font-mono text-[11px]">Bs. {{ Number(getProductDiscountedPrice(prod)).toFixed(2) }}</span>
                   </div>
-                  <span v-else class="font-bold text-teal-400 font-mono text-xs font-bold">
+                  <span v-else class="pos-price font-bold font-mono text-[11px]">
                     Bs. {{ Number(getProductPrice(prod)).toFixed(2) }}
                   </span>
                 </div>
 
                 <!-- Stock info lookup -->
-                <div class="text-right">
-                  <span class="text-[9px] text-slate-400 block">Stock:</span>
-                  <UBadge
-                    :color="(inventory[prod.id_product] || 0) > 0 ? 'success' : 'error'"
-                    variant="soft"
-                    size="xs"
-                    class="text-[9px] font-bold"
-                  >
-                    {{ inventory[prod.id_product] || 0 }}
-                  </UBadge>
-                </div>
+                <UBadge
+                  :color="(inventory[prod.id_product] || 0) > 0 ? 'success' : 'error'"
+                  variant="soft"
+                  size="xs"
+                  class="text-[8px] font-bold shrink-0"
+                >
+                  {{ inventory[prod.id_product] || 0 }}
+                </UBadge>
               </div>
             </div>
           </div>
@@ -984,11 +1211,11 @@ function printReceipt() {
       </div>
 
       <!-- Right: Cart & Order Panel (4 cols) -->
-      <div class="lg:col-span-4 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col justify-between overflow-hidden shadow-2xl">
+      <div class="lg:col-span-4 bg-white border border-slate-200 rounded-xl flex flex-col justify-between overflow-hidden shadow-2xl">
         <!-- Cart Header -->
-        <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
           <div>
-            <h2 class="font-extrabold text-white text-base">Carrito</h2>
+            <h2 class="font-extrabold text-slate-800 text-base">Carrito</h2>
             <span class="text-xs font-semibold font-mono text-slate-400">
               {{ transactionOrder ? `Orden #${transactionOrder}` : 'Sin Orden Activa' }}
             </span>
@@ -1005,6 +1232,7 @@ function printReceipt() {
           </UButton>
           <div v-else class="flex gap-2">
             <UButton
+              v-if="auth.role !== 'vendedor'"
               color="success"
               variant="ghost"
               icon="i-lucide-arrow-up-circle"
@@ -1018,7 +1246,7 @@ function printReceipt() {
               icon="i-lucide-receipt"
               size="xs"
               title="Añadir Gasto"
-              @click="isExpenseModalOpen = true"
+              @click="auth.role === 'vendedor' ? openOrderExpenseModal() : (isExpenseModalOpen = true)"
             />
             <UButton
               color="error"
@@ -1032,7 +1260,7 @@ function printReceipt() {
               variant="ghost"
               icon="i-lucide-rotate-ccw"
               size="xs"
-              @click="clearCart"
+              @click="confirmClearCart"
             />
           </div>
         </div>
@@ -1040,17 +1268,26 @@ function printReceipt() {
         <!-- Cart Body (Client lookup, items list) -->
         <div class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
           <!-- Client select & add client -->
-          <div v-if="orderId" class="flex gap-2 items-center">
-            <USelectMenu
-              v-model="selectedClient"
-              :items="clients.map(c => ({ value: String(c.id_client), label: `${c.name_client} ${c.surname_client || ''} (${c.dni_client})` }))"
-              value-key="value"
-              label-key="label"
-              placeholder="Seleccionar cliente *"
-              class="flex-1"
-              searchable
-              searchable-placeholder="Buscar cliente..."
-            />
+          <div v-if="orderId" ref="clientSelectEl" class="flex gap-2 items-center">
+            <div class="flex-1 relative">
+              <USelectMenu
+                v-model="selectedClient"
+                :items="clients.map(c => ({ value: String(c.id_client), label: `${c.name_client} ${c.surname_client || ''} (${c.dni_client})` }))"
+                value-key="value"
+                label-key="label"
+                placeholder="Seleccionar cliente *"
+                class="w-full"
+                :class="clientSelectError ? 'ring-2 ring-red-500 rounded-lg animate-shake' : ''"
+                searchable
+                searchable-placeholder="Buscar cliente..."
+              />
+              <Transition enter-active-class="transition duration-200" enter-from-class="opacity-0 -translate-y-1" enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+                <p v-if="clientSelectError" class="absolute -bottom-5 left-0 text-[10px] font-semibold text-red-500 flex items-center gap-1">
+                  <UIcon name="i-lucide-alert-circle" class="w-3 h-3" />
+                  Debes seleccionar un cliente para cobrar
+                </p>
+              </Transition>
+            </div>
             <UButton
               icon="i-lucide-user-plus"
               color="neutral"
@@ -1060,8 +1297,8 @@ function printReceipt() {
           </div>
 
           <!-- Wholesale global switch toggle -->
-          <div v-if="orderId" class="flex items-center justify-between bg-slate-950/40 p-2 border border-slate-800 rounded-lg">
-            <span class="text-xs text-slate-300 font-semibold">Habilitar precio mayorista</span>
+          <div v-if="orderId" class="flex items-center justify-between bg-slate-50 p-2 border border-slate-200 rounded-lg">
+            <span class="text-xs text-slate-600 font-semibold">Habilitar precio mayorista</span>
             <USwitch v-model="isWholesaleGlobal" />
           </div>
 
@@ -1070,10 +1307,10 @@ function printReceipt() {
             <div
               v-for="item in cartItems"
               :key="item.id_sale"
-              class="flex justify-between items-start gap-2 bg-slate-950/30 p-2.5 rounded-lg border border-slate-800/60"
+              class="flex justify-between items-start gap-2 bg-slate-100/60 p-2.5 rounded-lg border border-slate-200/60"
             >
               <div class="flex-1 min-w-0">
-                <span class="text-xs font-bold text-white block truncate">
+                <span class="text-xs font-bold text-slate-800 block truncate">
                   {{ decodeURIComponent(products.find(p => String(p.id_product) === String(item.id_product_sale))?.title_product || 'Producto').replace(/\+/g, ' ') }}
                 </span>
                 <span class="text-[10px] text-teal-400 font-semibold font-mono block mt-0.5">
@@ -1091,7 +1328,7 @@ function printReceipt() {
                   class="p-1"
                   @click="updateQty(item, -1)"
                 />
-                <span class="text-xs font-mono font-bold text-white px-1.5 bg-slate-950 border border-slate-850 rounded">
+                <span class="text-xs font-mono font-bold text-slate-800 px-1.5 bg-white border border-slate-300 rounded">
                   {{ item.qty_sale }}
                 </span>
                 <UButton
@@ -1108,58 +1345,73 @@ function printReceipt() {
                   variant="ghost"
                   size="xs"
                   class="p-1 ml-1"
-                  @click="deleteItem(item)"
+                  @click="confirmDeleteItem(item)"
                 />
               </div>
             </div>
           </div>
           
-          <div v-else class="text-center py-12 text-slate-500 text-xs">
-            <UIcon name="i-lucide-shopping-cart" class="w-8 h-8 mx-auto mb-2 text-slate-650" />
-            El carrito está vacío. Agrega productos.
+          <div v-else class="flex flex-col items-center justify-center text-center py-12 px-4">
+            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+              <UIcon name="i-lucide-shopping-cart" class="w-6 h-6 text-slate-400" />
+            </div>
+            <p class="text-sm font-semibold text-slate-700">
+              {{ orderId ? 'Carrito vacío' : 'Sin orden activa' }}
+            </p>
+            <p class="text-xs text-slate-500 mt-1">
+              {{ orderId ? 'Toca un producto del catálogo para agregarlo.' : 'Crea una nueva orden para empezar a vender.' }}
+            </p>
           </div>
         </div>
 
         <!-- Checkout success panel -->
-        <div v-if="checkoutSuccess" class="m-4 p-3 bg-emerald-950/40 border border-emerald-800 rounded-xl text-center space-y-2">
-          <UIcon name="i-lucide-check-circle" class="w-8 h-8 text-emerald-400 mx-auto" />
-          <h3 class="text-xs font-bold text-white">Venta Procesada con Éxito</h3>
+        <div v-if="checkoutSuccess" class="m-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-3 relative">
           <UButton
-            v-if="auth.role === 'vendedor' || auth.user?.type_seller"
-            color="success"
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            class="absolute top-1 right-1 p-1"
             size="xs"
-            block
-            icon="i-lucide-file-text"
-            @click="printReceipt"
-          >
-            Imprimir Comprobante (PDF)
-          </UButton>
+            @click="checkoutSuccess = false"
+          />
+          <UIcon name="i-lucide-check-circle" class="w-10 h-10 text-emerald-500 mx-auto" />
+          <h3 class="text-sm font-bold text-emerald-700">¡Venta Procesada con Éxito!</h3>
+          <p v-if="lastOrderReceipt" class="text-xs text-slate-600">Orden #{{ lastOrderReceipt.transaction }} · Bs. {{ lastOrderReceipt.total }}</p>
           <UButton
-            v-if="auth.role === 'cajero' || auth.role === 'admin' || auth.role === 'superadmin'"
-            color="info"
-            size="xs"
+            color="primary"
+            size="sm"
             block
             icon="i-lucide-printer"
             @click="printReceipt"
           >
-            Imprimir Ticket (Caja)
+            Imprimir Ticket
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="soft"
+            size="sm"
+            block
+            icon="i-lucide-plus-circle"
+            @click="checkoutSuccess = false; handleNewOrder()"
+          >
+            Nueva Orden
           </UButton>
         </div>
 
         <!-- Cart Footer Totals and Checkout -->
-        <div class="p-4 border-t border-slate-800 bg-slate-950 space-y-3">
+        <div class="p-4 border-t border-slate-200 bg-white space-y-3">
           <div class="space-y-1.5">
-            <div class="flex justify-between text-xs text-slate-400">
+            <div class="flex justify-between text-xs text-slate-500">
               <span>Subtotal:</span>
               <span class="font-mono">Bs. {{ subtotal.toFixed(2) }}</span>
             </div>
-            <div v-if="totalDiscount > 0" class="flex justify-between text-xs text-rose-400">
+            <div v-if="totalDiscount > 0" class="flex justify-between text-xs text-rose-500">
               <span>Descuento:</span>
               <span class="font-mono">-Bs. {{ totalDiscount.toFixed(2) }}</span>
             </div>
-            <div class="flex justify-between font-extrabold text-white text-sm pt-1 border-t border-slate-900">
+            <div class="flex justify-between font-extrabold text-slate-800 text-sm pt-1 border-t border-slate-200">
               <span>Total:</span>
-              <span class="font-mono text-teal-400 text-base">Bs. {{ total.toFixed(2) }}</span>
+              <span class="pos-price font-mono text-base">Bs. {{ total.toFixed(2) }}</span>
             </div>
           </div>
 
@@ -1182,32 +1434,32 @@ function printReceipt() {
         <form class="space-y-4" @submit.prevent="handleRegisterClient">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Nombre *</label>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Nombre *</label>
               <UInput v-model="newClient.name" placeholder="Ej: Juan" required />
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Apellido</label>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Apellido</label>
               <UInput v-model="newClient.surname" placeholder="Ej: Perez" />
             </div>
           </div>
           <div>
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">DNI / Documento *</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">DNI / Documento *</label>
             <UInput v-model="newClient.dni" placeholder="Ej: 1234567" required />
           </div>
           <div>
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Correo Electrónico</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Correo Electrónico</label>
             <UInput v-model="newClient.email" type="email" placeholder="Ej: juan@perez.com" />
           </div>
           <div>
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Teléfono</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Teléfono</label>
             <UInput v-model="newClient.phone" placeholder="Ej: 79008000" />
           </div>
           <div>
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Dirección</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Dirección</label>
             <UInput v-model="newClient.address" placeholder="Ej: Zona Central Calle Sucre #123" />
           </div>
 
-          <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
             <UButton color="neutral" variant="ghost" @click="isClientModalOpen = false">Cancelar</UButton>
             <UButton color="primary" type="submit">Crear Cliente</UButton>
           </div>
@@ -1219,14 +1471,14 @@ function printReceipt() {
     <UModal v-model:open="isPaying" title="Finalizar Cobro de Orden">
       <template #body>
         <div class="space-y-4">
-          <div class="bg-slate-950 p-4 border border-slate-850 rounded-xl text-center">
+          <div class="bg-slate-100 p-4 border border-slate-200 rounded-xl text-center">
             <span class="text-xs text-slate-400 block mb-1">Monto a Cobrar</span>
-            <span class="text-2xl font-extrabold text-teal-400 font-mono">Bs. {{ total.toFixed(2) }}</span>
+            <span class="pos-price text-2xl font-extrabold font-mono">Bs. {{ total.toFixed(2) }}</span>
           </div>
 
           <!-- Payment methods toggle -->
           <div>
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-2">Método de Pago</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-2">Método de Pago</label>
             <div class="grid grid-cols-3 gap-2">
               <UButton
                 :color="payMethod === 'efectivo' ? 'primary' : 'neutral'"
@@ -1265,7 +1517,7 @@ function printReceipt() {
           <!-- Cash details form -->
           <div v-if="payMethod === 'efectivo'" class="space-y-3">
             <div>
-              <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Efectivo Recibido</label>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Efectivo Recibido</label>
               <UInput
                 v-model.number="cashReceived"
                 type="number"
@@ -1275,7 +1527,7 @@ function printReceipt() {
             </div>
             <div class="flex justify-between items-center text-xs text-slate-400 pt-1 font-mono">
               <span>Cambio a devolver:</span>
-              <span class="text-sm font-bold text-white">Bs. {{ cashChange.toFixed(2) }}</span>
+              <span class="text-sm font-bold text-slate-800">Bs. {{ cashChange.toFixed(2) }}</span>
             </div>
           </div>
 
@@ -1289,7 +1541,7 @@ function printReceipt() {
               No hay código QR configurado para esta sucursal.
             </div>
 
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">ID / Código de Referencia *</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">ID / Código de Referencia *</label>
             <UInput
               v-model="transferId"
               placeholder="Ingresa el número de referencia del pago"
@@ -1297,7 +1549,7 @@ function printReceipt() {
           </div>
           
           <div v-if="payMethod === 'QR' && (auth.role === 'vendedor' || auth.user?.type_seller)">
-            <label class="block text-[10px] font-semibold text-slate-300 uppercase mb-1">Link Imagen / QR de Confirmación</label>
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Link Imagen / QR de Confirmación</label>
             <UInput
               v-model="qrRefOrder"
               placeholder="Ej: https://... / Comprobante"
@@ -1310,13 +1562,13 @@ function printReceipt() {
           </div>
 
           <!-- Invoice switch checkbox -->
-          <div class="flex items-center justify-between border-t border-slate-800 pt-3">
-            <span class="text-xs text-slate-300 font-semibold">¿Emitir Factura Electrónica?</span>
+          <div class="flex items-center justify-between border-t border-slate-200 pt-3">
+            <span class="text-xs text-slate-600 font-semibold">¿Emitir Factura Electrónica?</span>
             <USwitch v-model="wantInvoice" />
           </div>
 
           <!-- Actions -->
-          <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
             <UButton color="neutral" variant="ghost" @click="isPaying = false">Cancelar</UButton>
             <UButton color="primary" @click="handleCheckout">{{ wantInvoice ? 'Cobrar CON Factura' : 'Cobrar SIN Factura' }}</UButton>
           </div>
@@ -1325,18 +1577,18 @@ function printReceipt() {
     </UModal>
 
     <!-- Overlay Caja Cerrada (Glassmorphism + Blur) -->
-    <div v-if="!isCashRegisterOpen" class="absolute inset-0 z-40 backdrop-blur-md bg-slate-950/60 flex items-center justify-center p-4">
-      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl max-w-sm w-full shadow-2xl text-center space-y-6 transform scale-100 transition-all duration-300">
+    <div v-if="!isCashRegisterOpen" class="absolute inset-0 z-40 backdrop-blur-sm bg-white/80 flex items-center justify-center p-4">
+      <div class="bg-white border border-slate-200 p-8 rounded-2xl max-w-sm w-full shadow-2xl text-center space-y-6 transform scale-100 transition-all duration-300">
         <!-- Circular Wallet Icon in Red -->
-        <div class="mx-auto w-16 h-16 bg-rose-50 dark:bg-rose-950/30 rounded-full flex items-center justify-center text-rose-500 border border-rose-100 dark:border-rose-900/50">
+        <div class="mx-auto w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 border border-rose-100">
           <UIcon name="i-lucide-wallet" class="w-8 h-8" />
         </div>
         
         <div class="space-y-2">
-          <h2 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">
+          <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">
             Caja Cerrada
           </h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed px-2">
+          <p class="text-xs text-slate-500 leading-relaxed px-2">
             Para poder realizar ventas y utilizar el módulo POS, primero debe abrir la caja del día.
           </p>
         </div>
@@ -1374,41 +1626,298 @@ function printReceipt() {
     </UModal>
 
     <!-- Modal Añadir Gasto POS -->
-    <UModal v-model:open="isExpenseModalOpen" title="Registrar Gasto Rápido">
+    <UModal v-model:open="isExpenseModalOpen" :ui="{ width: 'sm:max-w-md' }">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+            <UIcon name="i-lucide-receipt" class="w-4 h-4 text-amber-500" />
+          </div>
+          <div>
+            <p class="text-sm font-bold text-slate-800">Registrar Gasto Rápido</p>
+            <p class="text-xs text-slate-500">Se carga a la caja activa</p>
+          </div>
+        </div>
+      </template>
       <template #body>
-        <div class="space-y-4 p-1">
-          <UFormField label="Descripción del Gasto *">
-            <UInput v-model="expenseModel.description" placeholder="Ej: Pasajes, almuerzo, etc." />
-          </UFormField>
-          <UFormField label="Monto (Bs.) *">
-            <UInput v-model.number="expenseModel.amount" type="number" step="0.10" />
-          </UFormField>
+        <div class="space-y-5 px-1 pb-1">
+          <!-- Categorías rápidas -->
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Categoría rápida</p>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="cat in ['Pasajes', 'Almuerzo', 'Delivery', 'Limpieza', 'Material', 'Otro']"
+                :key="cat"
+                type="button"
+                class="px-2.5 py-1 text-xs font-medium rounded-full border transition-all"
+                :class="expenseModel.description === cat
+ ? 'bg-amber-500 border-amber-500 text-white'
+ : 'bg-white border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-600'"
+                @click="expenseModel.description = expenseModel.description === cat ? '' : cat"
+              >
+                {{ cat }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Descripción -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+              Descripción <span class="text-red-400">*</span>
+            </label>
+            <div class="relative">
+              <UIcon name="i-lucide-file-text" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                v-model="expenseModel.description"
+                type="text"
+                placeholder="Ej: Pasajes al mercado, etc."
+                class="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all"
+              />
+            </div>
+          </div>
+
+          <!-- Monto -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+              Monto <span class="text-red-400">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500 pointer-events-none">Bs.</span>
+              <input
+                v-model.number="expenseModel.amount"
+                type="number"
+                step="0.10"
+                min="0"
+                placeholder="0.00"
+                class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all font-mono"
+              />
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div v-if="expenseModel.amount > 0 && expenseModel.description" class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-amber-500" />
+              <span class="text-xs font-semibold text-slate-700 truncate max-w-[180px]">{{ expenseModel.description }}</span>
+            </div>
+            <span class="text-sm font-extrabold text-amber-600 font-mono">Bs. {{ Number(expenseModel.amount).toFixed(2) }}</span>
+          </div>
         </div>
       </template>
       <template #footer>
-        <div class="flex justify-end gap-3 w-full">
-          <UButton color="neutral" variant="soft" @click="isExpenseModalOpen = false">Cancelar</UButton>
-          <UButton color="warning" :loading="savingExpense" @click="handleSaveExpense">Guardar Gasto</UButton>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton color="neutral" variant="ghost" @click="isExpenseModalOpen = false; expenseModel = { description: '', amount: 0 }">
+            Cancelar
+          </UButton>
+          <UButton
+            color="warning"
+            :loading="savingExpense"
+            :disabled="!expenseModel.description || expenseModel.amount <= 0"
+            icon="i-lucide-save"
+            @click="handleSaveExpense"
+          >
+            Registrar Gasto
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Modal Cancelar Orden -->
+    <UModal v-model:open="isCancelModalOpen" title="Cancelar Orden">
+      <template #body>
+        <div class="space-y-4 p-1 text-center">
+          <div class="mx-auto w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 border border-rose-100 mb-4">
+            <UIcon name="i-lucide-trash-2" class="w-8 h-8" />
+          </div>
+          <p class="text-slate-400 text-sm">
+            ¿Estás seguro que deseas cancelar y eliminar esta orden? Esta acción no se puede deshacer.
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-center gap-4 w-full">
+          <UButton color="neutral" variant="soft" @click="isCancelModalOpen = false">No, mantener</UButton>
+          <UButton color="error" @click="confirmCancelOrder">Sí, eliminar orden</UButton>
         </div>
       </template>
     </UModal>
 
     <!-- Modal Añadir Ingreso POS -->
-    <UModal v-model:open="isIncomeModalOpen" title="Registrar Ingreso Extra Rápido">
+    <UModal v-model:open="isIncomeModalOpen" :ui="{ width: 'sm:max-w-md' }">
+      <template #header>
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+            <UIcon name="i-lucide-arrow-up-circle" class="w-4 h-4 text-emerald-500" />
+          </div>
+          <div>
+            <p class="text-sm font-bold text-slate-800">Registrar Ingreso Extra</p>
+            <p class="text-xs text-slate-500">Se suma a la caja activa</p>
+          </div>
+        </div>
+      </template>
+      <template #body>
+        <div class="space-y-5 px-1 pb-1">
+          <!-- Categorías rápidas -->
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Categoría rápida</p>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="cat in ['Pago pendiente', 'Ajuste de caja', 'Devolución', 'Anticipo', 'Depósito', 'Otro']"
+                :key="cat"
+                type="button"
+                class="px-2.5 py-1 text-xs font-medium rounded-full border transition-all"
+                :class="incomeModel.description === cat
+ ? 'bg-emerald-500 border-emerald-500 text-white'
+ : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-600'"
+                @click="incomeModel.description = incomeModel.description === cat ? '' : cat"
+              >
+                {{ cat }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Descripción -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+              Descripción <span class="text-red-400">*</span>
+            </label>
+            <div class="relative">
+              <UIcon name="i-lucide-file-text" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                v-model="incomeModel.description"
+                type="text"
+                placeholder="Ej: Pago pendiente cliente X, etc."
+                class="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400 transition-all"
+              />
+            </div>
+          </div>
+
+          <!-- Monto -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+              Monto <span class="text-red-400">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500 pointer-events-none">Bs.</span>
+              <input
+                v-model.number="incomeModel.amount"
+                type="number"
+                step="0.10"
+                min="0"
+                placeholder="0.00"
+                class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400 transition-all font-mono"
+              />
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div v-if="incomeModel.amount > 0 && incomeModel.description" class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-emerald-500" />
+              <span class="text-xs font-semibold text-slate-700 truncate max-w-[180px]">{{ incomeModel.description }}</span>
+            </div>
+            <span class="text-sm font-extrabold text-emerald-600 font-mono">+ Bs. {{ Number(incomeModel.amount).toFixed(2) }}</span>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton color="neutral" variant="ghost" @click="isIncomeModalOpen = false; incomeModel = { description: '', amount: 0 }">
+            Cancelar
+          </UButton>
+          <UButton
+            color="success"
+            :loading="savingIncome"
+            :disabled="!incomeModel.description || incomeModel.amount <= 0"
+            icon="i-lucide-save"
+            @click="handleSaveIncome"
+          >
+            Registrar Ingreso
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Modal Gastos de Orden (vendedor) -->
+    <UModal v-model:open="isOrderExpenseModalOpen" title="Gastos de la Orden">
       <template #body>
         <div class="space-y-4 p-1">
-          <UFormField label="Descripción del Ingreso *">
-            <UInput v-model="incomeModel.description" placeholder="Ej: Pago pendiente, ajuste de caja, etc." />
-          </UFormField>
-          <UFormField label="Monto (Bs.) *">
-            <UInput v-model.number="incomeModel.amount" type="number" step="0.10" />
-          </UFormField>
+          <!-- Lista de gastos actuales -->
+          <div v-if="loadingOrderExpenses" class="text-center py-4 text-slate-500 text-sm">Cargando gastos...</div>
+          <div v-else-if="orderExpenses.length === 0" class="text-center py-3 text-slate-500 text-sm">Sin gastos registrados para esta orden.</div>
+          <div v-else class="max-h-40 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+            <div v-for="exp in orderExpenses" :key="exp.id_expense" class="flex items-center justify-between px-3 py-2 text-sm">
+              <div>
+                <span class="font-medium text-slate-800">{{ exp.concept_expense }}</span>
+                <UBadge :color="exp.charge_to_client_expense == 1 ? 'success' : 'neutral'" variant="subtle" size="xs" class="ml-2">
+                  {{ exp.charge_to_client_expense == 1 ? 'Al cliente' : 'Descuenta utilidad' }}
+                </UBadge>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs text-emerald-600">Bs. {{ Number(exp.amount_expense).toFixed(2) }}</span>
+                <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click="deleteOrderExpense(exp.id_expense)" />
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-200 pt-3 space-y-3">
+            <p class="text-xs font-semibold text-slate-500 uppercase">Nuevo gasto</p>
+            <UFormField label="Concepto *">
+              <UInput v-model="orderExpenseModel.concept" placeholder="Ej: Delivery, Empaque..." class="w-full" />
+            </UFormField>
+            <UFormField label="Monto (Bs.) *">
+              <UInput v-model.number="orderExpenseModel.amount" type="number" step="0.01" min="0" placeholder="0.00" class="w-full" />
+            </UFormField>
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+              <div>
+                <span class="text-sm font-medium text-slate-700 block">Cobrar al cliente</span>
+                <span class="text-xs text-slate-500">Suma al total de la orden</span>
+              </div>
+              <button
+                type="button"
+                @click="orderExpenseModel.chargeToClient = !orderExpenseModel.chargeToClient"
+                :class="[
+ orderExpenseModel.chargeToClient ? 'bg-emerald-500' : 'bg-slate-300',
+ 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none'
+ ]"
+              >
+                <span :class="[orderExpenseModel.chargeToClient ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition']" />
+              </button>
+            </div>
+          </div>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-3 w-full">
-          <UButton color="neutral" variant="soft" @click="isIncomeModalOpen = false">Cancelar</UButton>
-          <UButton color="success" :loading="savingIncome" @click="handleSaveIncome">Guardar Ingreso</UButton>
+          <UButton color="neutral" variant="soft" @click="isOrderExpenseModalOpen = false">Cerrar</UButton>
+          <UButton color="warning" :loading="savingOrderExpense" @click="handleSaveOrderExpense">Agregar Gasto</UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete item confirmation modal -->
+    <UModal
+      v-model:open="showDeleteItemModal"
+      title="Quitar producto"
+      description="¿Deseas remover este producto del carrito?"
+    >
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton variant="ghost" color="neutral" @click="showDeleteItemModal = false">Cancelar</UButton>
+          <UButton color="error" icon="i-lucide-trash" @click="doDeleteItem">Quitar</UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Clear cart confirmation modal -->
+    <UModal
+      v-model:open="showClearCartModal"
+      title="Vaciar carrito"
+      description="¿Deseas vaciar todos los productos de esta orden? Esta acción no se puede deshacer."
+    >
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton variant="ghost" color="neutral" @click="showClearCartModal = false">Cancelar</UButton>
+          <UButton color="error" icon="i-lucide-rotate-ccw" @click="doClearCart">Vaciar</UButton>
         </div>
       </template>
     </UModal>

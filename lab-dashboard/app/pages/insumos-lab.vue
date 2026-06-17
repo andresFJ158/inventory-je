@@ -4,6 +4,20 @@ import { useAuthStore } from '~/stores/auth'
 import { ref, computed, onMounted } from 'vue'
 
 const auth = useAuthStore()
+const toast = useToast()
+
+const API_KEY = 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+
+const confirmDialog = ref({ open: false, title: '', message: '' })
+const confirmResolve = ref<((v: boolean) => void) | null>(null)
+function confirmAction(title: string, message: string): Promise<boolean> {
+  return new Promise(resolve => {
+    confirmDialog.value = { open: true, title, message }
+    confirmResolve.value = resolve
+  })
+}
+function onConfirmOk() { confirmResolve.value?.(true); confirmDialog.value.open = false }
+function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.open = false }
 
 // State
 const items = ref<any[]>([])
@@ -24,10 +38,10 @@ const filteredItems = computed(() => {
 const fetchSuppliers = async () => {
   try {
     const res = await $fetch<any>('/api/suppliers', {
-      headers: { 'Authorization': auth.token || '' }
+      headers: { 'Authorization': API_KEY }
     })
     if (res.status === 200) {
-      suppliers.value = res.results.filter((s: any) => s.type_supplier === 'materias_primas' || s.type_supplier === 'ambos')
+      suppliers.value = res.results.filter((s: any) => s.type_supplier === 'materias_primas')
     }
   } catch (e) {
     console.error('Error fetching suppliers:', e)
@@ -38,7 +52,7 @@ const fetchInsumosLab = async () => {
   loading.value = true
   try {
     const res = await $fetch<any>('/api/lab_supplies', {
-      headers: { 'Authorization': auth.token || '' }
+      headers: { 'Authorization': API_KEY }
     })
     if (res.status === 200) {
       items.value = res.results.filter((s: any) => parseInt(s.status_supply) === 1)
@@ -95,6 +109,11 @@ function openEditModal(item: any) {
   isModalOpen.value = true
 }
 
+function sessionQuery(extra = '') {
+  const base = `token=${auth.token}&table=admins&suffix=admin`
+  return extra ? `${base}&${extra}` : base
+}
+
 async function saveInsumoLab() {
   if (!form.value.name.trim()) return
 
@@ -105,23 +124,21 @@ async function saveInsumoLab() {
       stock_supply: String(form.value.stock),
       price_supply: String(form.value.price),
       id_supplier_supply: form.value.id_supplier || '0',
-      id_office_supply: String(auth.officeId || 6),
+      id_office_supply: String(auth.effectiveOfficeId || 0),
       status_supply: '1'
     })
 
     if (form.value.id !== null) {
-      // Editar
-      await $fetch(`/api/lab_supplies?id=${form.value.id}&nameId=id_supply`, {
+      await $fetch(`/api/lab_supplies?${sessionQuery(`id=${form.value.id}&nameId=id_supply`)}`, {
         method: 'PUT',
         body: body.toString(),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': auth.token || '' }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': API_KEY }
       })
     } else {
-      // Crear
-      await $fetch('/api/lab_supplies', {
+      await $fetch(`/api/lab_supplies?${sessionQuery()}`, {
         method: 'POST',
         body: body.toString(),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': auth.token || '' }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': API_KEY }
       })
     }
 
@@ -129,18 +146,18 @@ async function saveInsumoLab() {
     await fetchInsumosLab()
   } catch (error: any) {
     console.error('Error saving lab supply:', error)
-    alert('Error al guardar el insumo')
+    toast.add({ title: 'Error al guardar el insumo', color: 'error' })
   }
 }
 
 async function deleteInsumoLab(item: any) {
-  if (!confirm(`¿Eliminar el insumo de laboratorio "${decodeURIComponent(item.name_supply || '').replace(/\+/g, ' ')}"?`)) return
+  if (!await confirmAction('Eliminar insumo', `¿Eliminar el insumo de laboratorio "${decodeURIComponent(item.name_supply || '').replace(/\+/g, ' ')}"?`)) return
   try {
     const body = new URLSearchParams({ status_supply: '0' })
-    await $fetch(`/api/lab_supplies?id=${item.id_supply}&nameId=id_supply`, {
+    await $fetch(`/api/lab_supplies?${sessionQuery(`id=${item.id_supply}&nameId=id_supply`)}`, {
       method: 'PUT',
       body: body.toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': auth.token || '' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': API_KEY }
     })
     await fetchInsumosLab()
   } catch (error) {
@@ -158,13 +175,13 @@ function getSupplierName(id: number | string) {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+        <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
           <UIcon name="i-lucide-beaker" class="text-green-500" />
           Insumos de Laboratorio
         </h1>
-        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">
+        <p class="text-slate-500 text-sm mt-1">
           Gestión del catálogo de insumos específicos para el laboratorio (etiquetas, envases, etc). Separado de materias primas.
         </p>
       </div>
@@ -181,9 +198,9 @@ function getSupplierName(id: number | string) {
     </div>
 
     <!-- Tabla -->
-    <div class="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-sm">
-      <div class="p-5 border-b border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h3 class="font-bold text-slate-800 dark:text-white tracking-wide">
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h3 class="font-bold text-slate-800 tracking-wide">
           Insumos de Laboratorio ({{ filteredItems.length }})
         </h3>
         <UInput
@@ -200,8 +217,8 @@ function getSupplierName(id: number | string) {
           <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin mx-auto text-green-500 mb-2" />
           Cargando catálogo...
         </div>
-        <table v-else class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-          <thead class="bg-slate-50 dark:bg-slate-900/60 text-xs font-bold uppercase tracking-wider text-slate-550 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800/80">
+        <table v-else class="w-full text-left text-sm text-slate-600">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
             <tr>
               <th class="px-6 py-4">ID</th>
               <th class="px-6 py-4">Nombre</th>
@@ -212,16 +229,16 @@ function getSupplierName(id: number | string) {
               <th v-if="auth.role === 'lab_admin' || auth.role === 'superadmin' || auth.role === 'admin'" class="px-6 py-4 text-center">Acciones</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60">
+          <tbody class="divide-y divide-slate-200">
             <tr v-if="filteredItems.length === 0">
               <td colspan="7" class="px-6 py-8 text-center text-slate-400 text-sm">No se encontraron registros.</td>
             </tr>
-            <tr v-for="item in filteredItems" :key="item.id_supply" class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-all duration-150">
-              <td class="px-6 py-4 font-mono text-slate-400 dark:text-slate-500">{{ item.id_supply }}</td>
-              <td class="px-6 py-4 font-bold text-slate-800 dark:text-white tracking-wide uppercase">{{ decodeURIComponent(item.name_supply || '').replace(/\+/g, ' ') }}</td>
-              <td class="px-6 py-4 font-bold font-mono text-slate-800 dark:text-slate-100">{{ parseFloat(item.stock_supply).toFixed(2) }}</td>
-              <td class="px-6 py-4 font-mono text-green-600 dark:text-green-400">{{ parseFloat(item.price_supply).toFixed(2) }}</td>
-              <td class="px-6 py-4"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-xs">{{ item.unit_supply }}</span></td>
+            <tr v-for="item in filteredItems" :key="item.id_supply" class="hover:bg-slate-50 transition-all duration-150">
+              <td class="px-6 py-4 font-mono text-slate-400">{{ item.id_supply }}</td>
+              <td class="px-6 py-4 font-bold text-slate-800 tracking-wide uppercase">{{ decodeURIComponent(item.name_supply || '').replace(/\+/g, ' ') }}</td>
+              <td class="px-6 py-4 font-bold font-mono text-slate-800">{{ parseFloat(item.stock_supply).toFixed(2) }}</td>
+              <td class="px-6 py-4 font-mono text-green-600">{{ parseFloat(item.price_supply).toFixed(2) }}</td>
+              <td class="px-6 py-4"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-bold text-xs">{{ item.unit_supply }}</span></td>
               <td class="px-6 py-4">{{ getSupplierName(item.id_supplier_supply) }}</td>
               <td v-if="auth.role === 'lab_admin' || auth.role === 'superadmin' || auth.role === 'admin'" class="px-6 py-4 text-center flex justify-center gap-2">
                 <UButton icon="i-lucide-edit-2" color="warning" variant="subtle" size="xs" @click="openEditModal(item)" />
@@ -236,9 +253,9 @@ function getSupplierName(id: number | string) {
     <!-- Modal Formulario -->
     <UModal v-model:open="isModalOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 dark:text-white bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white tracking-wide">{{ modalTitle }}</h3>
+        <div class="w-full p-6 space-y-4 text-slate-900 bg-white rounded-xl border border-slate-200">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+            <h3 class="text-lg font-bold text-slate-800 tracking-wide">{{ modalTitle }}</h3>
             <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isModalOpen = false" />
           </div>
 
@@ -251,7 +268,9 @@ function getSupplierName(id: number | string) {
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Unidad de Medida</label>
-                <USelect v-model="form.unit" :items="unitOptions" required />
+                <select v-model="form.unit" required class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                  <option v-for="o in unitOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                </select>
               </div>
               <div class="space-y-1.5">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Precio Referencial (Bs.)</label>
@@ -266,17 +285,32 @@ function getSupplierName(id: number | string) {
 
             <div class="space-y-1.5">
               <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Proveedor (Opcional)</label>
-              <USelect
-                v-model="form.id_supplier"
-                :items="[{value: '', label: 'Seleccionar Proveedor'}, ...suppliers.map(s => ({value: String(s.id_supplier), label: decodeURIComponent(s.supplier_name || '').replace(/\+/g, ' ')}))]"
-              />
+              <select v-model="form.id_supplier" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                <option value="">Seleccionar Proveedor</option>
+                <option v-for="s in suppliers" :key="s.id_supplier" :value="String(s.id_supplier)">
+                  {{ decodeURIComponent(s.supplier_name || '').replace(/\+/g, ' ') }}
+                </option>
+              </select>
             </div>
 
-            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4 mt-6">
+            <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isModalOpen = false" />
               <UButton type="submit" label="Guardar" color="success" class="font-bold!" />
             </div>
           </form>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="confirmDialog.open" :ui="{ width: 'max-w-sm' }">
+      <template #content>
+        <div class="p-6 space-y-4">
+          <h3 class="text-base font-semibold text-slate-800">{{ confirmDialog.title }}</h3>
+          <p class="text-sm text-slate-600">{{ confirmDialog.message }}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="onConfirmCancel" />
+            <UButton label="Confirmar" color="error" @click="onConfirmOk" />
+          </div>
         </div>
       </template>
     </UModal>

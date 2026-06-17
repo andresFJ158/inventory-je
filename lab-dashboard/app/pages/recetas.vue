@@ -4,6 +4,18 @@ import { useAuthStore } from '~/stores/auth'
 import { useNumericInput } from '~/composables/useNumericInput'
 
 const auth = useAuthStore()
+const toast = useToast()
+
+const confirmDialog = ref({ open: false, title: '', message: '' })
+const confirmResolve = ref<((v: boolean) => void) | null>(null)
+function confirmAction(title: string, message: string): Promise<boolean> {
+  return new Promise(resolve => {
+    confirmDialog.value = { open: true, title, message }
+    confirmResolve.value = resolve
+  })
+}
+function onConfirmOk() { confirmResolve.value?.(true); confirmDialog.value.open = false }
+function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.open = false }
 
 // Helper para bloquear negativos en inputs numéricos de arrays
 function blockNegative(e: KeyboardEvent) {
@@ -60,6 +72,28 @@ const newRecipe = ref({
   unit_batch: 'L',
   ingredients: [] as Array<{ id_raw: string; qty: string }>
 })
+
+const useExistingProduct = ref(false)
+const selectedExistingProductId = ref('')
+const productsWithoutRecipe = ref<any[]>([])
+const loadingCatalogProducts = ref(false)
+
+async function fetchProductsWithoutRecipe() {
+  loadingCatalogProducts.value = true
+  try {
+    const response = await $fetch<any>(apiBase, {
+      method: 'POST',
+      body: new URLSearchParams({ getProductsWithoutRecipe: 'ok' }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    productsWithoutRecipe.value = data.status === 200 ? data.results : []
+  } catch {
+    productsWithoutRecipe.value = []
+  } finally {
+    loadingCatalogProducts.value = false
+  }
+}
 
 async function fetchMaterials() {
   loadingMaterials.value = true
@@ -137,38 +171,57 @@ function removeIngredient(index: number) {
 }
 
 async function handleOpenCreateModal() {
-  await fetchMaterials()
+  await Promise.all([fetchMaterials(), fetchProductsWithoutRecipe()])
   newRecipe.value = {
     name_product: '',
     unit_batch: 'L',
     ingredients: [{ id_raw: '', qty: '' }]
   }
   newBatchInput.setValue(1)
+  useExistingProduct.value = false
+  selectedExistingProductId.value = ''
   isCreateOpen.value = true
 }
 
 async function handleSaveRecipe() {
-  if (!newRecipe.value.name_product || newBatchInput.raw.value <= 0) {
-    alert('Por favor, ingresa el nombre de la fórmula y una cantidad base mayor a 0.')
+  if (useExistingProduct.value) {
+    if (!selectedExistingProductId.value) {
+      toast.add({ title: 'Selecciona un producto del catálogo para asignarle la receta.', color: 'error' })
+      return
+    }
+  } else if (!newRecipe.value.name_product) {
+    toast.add({ title: 'Por favor, ingresa el nombre del nuevo producto.', color: 'error' })
+    return
+  }
+
+  if (newBatchInput.raw.value <= 0) {
+    toast.add({ title: 'La cantidad base del lote debe ser mayor a 0.', color: 'error' })
     return
   }
 
   const validIngredients = newRecipe.value.ingredients.filter(i => i.id_raw && parseFloat(i.qty) > 0)
   if (validIngredients.length === 0) {
-    alert('Debes agregar al menos un ingrediente válido con su cantidad.')
+    toast.add({ title: 'Debes agregar al menos un ingrediente válido con su cantidad.', color: 'error' })
     return
   }
+
+  const selectedProduct = useExistingProduct.value
+    ? productsWithoutRecipe.value.find(p => String(p.id_product) === String(selectedExistingProductId.value))
+    : null
 
   try {
     const body = new URLSearchParams()
     body.append('saveRecipe', 'ok')
-    body.append('name_product', newRecipe.value.name_product)
+    body.append('name_product', selectedProduct ? selectedProduct.title_product : newRecipe.value.name_product)
     body.append('batch_size', String(newBatchInput.raw.value))
-    body.append('unit_batch', newRecipe.value.unit_batch)
+    body.append('unit_batch', selectedProduct ? (selectedProduct.unit_product || newRecipe.value.unit_batch) : newRecipe.value.unit_batch)
     body.append('id_office', String(auth.officeId || 6))
     body.append('id_admin', String(auth.user?.id_admin || 1))
     body.append('ingredients', JSON.stringify(validIngredients))
     body.append('labor', JSON.stringify([]))
+    if (useExistingProduct.value && selectedExistingProductId.value) {
+      body.append('existing_product_id', selectedExistingProductId.value)
+    }
 
     const response = await $fetch<any>(apiBase, {
       method: 'POST',
@@ -181,11 +234,11 @@ async function handleSaveRecipe() {
       isCreateOpen.value = false
       await fetchRecipes()
     } else {
-      alert('Error al guardar la receta: ' + (resText.startsWith('error|') ? resText.split('|')[1] : 'El nombre puede ya existir en la sucursal.'))
+      toast.add({ title: 'Error al guardar la receta', description: resText.startsWith('error|') ? resText.split('|')[1] : 'El nombre puede ya existir en la sucursal.', color: 'error' })
     }
   } catch (error) {
     console.error('Error saving recipe:', error)
-    alert('Error de conexión con el servidor.')
+    toast.add({ title: 'Error de conexión con el servidor.', color: 'error' })
   }
 }
 
@@ -225,7 +278,7 @@ async function handleOpenEditModal(recipe: any) {
     isEditOpen.value = true
   } catch (error) {
     console.error('Error loading recipe for edit:', error)
-    alert('Error al cargar los datos de la receta.')
+    toast.add({ title: 'Error al cargar los datos de la receta.', color: 'error' })
   }
 }
 
@@ -239,13 +292,13 @@ function removeEditIngredient(index: number) {
 
 async function handleUpdateRecipe() {
   if (!editForm.value.name_product || editBatchInput.raw.value <= 0) {
-    alert('Por favor, ingresa el nombre de la fórmula y una cantidad base mayor a 0.')
+    toast.add({ title: 'Por favor, ingresa el nombre de la fórmula y una cantidad base mayor a 0.', color: 'error' })
     return
   }
 
   const validIngredients = editForm.value.ingredients.filter(i => i.id_raw && i.qty)
   if (validIngredients.length === 0) {
-    alert('Debes agregar al menos un ingrediente válido con su cantidad.')
+    toast.add({ title: 'Debes agregar al menos un ingrediente válido con su cantidad.', color: 'error' })
     return
   }
 
@@ -270,17 +323,17 @@ async function handleUpdateRecipe() {
       isEditOpen.value = false
       await fetchRecipes()
     } else {
-      alert('Error al actualizar la receta: ' + (resText.startsWith('error|') ? resText.split('|')[1] : resText))
+      toast.add({ title: 'Error al actualizar la receta', description: resText.startsWith('error|') ? resText.split('|')[1] : resText, color: 'error' })
     }
   } catch (error) {
     console.error('Error updating recipe:', error)
-    alert('Error de conexión con el servidor.')
+    toast.add({ title: 'Error de conexión con el servidor.', color: 'error' })
   }
 }
 
 // ---- ELIMINAR RECETA ----
 async function handleDeleteRecipe(recipe: any) {
-  if (!confirm(`¿Eliminar la receta "${recipe.name}"?\n\nSe eliminará el producto asociado. Esta acción no se puede deshacer.`)) return
+  if (!await confirmAction('Eliminar receta', `¿Eliminar la receta "${recipe.name}"? Se eliminará el producto asociado. Esta acción no se puede deshacer.`)) return
   try {
     const response = await $fetch<any>(apiBase, {
       method: 'POST',
@@ -291,11 +344,11 @@ async function handleDeleteRecipe(recipe: any) {
     if (resText === 'ok') {
       await fetchRecipes()
     } else {
-      alert('Error al eliminar la receta. Puede tener producciones asociadas.')
+      toast.add({ title: 'Error al eliminar la receta. Puede tener producciones asociadas.', color: 'error' })
     }
   } catch (error) {
     console.error('Error deleting recipe:', error)
-    alert('Error de conexión con el servidor.')
+    toast.add({ title: 'Error de conexión con el servidor.', color: 'error' })
   }
 }
 
@@ -307,16 +360,16 @@ onMounted(() => {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+        <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
           <UIcon
             name="i-lucide-scroll"
             class="text-green-500"
           />
           Recetas de Laboratorio
         </h1>
-        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">
+        <p class="text-slate-500 text-sm mt-1">
           Configuración técnica de componentes químicos y cálculo de costo promedio.
         </p>
       </div>
@@ -332,7 +385,7 @@ onMounted(() => {
       </UButton>
     </div>
 
-    <div v-if="loading" class="p-8 text-center text-slate-500 dark:text-slate-400">
+    <div v-if="loading" class="p-8 text-center text-slate-500">
       <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin mx-auto text-green-500 mb-2" />
       Cargando recetas formuladas...
     </div>
@@ -345,16 +398,16 @@ onMounted(() => {
       <div
         v-for="recipe in recipes"
         :key="recipe.id"
-        class="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-6 rounded-xl space-y-4 shadow-sm"
+        class="bg-white border border-slate-200 p-6 rounded-xl space-y-4 shadow-sm"
       >
         <!-- Header: nombre + acciones -->
         <div class="flex justify-between items-start gap-2">
           <div class="flex-1 min-w-0">
-            <h3 class="text-base font-bold text-slate-800 dark:text-white uppercase tracking-wide truncate">
+            <h3 class="text-base font-bold text-slate-800 uppercase tracking-wide truncate">
               {{ recipe.name }}
             </h3>
             <p class="text-xs text-slate-400 mt-0.5">
-              Lote base: <span class="font-bold text-slate-600 dark:text-slate-300">{{ recipe.batch_size }} {{ recipe.unit_batch }}</span>
+              Lote base: <span class="font-bold text-slate-600">{{ recipe.batch_size }} {{ recipe.unit_batch }}</span>
             </p>
           </div>
           <div class="flex items-center gap-1 shrink-0">
@@ -384,8 +437,8 @@ onMounted(() => {
           <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
             Fórmula / Ingredientes
           </h4>
-          <div class="rounded-lg border border-slate-100 dark:border-slate-800/60 overflow-hidden">
-            <div class="grid text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-900/60 px-3 py-1.5"
+          <div class="rounded-lg border border-slate-100 overflow-hidden">
+            <div class="grid text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-3 py-1.5"
               :class="auth.role !== 'lab_worker' ? 'grid-cols-4' : 'grid-cols-2'">
               <span class="col-span-2">Materia Prima</span>
               <span v-if="auth.role !== 'lab_worker'" class="text-right">Precio MP</span>
@@ -394,68 +447,68 @@ onMounted(() => {
             <div
               v-for="comp in recipe.components"
               :key="comp.name"
-              class="grid px-3 py-2 border-t border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/10 transition-colors"
+              class="grid px-3 py-2 border-t border-slate-100 hover:bg-slate-50 transition-colors"
               :class="auth.role !== 'lab_worker' ? 'grid-cols-4' : 'grid-cols-2'"
             >
-              <span class="col-span-2 text-slate-700 dark:text-slate-300 font-medium truncate">{{ comp.name }}</span>
-              <span v-if="auth.role !== 'lab_worker'" class="text-right font-mono text-slate-500 dark:text-slate-400 text-xs">
-                <span v-if="comp.unit_price > 0" class="text-slate-600 dark:text-slate-300">Bs. {{ comp.unit_price.toFixed(2) }}/{{ comp.unit }}</span>
+              <span class="col-span-2 text-slate-700 font-medium truncate">{{ comp.name }}</span>
+              <span v-if="auth.role !== 'lab_worker'" class="text-right font-mono text-slate-500 text-xs">
+                <span v-if="comp.unit_price > 0" class="text-slate-600">Bs. {{ comp.unit_price.toFixed(2) }}/{{ comp.unit }}</span>
                 <span v-else class="text-amber-500 italic">Sin precio</span>
               </span>
-              <span class="text-right font-mono font-bold text-slate-600 dark:text-slate-300">{{ comp.qty }} <span class="text-xs font-normal text-slate-400">{{ comp.unit }}</span></span>
+              <span class="text-right font-mono font-bold text-slate-600">{{ comp.qty }} <span class="text-xs font-normal text-slate-400">{{ comp.unit }}</span></span>
             </div>
           </div>
         </div>
 
         <!-- Bloque de costos (solo visible para no-lab_worker) -->
-        <div v-if="auth.role !== 'lab_worker'" class="border-t border-slate-100 dark:border-slate-800/60 pt-3 space-y-1.5">
+        <div v-if="auth.role !== 'lab_worker'" class="border-t border-slate-100 pt-3 space-y-1.5">
           <!-- Costo estimado por lote de ingredientes -->
           <div class="flex justify-between items-center text-xs">
             <span class="text-slate-400 font-medium">Costo MP del lote ({{ recipe.batch_size }} {{ recipe.unit_batch }}):</span>
-            <span class="font-mono font-bold text-slate-600 dark:text-slate-300">
+            <span class="font-mono font-bold text-slate-600">
               Bs. {{ recipe.components.reduce((acc: number, c: any) => acc + c.subtotal, 0).toFixed(2) }}
             </span>
           </div>
           <!-- Costo estimado por unidad -->
           <div class="flex justify-between items-center text-xs">
             <span class="text-slate-400 font-medium">Costo MP / unidad producida:</span>
-            <span class="font-mono font-bold" :class="recipe.cost_estimated > 0 ? 'text-green-600 dark:text-green-400' : 'text-amber-500'">
+            <span class="font-mono font-bold" :class="recipe.cost_estimated > 0 ? 'text-green-600' : 'text-amber-500'">
               <span v-if="recipe.cost_estimated > 0">Bs. {{ recipe.cost_estimated.toFixed(4) }}</span>
               <span v-else class="italic text-amber-500">Sin precio de MP</span>
             </span>
           </div>
           <!-- Costo promedio real (de producciones completadas) -->
           <div v-if="recipe.has_real_cost" class="flex justify-between items-center py-1.5 px-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <span class="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+            <span class="text-xs font-bold text-emerald-700 flex items-center gap-1">
               <UIcon name="i-lucide-check-circle" class="w-3.5 h-3.5" /> Costo Promedio Real (QC):
             </span>
-            <span class="font-mono font-bold text-emerald-700 dark:text-emerald-300 text-sm">
+            <span class="font-mono font-bold text-emerald-700 text-sm">
               Bs. {{ recipe.cost_real.toFixed(4) }} / und
             </span>
           </div>
-          <div v-else class="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+          <div v-else class="flex items-center gap-1.5 text-xs text-amber-600">
             <UIcon name="i-lucide-info" class="w-3.5 h-3.5 shrink-0" />
             <span>El costo real se calculará al completar la primera producción con QC aprobado.</span>
           </div>
         </div>
 
         <!-- Métricas de Merma -->
-        <div v-if="recipe.variance_history.length > 0" class="border-t border-slate-100 dark:border-slate-800/60 pt-3 space-y-2">
+        <div v-if="recipe.variance_history.length > 0" class="border-t border-slate-100 pt-3 space-y-2">
           <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Métricas de Merma</h4>
           <div class="grid grid-cols-3 gap-2">
-            <div class="bg-slate-50 dark:bg-slate-900 p-2 rounded text-center">
+            <div class="bg-slate-50 p-2 rounded text-center">
               <p class="text-[10px] text-slate-500 uppercase">Promedio</p>
               <p class="font-bold font-mono text-sm" :class="recipe.avg_variance < 0 ? 'text-rose-500' : 'text-green-500'">
                 {{ recipe.avg_variance > 0 ? '+' : '' }}{{ recipe.avg_variance.toFixed(1) }}%
               </p>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-900 p-2 rounded text-center">
+            <div class="bg-slate-50 p-2 rounded text-center">
               <p class="text-[10px] text-slate-500 uppercase">Peor</p>
               <p class="font-bold font-mono text-sm text-rose-500">
                 {{ recipe.worst_variance > 0 ? '+' : '' }}{{ recipe.worst_variance.toFixed(1) }}%
               </p>
             </div>
-            <div class="bg-slate-50 dark:bg-slate-900 p-2 rounded text-center">
+            <div class="bg-slate-50 p-2 rounded text-center">
               <p class="text-[10px] text-slate-500 uppercase">Mejor</p>
               <p class="font-bold font-mono text-sm text-green-500">
                 {{ recipe.best_variance > 0 ? '+' : '' }}{{ recipe.best_variance.toFixed(1) }}%
@@ -472,8 +525,8 @@ onMounted(() => {
     <!-- Modal Editar Receta -->
     <UModal v-model:open="isEditOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 dark:text-white">
-          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 text-amber-600 dark:text-amber-400">
+        <div class="w-full p-6 space-y-4 text-slate-900">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-amber-600">
             <h3 class="text-lg font-bold tracking-wide flex items-center gap-2">
               <UIcon name="i-lucide-edit-2" class="w-5 h-5" /> Editar Fórmula: {{ editingRecipe?.name }}
             </h3>
@@ -482,38 +535,38 @@ onMounted(() => {
 
           <form class="space-y-4" @submit.prevent="handleUpdateRecipe">
             <div>
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Nombre del Producto</label>
-              <input v-model="editForm.name_product" type="text" placeholder="Ej: Vinagre de Manzana 1L" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre del Producto</label>
+              <input v-model="editForm.name_product" type="text" placeholder="Ej: Vinagre de Manzana 1L" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50">
             </div>
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Litros de agua base (Tamaño Lote)</label>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Litros de agua base (Tamaño Lote)</label>
                 <input
                   :value="editBatchInput.display.value"
                   type="text"
                   inputmode="decimal"
                   placeholder="1,000"
-                  class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                   @input="editBatchInput.onInput($event as InputEvent)"
                   @keydown="editBatchInput.onKeydown($event as KeyboardEvent)"
                 >
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Unidad de Medida</label>
-                <input v-model="editForm.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Unidad de Medida</label>
+                <input v-model="editForm.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 text-sm cursor-not-allowed">
               </div>
             </div>
 
             <div class="space-y-3 pt-2">
               <div class="flex justify-between items-center">
-                <label class="block text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Insumos (Fórmula)</label>
+                <label class="block text-xs font-bold text-amber-600 uppercase tracking-wider">Insumos (Fórmula)</label>
                 <UButton icon="i-lucide-plus" label="Agregar Insumo" color="warning" variant="ghost" size="xs" @click="addEditIngredient" />
               </div>
 
               <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
-                <div v-for="(ing, index) in editForm.ingredients" :key="index" class="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                  <select v-model="ing.id_raw" class="flex-1 py-1.5 px-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-amber-500">
+                <div v-for="(ing, index) in editForm.ingredients" :key="index" class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <select v-model="ing.id_raw" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500">
                     <option value="">Seleccione Insumo...</option>
                     <option v-for="m in materials" :key="m.id_raw_material" :value="m.id_raw_material">
                       {{ m.name_raw_material }} ({{ m.unit_raw_material }})
@@ -524,7 +577,7 @@ onMounted(() => {
                     type="text"
                     inputmode="decimal"
                     placeholder="0,000"
-                    class="w-24 py-1.5 px-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    class="w-24 py-1.5 px-2 bg-white border border-slate-200 rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
                     @input="onNumInput($event, ing, 'qty')"
                     @keydown="blockNegative($event as KeyboardEvent)"
                   >
@@ -533,7 +586,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-850 pt-4 mt-6">
+            <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isEditOpen = false" />
               <UButton type="submit" label="Guardar Cambios" color="warning" class="font-bold!" />
             </div>
@@ -545,8 +598,8 @@ onMounted(() => {
     <!-- Modal Crear Receta (UModal v-model:open) -->
     <UModal v-model:open="isCreateOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 dark:text-white">
-          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3 text-green-600 dark:text-green-400">
+        <div class="w-full p-6 space-y-4 text-slate-900">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-green-600">
             <h3 class="text-lg font-bold tracking-wide flex items-center gap-2">
               <UIcon name="i-lucide-plus" class="w-5 h-5" /> Diseñador de Fórmulas
             </h3>
@@ -554,43 +607,84 @@ onMounted(() => {
           </div>
 
           <form class="space-y-4" @submit.prevent="handleSaveRecipe">
-            <!-- Nombre del producto -->
-            <div>
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Producto a Fabricar (Nombre)</label>
-              <input v-model="newRecipe.name_product" type="text" placeholder="Ej: Vinagre de Manzana 1L" class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+            <!-- Toggle: nuevo producto o producto existente -->
+            <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                class="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
+                :class="!useExistingProduct ? 'bg-green-500 text-white' : 'bg-white text-slate-500 border border-slate-200'"
+                @click="useExistingProduct = false; selectedExistingProductId = ''"
+              >
+                <UIcon name="i-lucide-plus-circle" class="w-3.5 h-3.5" />
+                Nuevo Producto
+              </button>
+              <button
+                type="button"
+                class="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
+                :class="useExistingProduct ? 'bg-blue-500 text-white' : 'bg-white text-slate-500 border border-slate-200'"
+                @click="useExistingProduct = true; newRecipe.name_product = ''"
+              >
+                <UIcon name="i-lucide-link" class="w-3.5 h-3.5" />
+                Producto del Catálogo
+              </button>
+            </div>
+
+            <!-- Selector de producto existente -->
+            <div v-if="useExistingProduct">
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Seleccionar Producto del Catálogo</label>
+              <div v-if="loadingCatalogProducts" class="text-xs text-slate-400 py-2">Cargando productos...</div>
+              <select
+                v-else
+                v-model="selectedExistingProductId"
+                class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                <option value="">Selecciona un producto...</option>
+                <option v-for="p in productsWithoutRecipe" :key="p.id_product" :value="p.id_product">
+                  {{ p.title_product }} ({{ p.unit_product || 'u' }})
+                </option>
+              </select>
+              <p v-if="productsWithoutRecipe.length === 0 && !loadingCatalogProducts" class="text-xs text-amber-500 mt-1">
+                No hay productos en el catálogo sin receta asignada.
+              </p>
+            </div>
+
+            <!-- Nombre del nuevo producto -->
+            <div v-else>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Producto a Fabricar (Nombre)</label>
+              <input v-model="newRecipe.name_product" type="text" placeholder="Ej: Vinagre de Manzana 1L" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
             </div>
 
             <!-- Lote Base y Unidad -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Litros de agua base (Tamaño Lote)</label>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Litros de agua base (Tamaño Lote)</label>
                 <input
                   :value="newBatchInput.display.value"
                   type="text"
                   inputmode="decimal"
                   placeholder="1,000"
-                  class="block w-full py-2.5 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                  class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
                   @input="newBatchInput.onInput($event as InputEvent)"
                   @keydown="newBatchInput.onKeydown($event as KeyboardEvent)"
                 >
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Unidad de Medida</label>
-                <input v-model="newRecipe.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Unidad de Medida</label>
+                <input v-model="newRecipe.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 text-sm cursor-not-allowed">
               </div>
             </div>
 
             <!-- Ingredientes Dinámicos -->
             <div class="space-y-3 pt-2">
               <div class="flex justify-between items-center">
-                <label class="block text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Insumos (Fórmula)</label>
+                <label class="block text-xs font-bold text-green-600 uppercase tracking-wider">Insumos (Fórmula)</label>
                 <UButton icon="i-lucide-plus" label="Agregar Insumo" color="success" variant="ghost" size="xs" @click="addIngredient" />
               </div>
 
               <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
-                <div v-for="(ing, index) in newRecipe.ingredients" :key="index" class="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/40 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+                <div v-for="(ing, index) in newRecipe.ingredients" :key="index" class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
                   <!-- Select Insumo -->
-                  <select v-model="ing.id_raw" class="flex-1 py-1.5 px-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-green-500">
+                  <select v-model="ing.id_raw" class="flex-1 py-1.5 px-2 bg-white border border-slate-200 rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-green-500">
                     <option value="">Seleccione Insumo...</option>
                     <option v-for="m in materials" :key="m.id_raw_material" :value="m.id_raw_material">
                       {{ m.name_raw_material }} ({{ m.unit_raw_material }})
@@ -603,7 +697,7 @@ onMounted(() => {
                     type="text"
                     inputmode="decimal"
                     placeholder="0,000"
-                    class="w-24 py-1.5 px-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
+                    class="w-24 py-1.5 px-2 bg-white border border-slate-200 rounded text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-green-500"
                     @input="onNumInput($event, ing, 'qty')"
                     @keydown="blockNegative($event as KeyboardEvent)"
                   >
@@ -615,11 +709,24 @@ onMounted(() => {
             </div>
 
             <!-- Footer integrado directamente sin márgenes negativos -->
-            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-850 pt-4 mt-6">
+            <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isCreateOpen = false" />
               <UButton type="submit" label="Guardar Receta" color="success" class="font-bold!" />
             </div>
           </form>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="confirmDialog.open" :ui="{ width: 'max-w-sm' }">
+      <template #content>
+        <div class="p-6 space-y-4">
+          <h3 class="text-base font-semibold text-slate-800">{{ confirmDialog.title }}</h3>
+          <p class="text-sm text-slate-600">{{ confirmDialog.message }}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="onConfirmCancel" />
+            <UButton label="Confirmar" color="error" @click="onConfirmOk" />
+          </div>
         </div>
       </template>
     </UModal>

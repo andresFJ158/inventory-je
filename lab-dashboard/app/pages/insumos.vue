@@ -3,6 +3,18 @@
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
+const toast = useToast()
+
+const confirmDialog = ref({ open: false, title: '', message: '' })
+const confirmResolve = ref<((v: boolean) => void) | null>(null)
+function confirmAction(title: string, message: string): Promise<boolean> {
+  return new Promise(resolve => {
+    confirmDialog.value = { open: true, title, message }
+    confirmResolve.value = resolve
+  })
+}
+function onConfirmOk() { confirmResolve.value?.(true); confirmDialog.value.open = false }
+function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.open = false }
 
 // State del formulario y catálogo reactivo desde la API del backend
 const items = ref<any[]>([])
@@ -135,7 +147,7 @@ async function saveInsumo() {
 
     const resText = typeof response === 'string' ? response.trim() : JSON.stringify(response)
     if (resText.startsWith('error')) {
-      alert('Error del servidor: ' + resText.split('|')[1])
+      toast.add({ title: 'Error del servidor', description: resText.split('|')[1], color: 'error' })
       return
     }
 
@@ -143,13 +155,13 @@ async function saveInsumo() {
     await fetchInsumos()
   } catch (error: any) {
     console.error('Error saving insumo:', error)
-    alert('Error al guardar el insumo: ' + (error.message || error))
+    toast.add({ title: 'Error al guardar el insumo', description: error.message || String(error), color: 'error' })
     isModalOpen.value = false
   }
 }
 
 async function deleteInsumo(item: any) {
-  if (!confirm(`¿Eliminar el insumo "${item.name}"?\n\nSolo se puede eliminar si no tiene stock, no está en recetas ni en historial de producción.`)) return
+  if (!await confirmAction('Eliminar insumo', `¿Eliminar el insumo "${item.name}"? Solo se puede eliminar si no tiene stock, no está en recetas ni en historial de producción.`)) return
   try {
     const response = await $fetch<any>(apiBase, {
       method: 'POST',
@@ -161,7 +173,7 @@ async function deleteInsumo(item: any) {
     })
     const resText = typeof response === 'string' ? response.trim() : JSON.stringify(response)
     if (resText.startsWith('error')) {
-      alert('No se puede eliminar: ' + (resText.split('|')[1] || resText))
+      toast.add({ title: 'No se puede eliminar', description: resText.split('|')[1] || resText, color: 'error' })
       return
     }
     await fetchInsumos()
@@ -174,16 +186,16 @@ async function deleteInsumo(item: any) {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+        <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
           <UIcon
             name="i-lucide-boxes"
             class="text-green-500"
           />
           Catálogo de Insumos
         </h1>
-        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">
+        <p class="text-slate-500 text-sm mt-1">
           Gestión y registro de envases, tapas, etiquetas y embalaje para la fase de producción y envasado.
         </p>
       </div>
@@ -200,9 +212,9 @@ async function deleteInsumo(item: any) {
     </div>
 
     <!-- Tabla -->
-    <div class="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-sm">
-      <div class="p-5 border-b border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h3 class="font-bold text-slate-800 dark:text-white tracking-wide">
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div class="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h3 class="font-bold text-slate-800 tracking-wide">
           Insumos en Catálogo ({{ filteredItems.length }}<span v-if="searchQuery" class="text-xs font-normal text-slate-400"> de {{ items.length }}</span>)
         </h3>
         <UInput
@@ -217,7 +229,7 @@ async function deleteInsumo(item: any) {
       <div class="overflow-x-auto">
         <div
           v-if="loading"
-          class="p-8 text-center text-slate-500 dark:text-slate-400"
+          class="p-8 text-center text-slate-500"
         >
           <UIcon
             name="i-lucide-loader-2"
@@ -227,9 +239,9 @@ async function deleteInsumo(item: any) {
         </div>
         <table
           v-else
-          class="w-full text-left text-sm text-slate-600 dark:text-slate-300"
+          class="w-full text-left text-sm text-slate-600"
         >
-          <thead class="bg-slate-50 dark:bg-slate-900/60 text-xs font-bold uppercase tracking-wider text-slate-550 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800/80">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
             <tr>
               <th class="px-6 py-4">
                 ID
@@ -257,25 +269,25 @@ async function deleteInsumo(item: any) {
               </th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60">
+          <tbody class="divide-y divide-slate-200">
             <tr v-if="filteredItems.length === 0">
               <td colspan="7" class="px-6 py-8 text-center text-slate-400 text-sm">No se encontraron insumos registrados.</td>
             </tr>
             <tr
               v-for="(item, i) in filteredItems"
               :key="item.id"
-              class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-all duration-150"
+              class="hover:bg-slate-50 transition-all duration-150"
             >
-              <td class="px-6 py-4 font-mono text-slate-400 dark:text-slate-500">
+              <td class="px-6 py-4 font-mono text-slate-400">
                 {{ i + 1 }}
               </td>
-              <td class="px-6 py-4 font-bold text-slate-800 dark:text-white uppercase tracking-wide">
+              <td class="px-6 py-4 font-bold text-slate-800 uppercase tracking-wide">
                 {{ item.name }}
               </td>
               <td class="px-6 py-4">
                 <span
                   v-if="item.type === 'weight'"
-                  class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 bg-amber-400/10 text-amber-600 dark:text-amber-300 border border-amber-400/20"
+                  class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 bg-amber-400/10 text-amber-600 border border-amber-400/20"
                 >
                   <UIcon
                     name="i-lucide-weight"
@@ -284,7 +296,7 @@ async function deleteInsumo(item: any) {
                 </span>
                 <span
                   v-else-if="item.type === 'volume'"
-                  class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 bg-cyan-400/10 text-cyan-600 dark:text-cyan-300 border border-cyan-400/20"
+                  class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 bg-cyan-400/10 text-cyan-600 border border-cyan-400/20"
                 >
                   <UIcon
                     name="i-lucide-droplet"
@@ -293,7 +305,7 @@ async function deleteInsumo(item: any) {
                 </span>
                 <span
                   v-else
-                  class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 bg-green-400/10 text-green-600 dark:text-green-300 border border-green-400/20"
+                  class="px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 bg-green-400/10 text-green-600 border border-green-400/20"
                 >
                   <UIcon
                     name="i-lucide-box"
@@ -301,13 +313,13 @@ async function deleteInsumo(item: any) {
                   /> Unidad
                 </span>
               </td>
-              <td class="px-6 py-4 font-bold font-mono text-slate-800 dark:text-slate-100">
+              <td class="px-6 py-4 font-bold font-mono text-slate-800">
                 {{ item.stock.toFixed(2) }}
               </td>
               <td class="px-6 py-4">
-                <span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs">{{ item.unit }}</span>
+                <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-bold text-xs">{{ item.unit }}</span>
               </td>
-              <td class="px-6 py-4 text-xs text-slate-550 dark:text-slate-400 max-w-xs truncate">
+              <td class="px-6 py-4 text-xs text-slate-500 max-w-xs truncate">
                 {{ item.desc }}
               </td>
               <td
@@ -338,9 +350,9 @@ async function deleteInsumo(item: any) {
     <!-- Modal Formulario -->
     <UModal v-model:open="isModalOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 dark:text-white bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white tracking-wide">
+        <div class="w-full p-6 space-y-4 text-slate-900 bg-white rounded-xl border border-slate-200">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+            <h3 class="text-lg font-bold text-slate-800 tracking-wide">
               {{ modalTitle }}
             </h3>
             <UButton
@@ -374,7 +386,7 @@ async function deleteInsumo(item: any) {
                 <button
                   type="button"
                   class="flex flex-col items-center justify-center py-3 px-2 rounded-xl border-2 transition-all duration-150"
-                  :class="form.type === 'weight' ? 'border-amber-400/80 bg-amber-500/10 text-amber-600 dark:text-amber-300 shadow-lg shadow-amber-500/5' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400'"
+                  :class="form.type === 'weight' ? 'border-amber-400/80 bg-amber-500/10 text-amber-600 shadow-lg shadow-amber-500/5' : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-500'"
                   @click="handleMeasureTypeChange('weight')"
                 >
                   <UIcon
@@ -387,7 +399,7 @@ async function deleteInsumo(item: any) {
                 <button
                   type="button"
                   class="flex flex-col items-center justify-center py-3 px-2 rounded-xl border-2 transition-all duration-150"
-                  :class="form.type === 'volume' ? 'border-cyan-400/80 bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 shadow-lg shadow-cyan-500/5' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400'"
+                  :class="form.type === 'volume' ? 'border-cyan-400/80 bg-cyan-500/10 text-cyan-600 shadow-lg shadow-cyan-500/5' : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-500'"
                   @click="handleMeasureTypeChange('volume')"
                 >
                   <UIcon
@@ -400,7 +412,7 @@ async function deleteInsumo(item: any) {
                 <button
                   type="button"
                   class="flex flex-col items-center justify-center py-3 px-2 rounded-xl border-2 transition-all duration-150"
-                  :class="form.type === 'unit' ? 'border-green-400/80 bg-green-500/10 text-green-600 dark:text-green-300 shadow-lg shadow-green-500/5' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400'"
+                  :class="form.type === 'unit' ? 'border-green-400/80 bg-green-500/10 text-green-600 shadow-lg shadow-green-500/5' : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-500'"
                   @click="handleMeasureTypeChange('unit')"
                 >
                   <UIcon
@@ -435,7 +447,7 @@ async function deleteInsumo(item: any) {
             </div>
 
             <!-- Footer Buttons -->
-            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4 mt-6">
+            <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 mt-6">
               <UButton
                 label="Cancelar"
                 variant="ghost"
@@ -450,6 +462,19 @@ async function deleteInsumo(item: any) {
               />
             </div>
           </form>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="confirmDialog.open" :ui="{ width: 'max-w-sm' }">
+      <template #content>
+        <div class="p-6 space-y-4">
+          <h3 class="text-base font-semibold text-slate-800">{{ confirmDialog.title }}</h3>
+          <p class="text-sm text-slate-600">{{ confirmDialog.message }}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="onConfirmCancel" />
+            <UButton label="Confirmar" color="error" @click="onConfirmOk" />
+          </div>
         </div>
       </template>
     </UModal>

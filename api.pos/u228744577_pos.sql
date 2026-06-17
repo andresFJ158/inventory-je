@@ -390,7 +390,7 @@ INSERT INTO `columns` VALUES
 (102,40,'supplier_name','Proveedor','text',NULL,1,'2025-10-29','2025-10-29 20:02:41'),
 (103,40,'supplier_contact','Contácto','text',NULL,1,'2025-10-29','2025-10-29 20:02:41'),
 (115,41,'id_supplier_purchase','Proveedor','relations','suppliers',1,'2025-10-31','2025-10-31 23:07:32'),
-(116,41,'id_office_purchase','Almac??n','relations','warehouses',1,'2025-10-31','2026-06-11 13:40:35'),
+(116,41,'id_office_purchase','Almacén','relations','warehouses',1,'2025-10-31','2026-06-11 13:40:35'),
 (117,41,'id_product_purchase','Producto','relations','products',1,'2025-10-31','2025-10-31 23:07:49'),
 (118,41,'cost_purchase','Costo producto','money',NULL,1,'2025-10-31','2025-10-31 23:07:11'),
 (119,41,'utility_purchase','Utilidad %','select','100%,50%,150%,200%',1,'2025-10-31','2025-11-08 04:52:08'),
@@ -1950,7 +1950,7 @@ CREATE TABLE `sub_warehouses` (
 LOCK TABLES `sub_warehouses` WRITE;
 /*!40000 ALTER TABLE `sub_warehouses` DISABLE KEYS */;
 INSERT INTO `sub_warehouses` VALUES
-(1,0,7,'Sub-Almac�n de la Sucursal',1,'2026-06-11','2026-06-11 15:12:38');
+(1,0,7,'Sub-Almacén de la Sucursal',1,'2026-06-11','2026-06-11 15:12:38');
 /*!40000 ALTER TABLE `sub_warehouses` ENABLE KEYS */;
 UNLOCK TABLES;
 

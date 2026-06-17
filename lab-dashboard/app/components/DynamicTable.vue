@@ -19,7 +19,7 @@ const MODULE_MAPPING: Record<string, { id_module: number, title_module: string, 
   compras: { id_module: 41, title_module: 'purchases', suffix_module: 'purchase', title: 'Compras', editable_module: 1 },
   ordenes: { id_module: 14, title_module: 'orders', suffix_module: 'order', title: 'Órdenes', editable_module: 0 },
   ventas: { id_module: 16, title_module: 'sales', suffix_module: 'sale', title: 'Ventas', editable_module: 0 },
-  caja: { id_module: 18, title_module: 'cashs', suffix_module: 'cash', title: 'Caja', editable_module: 1 },
+  caja: { id_module: 18, title_module: 'cashs', suffix_module: 'cash', title: 'Caja', editable_module: 0 },
   gastos: { id_module: 20, title_module: 'bills', suffix_module: 'bill', title: 'Gastos', editable_module: 1 },
   proveedores: { id_module: 40, title_module: 'suppliers', suffix_module: 'supplier', title: 'Proveedores', editable_module: 1 },
   almacenes: { id_module: 44, title_module: 'warehouses', suffix_module: 'warehouse', title: 'Almacenes', editable_module: 1 },
@@ -194,13 +194,51 @@ async function fetchRows() {
   }
 }
 
+// Columnas a ocultar por módulo (los productos son globales, id_office_product no aplica)
+const HIDDEN_COLUMNS: Record<string, string[]> = {
+  products: ['id_office_product', 'origin_office_product']
+}
+
+// Columnas visibles (reutilizado en header, filas y skeletons)
+const visibleColumns = computed(() => {
+  const hidden = moduleConfig.value ? (HIDDEN_COLUMNS[moduleConfig.value.title_module] || []) : []
+  return columns.value.filter((c: any) => c.visible_column === 1 && !hidden.includes(c.title_column))
+})
+
 // Check if we show edit/delete actions
 const showActions = computed(() => {
   if (!moduleConfig.value) return false
   const config = moduleConfig.value
-  const isProducts = config.title_module === 'products'
   const isSuperOrAdmin = auth.role === 'superadmin' || auth.role === 'admin'
-  return (!isProducts && (isSuperOrAdmin || config.editable_module === 1)) || (isProducts && isSuperOrAdmin)
+  // If products, ALWAYS show actions so we can show the "View Branches" button
+  if (config.title_module === 'products') return true
+  
+  return isSuperOrAdmin || config.editable_module === 1
+})
+
+const canEditOrDelete = computed(() => {
+  if (!moduleConfig.value) return false
+  const isSuperOrAdmin = auth.role === 'superadmin' || auth.role === 'admin'
+  const isLabAdminCatalog = auth.role === 'lab_admin' && ['products', 'purchases', 'suppliers', 'categories'].includes(moduleConfig.value.title_module)
+  if (moduleConfig.value.title_module === 'products') return isSuperOrAdmin || isLabAdminCatalog
+  if (isLabAdminCatalog) return true
+  return isSuperOrAdmin || moduleConfig.value.editable_module === 1
+})
+
+const canCreateRecord = computed(() => {
+  if (!moduleConfig.value) return false
+  
+  if (moduleConfig.value.title_module === 'products') {
+    return auth.role === 'lab_admin'
+  }
+  
+  const isSuperOrAdmin = auth.role === 'superadmin' || auth.role === 'admin'
+  if (isSuperOrAdmin) return true
+  if (auth.role === 'lab_admin' && ['purchases', 'suppliers', 'categories'].includes(moduleConfig.value.title_module)) {
+    return true
+  }
+  if (moduleConfig.value.title_module === 'purchases') return false
+  return moduleConfig.value.editable_module === 1
 })
 
 
@@ -209,14 +247,14 @@ function getMoneyColorClass(colName: string, val: any) {
   const num = parseFloat(val || 0)
   if (num < 0) return 'text-rose-500' // Faltantes (gap_cash negativo) o deudas en rojo
   if (colName === 'bills_cash' || colName === 'cost_bill') {
-    return num > 0 ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400' // Gastos en rojo
+    return num > 0 ? 'text-rose-500' : 'text-slate-500' // Gastos en rojo
   }
   if (colName === 'gap_cash' && num > 0) return 'text-green-500' // Sobrantes en verde
-  if (colName === 'gap_cash' && num === 0) return 'text-slate-500 dark:text-slate-400' // Caja cuadrada en gris
+  if (colName === 'gap_cash' && num === 0) return 'text-slate-500' // Caja cuadrada en gris
   if (colName === 'money_cash' || colName === 'total_order' || colName === 'amount_income') {
-    return num > 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400' // Ventas/Ingresos en verde
+    return num > 0 ? 'text-green-600' : 'text-slate-500' // Ventas/Ingresos en verde
   }
-  return 'text-teal-600 dark:text-teal-400' // Default money color
+  return 'text-teal-600' // Default money color
 }
 
 // Fix dead domains in image URLs
@@ -385,18 +423,51 @@ function openCashDetails(cashRow: any) {
   selectedCash.value = cashRow
   isCashDetailsModalOpen.value = true
 }
+
+// Branches Modal Logic
+const isBranchesModalOpen = ref(false)
+const selectedProduct = ref<any>(null)
+const productBranches = ref<any[]>([])
+const loadingBranches = ref(false)
+
+async function openBranchesModal(row: any) {
+  selectedProduct.value = row
+  isBranchesModalOpen.value = true
+  loadingBranches.value = true
+  productBranches.value = []
+
+  try {
+    const res = await $fetch<any>(`/api/relations?rel=product_inventory,offices&type=inventory,office&linkTo=id_product_inventory&equalTo=${row.id_product}`, {
+      headers: apiHeaders
+    })
+    if (res.status === 200 && res.results) {
+      productBranches.value = res.results
+        .filter((r: any) => parseFloat(r.stock_inventory || 0) > 0)
+        .map((r: any) => ({
+          warehouse_name: decodeURIComponent(r.title_office).replace(/\+/g, ' '),
+          stock_inventory: parseFloat(r.stock_inventory || 0)
+        }))
+    }
+  } catch (e) {
+    console.error('Error fetching warehouses:', e)
+    toast.add({ title: 'Error al cargar almacenes', color: 'error' })
+  } finally {
+    loadingBranches.value = false
+  }
+}
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="flex flex-col flex-1 min-h-0 gap-6">
     <!-- Header Controls -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/60 backdrop-blur border border-slate-800 p-4 rounded-xl">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm shrink-0">
       <div>
-        <h1 class="text-2xl font-extrabold text-white tracking-tight capitalize bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
+        <h1 class="text-2xl font-extrabold text-slate-800 tracking-tight capitalize">
           {{ moduleConfig?.title || 'Administración' }}
         </h1>
-        <p class="text-xs text-slate-400 mt-1">
-          Gestiona los registros de este módulo de forma dinámica y segura.
+        <p class="text-xs text-slate-500 mt-1">
+          <span v-if="!loading">{{ totalItems }} {{ totalItems === 1 ? 'registro' : 'registros' }}<span v-if="search"> · filtrando “{{ search }}”</span></span>
+          <span v-else>Cargando registros…</span>
         </p>
       </div>
 
@@ -406,18 +477,28 @@ function openCashDetails(cashRow: any) {
           icon="i-lucide-search"
           placeholder="Buscar..."
           class="w-full sm:w-64"
-        />
+        >
+          <template v-if="search" #trailing>
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="link"
+              size="xs"
+              aria-label="Limpiar búsqueda"
+              @click="search = ''"
+            />
+          </template>
+        </UInput>
         <UButton
           icon="i-lucide-file-spreadsheet"
-          color="white"
-          variant="ghost"
+          color="neutral"
+          variant="outline"
           @click="exportToCSV"
         >
-          Exportar CSV
+          <span class="hidden md:inline">Exportar CSV</span>
         </UButton>
         <UButton
-          v-slot:default
-          v-if="auth.role === 'superadmin' || auth.role === 'admin' || moduleConfig?.editable_module === 1"
+          v-if="canCreateRecord"
           icon="i-lucide-plus"
           color="primary"
           @click="openCreate"
@@ -428,36 +509,87 @@ function openCashDetails(cashRow: any) {
     </div>
 
     <!-- Table -->
-    <div class="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
-      <div v-if="loading" class="flex justify-center py-12">
-        <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-indigo-500" />
-      </div>
-      <div v-else-if="rows.length === 0" class="text-center py-12 text-slate-500 text-sm">
-        No se encontraron registros.
-      </div>
-      <div v-else class="overflow-x-auto">
-        <table class="w-full text-left border-collapse text-sm text-slate-300">
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col min-h-0">
+      <!-- Skeleton de carga -->
+      <div v-if="loading" class="overflow-x-auto flex-1 overflow-y-auto">
+        <table class="w-full text-left border-collapse text-sm">
           <thead>
-            <tr class="bg-slate-950 text-slate-400 border-b border-slate-800">
-              <th class="p-4">#</th>
-              <th v-for="col in columns.filter(c => c.visible_column === 1)" :key="col.title_column" class="p-4">
+            <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+              <th class="p-4 font-semibold text-xs uppercase tracking-wider">#</th>
+              <th v-for="col in visibleColumns" :key="col.title_column" class="p-4 font-semibold text-xs uppercase tracking-wider">
                 {{ col.alias_column || col.title_column }}
               </th>
-              <th v-if="showActions" class="p-4 text-right">Acciones</th>
+              <th v-if="showActions" class="p-4" />
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, idx) in paginatedRows" :key="idx" class="border-b border-slate-850 hover:bg-slate-900/20">
-              <td class="p-4 text-xs text-slate-500 font-mono">
+            <tr v-for="n in 8" :key="n" class="border-b border-slate-100">
+              <td v-for="c in (visibleColumns.length + (showActions ? 2 : 1))" :key="c" class="p-4">
+                <div class="h-3.5 rounded bg-slate-100 animate-pulse" :class="c === 1 ? 'w-6' : 'w-full max-w-[8rem]'" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Estado vacío -->
+      <div v-else-if="rows.length === 0" class="flex-1 flex flex-col items-center justify-center text-center py-16 px-6">
+        <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+          <UIcon :name="search ? 'i-lucide-search-x' : 'i-lucide-inbox'" class="w-7 h-7 text-slate-400" />
+        </div>
+        <p class="text-sm font-semibold text-slate-700">
+          {{ search ? 'Sin coincidencias' : 'No hay registros todavía' }}
+        </p>
+        <p class="text-xs text-slate-500 mt-1 max-w-xs">
+          {{ search ? 'Prueba con otro término de búsqueda o limpia el filtro.' : 'Cuando agregues registros, aparecerán aquí.' }}
+        </p>
+        <UButton
+          v-if="search"
+          class="mt-4"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-x"
+          @click="search = ''"
+        >
+          Limpiar búsqueda
+        </UButton>
+        <UButton
+          v-else-if="canCreateRecord"
+          class="mt-4"
+          color="primary"
+          size="sm"
+          icon="i-lucide-plus"
+          @click="openCreate"
+        >
+          Agregar el primero
+        </UButton>
+      </div>
+
+      <!-- Tabla con datos -->
+      <div v-else class="overflow-x-auto flex-1 overflow-y-auto">
+        <table class="w-full text-left border-collapse text-sm text-slate-700">
+          <thead class="sticky top-0 z-10">
+            <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+              <th class="p-4 font-semibold text-xs uppercase tracking-wider">#</th>
+              <th v-for="col in visibleColumns" :key="col.title_column" class="p-4 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
+                {{ col.alias_column || col.title_column }}
+              </th>
+              <th v-if="showActions" class="p-4 text-right font-semibold text-xs uppercase tracking-wider">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, idx) in paginatedRows" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+              <td class="p-4 text-xs text-slate-400 font-mono">
                 {{ (page - 1) * itemsPerPage + idx + 1 }}
               </td>
-              <td v-for="col in columns.filter(c => c.visible_column === 1)" :key="col.title_column" class="p-4">
+              <td v-for="col in visibleColumns" :key="col.title_column" class="p-4">
                 <!-- Image -->
                 <div v-if="col.type_column === 'image'" class="flex items-center">
                   <UAvatar
                     :src="getImageUrl(row[col.title_column])"
                     size="lg"
-                    class="border border-slate-700 bg-slate-800"
+                    class="border border-slate-200 bg-slate-100 ring-1 ring-slate-100"
                   />
                 </div>
 
@@ -486,7 +618,7 @@ function openCashDetails(cashRow: any) {
 
                 <!-- Select -->
                 <span v-else-if="col.type_column === 'select'">
-                  <UBadge color="neutral" variant="solid" class="capitalize">
+                  <UBadge color="neutral" variant="subtle" class="capitalize">
                     {{ row[col.title_column] }}
                   </UBadge>
                 </span>
@@ -520,7 +652,16 @@ function openCashDetails(cashRow: any) {
                     @click="openCashDetails(row)"
                     title="Ver Detalles de Caja"
                   />
-                  <template v-if="showActions">
+                  <UButton
+                    v-if="moduleConfig?.title_module === 'products'"
+                    icon="i-lucide-warehouse"
+                    color="primary"
+                    variant="soft"
+                    size="xs"
+                    @click="openBranchesModal(row)"
+                    title="Ver Stock por Almacén"
+                  />
+                  <template v-if="canEditOrDelete">
                     <UButton
                       icon="i-lucide-edit"
                       color="neutral"
@@ -544,8 +685,8 @@ function openCashDetails(cashRow: any) {
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalItems > itemsPerPage" class="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-950/40">
-        <span class="text-xs text-slate-400">
+      <div v-if="totalItems > itemsPerPage" class="p-4 border-t border-slate-200 flex justify-between items-center bg-slate-50/60 shrink-0">
+        <span class="text-xs text-slate-500">
           Mostrando {{ (page - 1) * itemsPerPage + 1 }} a {{ Math.min(page * itemsPerPage, totalItems) }} de {{ totalItems }} registros
         </span>
         <UPagination
@@ -587,5 +728,37 @@ function openCashDetails(cashRow: any) {
       :cash="selectedCash"
       @close="selectedCash = null"
     />
+
+    <!-- Warehouse Stock Modal -->
+    <UModal v-model:open="isBranchesModalOpen">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold flex items-center gap-2">
+                <UIcon name="i-lucide-warehouse" class="w-4 h-4 text-indigo-500" />
+                Stock por Almacén
+              </h3>
+              <UButton icon="i-lucide-x" color="neutral" variant="ghost" @click="isBranchesModalOpen = false" />
+            </div>
+          </template>
+          <div class="space-y-4">
+            <p class="text-sm text-slate-500">Producto: <strong>{{ selectedProduct?.title_product !== null ? decodeURIComponent(String(selectedProduct?.title_product)).replace(/\+/g, ' ') : 'Desconocido' }}</strong></p>
+            <div v-if="loadingBranches" class="flex justify-center py-4">
+              <UIcon name="i-lucide-loader-2" class="animate-spin w-6 h-6 text-indigo-500" />
+            </div>
+            <div v-else-if="productBranches.length === 0" class="text-center text-sm text-slate-500 py-4">
+              Este producto no tiene stock en ningún almacén.
+            </div>
+            <UTable v-else :data="productBranches" :columns="[{accessorKey: 'warehouse_name', header: 'Almacén'}, {accessorKey: 'stock_inventory', header: 'Stock'}]">
+              <template #warehouse_name-cell="{ row }"><span class="font-semibold">{{ row.original.warehouse_name }}</span></template>
+              <template #stock_inventory-cell="{ row }">
+                <UBadge color="success">{{ row.original.stock_inventory }}</UBadge>
+              </template>
+            </UTable>
+          </div>
+        </UCard>
+      </template>
+    </UModal>
   </div>
 </template>

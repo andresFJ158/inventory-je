@@ -1,7 +1,8 @@
-<?php 
+<?php
 
 require_once "connection.php";
 require_once "get.model.php";
+require_once "audit.model.php";
 
 class DeleteModel{
 
@@ -22,6 +23,12 @@ class DeleteModel{
 			return null;
 
 		}
+
+		/*=============================================
+		Capturar el registro completo antes de borrar
+		=============================================*/
+
+		$before = AuditLogger::snapshot($table, $nameId, $id);
 
 		/*=============================================
 		Eliminamos registros
@@ -49,13 +56,15 @@ class DeleteModel{
 
 		if($executed){
 
+			AuditLogger::log("DELETE", $table, $id, $before);
+
 			$response = array(
 
 				"comment" => "The process was successful"
 			);
 
 			return $response;
-		
+
 		}else{
 
 			Connection::handleStatementError($stmt, array(

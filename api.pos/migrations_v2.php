@@ -264,6 +264,7 @@ $queries = [
     "ALTER TABLE productions ADD COLUMN waste_qty_production DOUBLE DEFAULT 0",
     "ALTER TABLE productions ADD COLUMN waste_packaged_qty DOUBLE DEFAULT 0",
     "ALTER TABLE productions ADD COLUMN waste_loss_qty DOUBLE DEFAULT 0",
+    "ALTER TABLE productions ADD COLUMN pkg_name_production TEXT DEFAULT NULL",
 
     "ALTER TABLE admins ADD COLUMN id_inventory_admin INT DEFAULT NULL",
     "ALTER TABLE admins ADD COLUMN pct_commission_admin DOUBLE DEFAULT 0",
@@ -287,7 +288,71 @@ $queries = [
       date_created_ci     DATE NULL,
       date_updated_ci     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )",
-    "ALTER TABLE products ADD COLUMN combo_price_mode VARCHAR(20) DEFAULT 'descuento'"
+    "ALTER TABLE products ADD COLUMN combo_price_mode VARCHAR(20) DEFAULT 'descuento'",
+    "ALTER TABLE combo_items ADD COLUMN IF NOT EXISTS price_ci DOUBLE DEFAULT 0",
+    "CREATE INDEX IF NOT EXISTS idx_combo_ci ON combo_items(id_combo_ci)",
+    // Tablas del flujo vendedor → despacho
+    "CREATE TABLE IF NOT EXISTS order_expenses (
+      id_expense              INT AUTO_INCREMENT PRIMARY KEY,
+      id_order_expense        INT NOT NULL,
+      concept_expense         VARCHAR(255) DEFAULT NULL,
+      amount_expense          DOUBLE DEFAULT 0,
+      charge_to_client_expense INT DEFAULT 0,
+      id_admin_expense        INT DEFAULT 0,
+      date_created_expense    DATE DEFAULT NULL,
+      KEY idx_order_expense (id_order_expense)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    "CREATE TABLE IF NOT EXISTS sale_payments (
+      id_sale_payment         INT AUTO_INCREMENT PRIMARY KEY,
+      id_order_payment        INT NOT NULL,
+      method_payment          VARCHAR(30) DEFAULT NULL,
+      reference_payment       VARCHAR(255) DEFAULT NULL,
+      file_payment            VARCHAR(255) DEFAULT NULL,
+      amount_payment          DOUBLE DEFAULT 0,
+      id_admin_payment        INT DEFAULT 0,
+      date_created_payment    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_order_payment (id_order_payment)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    "ALTER TABLE order_expenses ADD COLUMN charge_to_client_expense INT DEFAULT 0",
+
+    // Corregir textos con tilde rota por encoding (mojibake) en datos existentes
+    "UPDATE columns SET alias_column = 'Almacén' WHERE title_column = 'id_office_purchase'",
+    "UPDATE sub_warehouses SET name_sub_warehouse = 'Sub-Almacén de la Sucursal' WHERE name_sub_warehouse LIKE 'Sub-Almac%n de la Sucursal'",
+
+    // Gestión de cartera de clientes por vendedor
+    "ALTER TABLE clients ADD COLUMN id_admin_client INT DEFAULT 0",
+    "ALTER TABLE clients ADD COLUMN notes_client TEXT DEFAULT NULL",
+    "INSERT IGNORE INTO columns (title_column, alias_column, type_column, visible_column, id_module_column) VALUES ('id_admin_client','Vendedor Asignado','text',0,6)",
+
+    // Bitácora de auditoría (quién/qué/cuándo/desde dónde + antes/después)
+    "CREATE TABLE IF NOT EXISTS `audit_logs` (
+      `id_audit`          BIGINT NOT NULL AUTO_INCREMENT,
+      `action_audit`      VARCHAR(10) NOT NULL,
+      `table_audit`       VARCHAR(64) NOT NULL,
+      `record_audit`      VARCHAR(64) DEFAULT NULL,
+      `id_admin_audit`    INT DEFAULT NULL,
+      `email_admin_audit` VARCHAR(255) DEFAULT NULL,
+      `role_admin_audit`  VARCHAR(50) DEFAULT NULL,
+      `changes_audit`     LONGTEXT DEFAULT NULL,
+      `ip_audit`          VARCHAR(45) DEFAULT NULL,
+      `endpoint_audit`    VARCHAR(255) DEFAULT NULL,
+      `created_at_audit`  TIMESTAMP NOT NULL DEFAULT current_timestamp(),
+      PRIMARY KEY (`id_audit`),
+      KEY `idx_audit_table` (`table_audit`,`record_audit`),
+      KEY `idx_audit_admin` (`id_admin_audit`),
+      KEY `idx_audit_date` (`created_at_audit`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+];
+
+// Normalización de charset: unificar tablas legacy utf8mb3 → utf8mb4
+// (utf8mb4 es superset; conversión sin pérdida y soporta emojis/4 bytes).
+// Se ejecuta en un bucle tolerante: un fallo aquí no invalida la migración.
+$charsetTables = [
+    "admins", "bills", "cashs", "categories", "clients", "columns",
+    "files", "folders", "incomes", "modules", "offices", "orders",
+    "pages", "products", "sales"
 ];
 
 $success = true;
@@ -304,6 +369,18 @@ foreach($queries as $query) {
             echo $e->getMessage() . "\n";
             $success = false;
         }
+    }
+}
+
+// Normalización de charset (tolerante: no afecta $success)
+foreach($charsetTables as $tbl) {
+    $sql = "ALTER TABLE `$tbl` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+    try {
+        $db->exec($sql);
+        echo "Charset utf8mb4: $tbl\n";
+    } catch (PDOException $e) {
+        // Tabla inexistente u otra incidencia no crítica: registrar y continuar
+        echo "Charset omitido ($tbl): " . $e->getMessage() . "\n";
     }
 }
 

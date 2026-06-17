@@ -10,6 +10,17 @@ const auth = useAuthStore()
 const api = useApi()
 const toast = useToast()
 
+const confirmDialog = ref({ open: false, title: '', message: '' })
+const confirmResolve = ref<((v: boolean) => void) | null>(null)
+function confirmAction(title: string, message: string): Promise<boolean> {
+  return new Promise(resolve => {
+    confirmDialog.value = { open: true, title, message }
+    confirmResolve.value = resolve
+  })
+}
+function onConfirmOk() { confirmResolve.value?.(true); confirmDialog.value.open = false }
+function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.open = false }
+
 function apiQuery(extra: Record<string, string | number> = {}) {
   if (!auth.token) throw new Error('Sin token de sesión')
   return { token: auth.token, table: 'admins', suffix: 'admin', ...extra }
@@ -54,15 +65,17 @@ const permForm = ref<Record<string, boolean>>({
   almacen: false,
   despachos: false,
   mi_inventario: false,
-  solicitar_inventario: false,
+
   reportes: false,
   reportes_empresa: false,
   qrs: false,
-  
+  gestionar_clientes: false,
+
   // Laboratorio
   dashboard_lab: false,
   materiales: false,
   insumos_lab: false,
+  proveedores_lab: false,
   inventario_mp: false,
   entradas: false,
   recetas: false,
@@ -87,6 +100,8 @@ const formModel = ref({
   status_admin: true
 })
 const savingAdmin = ref(false)
+
+const sucursalOptions = computed(() => offices.value.filter((o: any) => o.type_office === 'sucursal'))
 
 async function fetchAdmins() {
   loading.value = true
@@ -298,21 +313,20 @@ watch(() => formModel.value.rol_admin, (newRole) => {
   } else if (newRole === 'cajero') {
     permForm.value.pos = true
     permForm.value.ordenes = true
-    permForm.value.ventas = true
     permForm.value.caja = true
     permForm.value.gastos = true
     permForm.value.productos = true
     permForm.value.mi_inventario = true
-    permForm.value.solicitar_inventario = true
+
     permForm.value.reportes = true
   } else if (newRole === 'vendedor') {
     permForm.value.pos = true
     permForm.value.ordenes = true
-    permForm.value.ventas = true
     permForm.value.caja = true
     permForm.value.gastos = true
     permForm.value.mi_inventario = true
-    permForm.value.solicitar_inventario = true
+    permForm.value.qrs = true
+
     permForm.value.reportes = true
   } else if (newRole === 'despachador') {
     permForm.value.productos = true
@@ -320,6 +334,22 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     permForm.value.almacen = true
     permForm.value.proveedores = true
     permForm.value.mi_inventario = true
+  } else if (newRole === 'lab_admin') {
+    permForm.value.productos = true
+    permForm.value.compras = true
+    permForm.value.proveedores = true
+    permForm.value.categorias = true
+    permForm.value.almacen = true
+    permForm.value.mi_inventario = true
+    permForm.value.proveedores_lab = true
+    permForm.value.materiales = true
+    permForm.value.insumos_lab = true
+    permForm.value.inventario_mp = true
+    permForm.value.entradas = true
+    permForm.value.recetas = true
+    permForm.value.produccion = true
+    permForm.value.calidad = true
+    permForm.value.inventario_final = true
   } else if (newRole.startsWith('lab_')) {
     permForm.value.almacen = true
     permForm.value.mi_inventario = true
@@ -454,7 +484,7 @@ async function handleSaveAdmin() {
 }
 
 async function handleDelete(admin: any) {
-  if (!confirm(`¿Eliminar al administrador ${decode(admin.name_admin)}?`)) return
+  if (!await confirmAction('Eliminar administrador', `¿Eliminar al administrador ${decode(admin.name_admin)}?`)) return
   try {
     const res = await api.rest<any>('/api/admins', {
       method: 'DELETE',
@@ -529,7 +559,7 @@ onMounted(async () => {
 
       <UCard>
         <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Superadmins / Admins</p>
-        <h2 class="text-2xl font-black text-slate-800 dark:text-white mt-1">
+        <h2 class="text-2xl font-black text-slate-800 mt-1">
           {{ (roleStats['superadmin'] || 0) + (roleStats['admin'] || 0) }}
         </h2>
         <p class="text-[10px] text-slate-400 mt-1">Personal de control central</p>
@@ -537,7 +567,7 @@ onMounted(async () => {
 
       <UCard>
         <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Operadores / Cajeros</p>
-        <h2 class="text-2xl font-black text-slate-800 dark:text-white mt-1">
+        <h2 class="text-2xl font-black text-slate-800 mt-1">
           {{ (roleStats['cajero'] || 0) + (roleStats['vendedor'] || 0) + (roleStats['lab_worker'] || 0) }}
         </h2>
         <p class="text-[10px] text-slate-400 mt-1">Personal operativo</p>
@@ -545,9 +575,9 @@ onMounted(async () => {
     </div>
 
     <!-- Table header controls -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
       <div>
-        <h1 class="text-base font-extrabold text-slate-800 dark:text-white">Gestión Avanzada de Administradores</h1>
+        <h1 class="text-base font-extrabold text-slate-800">Gestión Avanzada de Administradores</h1>
         <p class="text-[11px] text-slate-400 mt-0.5">Control de cuentas de acceso, roles y asignación de permisos interactivos.</p>
       </div>
 
@@ -565,7 +595,7 @@ onMounted(async () => {
     </div>
 
     <!-- Main Admins Table -->
-    <div class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
       <div v-if="loading" class="flex justify-center py-12">
         <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-indigo-500" />
       </div>
@@ -575,7 +605,7 @@ onMounted(async () => {
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-sm">
           <thead>
-            <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 text-xs font-bold uppercase">
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase">
               <th class="px-4 py-3">Administrador</th>
               <th class="px-4 py-3">Contacto (Email)</th>
               <th class="px-4 py-3">Rol del Sistema</th>
@@ -584,8 +614,8 @@ onMounted(async () => {
               <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-            <tr v-for="a in paginatedAdmins" :key="a.id_admin" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <tbody class="divide-y divide-slate-100 text-slate-700">
+            <tr v-for="a in paginatedAdmins" :key="a.id_admin" class="hover:bg-slate-50/50 transition-colors">
               <td class="px-4 py-3 flex items-center gap-3">
                 <UAvatar
                   :src="a.img_admin ? decode(a.img_admin) : ''"
@@ -594,12 +624,12 @@ onMounted(async () => {
                   class="border shadow-xs shrink-0"
                 />
                 <div class="min-w-0">
-                  <p class="font-bold text-slate-950 dark:text-white text-sm">{{ decode(a.name_admin) }} {{ decode(a.surname_admin) }}</p>
+                  <p class="font-bold text-slate-950 text-sm">{{ decode(a.name_admin) }} {{ decode(a.surname_admin) }}</p>
                   <p class="text-xs text-slate-400 font-mono">ID: {{ a.id_admin }}</p>
                 </div>
               </td>
               <td class="px-4 py-3">
-                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ decode(a.email_admin) }}</p>
+                <p class="text-sm font-medium text-slate-700">{{ decode(a.email_admin) }}</p>
               </td>
               <td class="px-4 py-3">
                 <UBadge
@@ -612,7 +642,7 @@ onMounted(async () => {
                 </UBadge>
               </td>
               <td class="px-4 py-3">
-                <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">{{ getOfficeName(a.id_office_admin) }}</span>
+                <span class="text-sm font-semibold text-slate-500">{{ getOfficeName(a.id_office_admin) }}</span>
               </td>
               <td class="px-4 py-3">
                 <!-- Custom Tailwind switch for table status -->
@@ -620,22 +650,23 @@ onMounted(async () => {
                   type="button"
                   @click="toggleStatus(a)"
                   :class="[
-                    a.status_admin == 1 ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-800',
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
-                  ]"
+ a.status_admin == 1 ? 'bg-emerald-500' : 'bg-slate-300',
+ 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
+ ]"
                 >
                   <span
                     :class="[
-                      a.status_admin == 1 ? 'translate-x-5' : 'translate-x-0',
-                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
-                    ]"
+ a.status_admin == 1 ? 'translate-x-5' : 'translate-x-0',
+ 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+ ]"
                   />
                 </button>
               </td>
               <td class="px-4 py-3 text-right">
                 <div class="flex items-center justify-end gap-1.5">
-                  <UButtonGroup size="xs">
+                  <div class="flex items-center gap-1">
                     <UButton
+                      size="xs"
                       icon="i-lucide-key-round"
                       color="neutral"
                       variant="soft"
@@ -643,6 +674,7 @@ onMounted(async () => {
                       @click="openResetPassword(a)"
                     />
                     <UButton
+                      size="xs"
                       icon="i-lucide-edit"
                       color="neutral"
                       variant="ghost"
@@ -650,19 +682,20 @@ onMounted(async () => {
                       @click="openEdit(a)"
                     />
                     <UButton
+                      size="xs"
                       icon="i-lucide-trash"
                       color="error"
                       variant="ghost"
                       title="Eliminar"
                       @click="handleDelete(a)"
                     />
-                  </UButtonGroup>
+                  </div>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
-        <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+        <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
           <p class="text-sm text-slate-500">
             {{ filteredAdmins.length }} administrador(es) — página {{ page }} de {{ totalPages }}
           </p>
@@ -686,127 +719,158 @@ onMounted(async () => {
             <UInput v-model="formModel.surname_admin" placeholder="Ej. Pérez" class="w-full text-sm" />
           </UFormField>
           <UFormField label="Correo Electrónico *">
-            <UInput v-model="formModel.email_admin" type="email" placeholder="Ej. juan@unitech.com" class="w-full text-sm" />
+            <UInput v-model="formModel.email_admin" type="email" placeholder="Ej. juan@jebolivia.com" class="w-full text-sm" />
           </UFormField>
           <UFormField :label="selectedAdmin ? 'Contraseña (Dejar en blanco para mantener)' : 'Contraseña *'">
             <UInput v-model="formModel.password_admin" type="password" placeholder="••••••••" class="w-full text-sm" />
           </UFormField>
           <UFormField label="Rol del Sistema">
-            <select v-model="formModel.rol_admin" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+            <select v-model="formModel.rol_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="superadmin">Super Administrador</option>
               <option value="admin">Administrador</option>
               <option value="cajero">Cajero / Caja</option>
               <option value="vendedor">Vendedor / Ventas</option>
               <option value="despachador">Despachador</option>
+              <option value="despachador_laboratorio">Despachador Laboratorio</option>
               <option value="lab_admin">Admin Laboratorio</option>
               <option value="lab_worker">Operador Laboratorio</option>
               <option value="lab_calidad">Control Calidad</option>
             </select>
           </UFormField>
-          <UFormField v-if="formModel.rol_admin !== 'despachador'" label="Sucursal Asignada">
-            <select v-model="formModel.id_office_admin" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+          <UFormField v-if="formModel.rol_admin !== 'despachador' && formModel.rol_admin !== 'despachador_laboratorio'" label="Sucursal Asignada">
+            <select v-model="formModel.id_office_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="">Todas (Super)</option>
-              <option v-for="o in offices" :key="o.id_office" :value="String(o.id_office)">
+              <option v-for="o in sucursalOptions" :key="o.id_office" :value="String(o.id_office)">
                 {{ decodeURIComponent(o.title_office || '').replace(/\+/g, ' ') }}
               </option>
             </select>
           </UFormField>
-          <UFormField v-if="formModel.rol_admin === 'despachador'" label="Almacén Asignado">
-            <select v-model="formModel.id_warehouse_admin" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+          <UFormField v-if="['despachador', 'despachador_laboratorio', 'vendedor'].includes(formModel.rol_admin)" label="Almacén Asignado">
+            <select v-model="formModel.id_warehouse_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="">Ninguno</option>
               <option v-for="w in warehouses" :key="w.id_warehouse" :value="String(w.id_warehouse)">
                 {{ decodeURIComponent(w.title_warehouse || '').replace(/\+/g, ' ') }}
               </option>
             </select>
           </UFormField>
-          
-          <div class="grid grid-cols-2 gap-3" v-if="['cajero', 'vendedor'].includes(formModel.rol_admin)">
+
+          <UFormField v-if="formModel.rol_admin === 'vendedor'" label="% de Comisión">
+            <UInput v-model.number="formModel.pct_commission_admin" type="number" min="0" max="100" step="0.1" placeholder="0" class="w-full text-sm" />
+          </UFormField>
+
+          <div class="grid grid-cols-2 gap-3" v-if="formModel.rol_admin === 'cajero'">
             <UFormField label="Inventario Asignado">
-              <select v-model="formModel.id_inventory_admin" class="block w-full text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+              <select v-model="formModel.id_inventory_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
                 <option value="">Ninguno</option>
-                <option v-for="o in offices" :key="o.id_office" :value="String(o.id_office)">
+                <option v-for="o in sucursalOptions" :key="o.id_office" :value="String(o.id_office)">
                   {{ decodeURIComponent(o.title_office || '').replace(/\+/g, ' ') }}
                 </option>
               </select>
             </UFormField>
-            
+
             <UFormField label="% de Comisión">
               <UInput v-model.number="formModel.pct_commission_admin" type="number" min="0" max="100" step="0.1" placeholder="0" class="w-full text-sm" />
             </UFormField>
           </div>
 
-          <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+          <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
             <span class="text-sm font-bold text-slate-500 uppercase">Estado Cuenta</span>
             <button
               type="button"
               @click="formModel.status_admin = !formModel.status_admin"
               :class="[
-                formModel.status_admin ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-800',
-                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
-              ]"
+ formModel.status_admin ? 'bg-emerald-500' : 'bg-slate-300',
+ 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
+ ]"
             >
               <span
                 :class="[
-                  formModel.status_admin ? 'translate-x-5' : 'translate-x-0',
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
-                ]"
+ formModel.status_admin ? 'translate-x-5' : 'translate-x-0',
+ 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+ ]"
               />
             </button>
           </div>
 
           <!-- INTEGRATED PERMISSIONS MATRIX -->
-          <div class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-4 space-y-3">
-            <div class="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+          <div class="border-t border-slate-200 pt-4 mt-4 space-y-3">
+            <div class="flex items-center gap-1.5 text-indigo-600">
               <UIcon name="i-lucide-shield-check" class="w-4.5 h-4.5" />
               <h3 class="text-sm font-black uppercase tracking-wider">Asignación Directa de Permisos</h3>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Selecciona los módulos o pantallas que esta cuenta tendrá permitido visualizar e interactuar.</p>
+            <p class="text-xs text-slate-500">Selecciona los módulos o pantallas que esta cuenta tendrá permitido visualizar e interactuar.</p>
             
             <div class="grid grid-cols-1 gap-4 max-h-80 overflow-y-auto pr-1">
               <!-- POS Section -->
-              <div class="border border-slate-100 dark:border-slate-800/60 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/40">
-                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">Módulos POS</h4>
+              <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos POS</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'solicitar_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
-                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300 capitalize">{{ key.replace(/_/g, ' ') }}</span>
+                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                    <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"
                       @click="permForm[key] = !permForm[key]"
                       :class="[
-                        permForm[key] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-800',
-                        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
-                      ]"
+ permForm[key] ? 'bg-emerald-500' : 'bg-slate-300',
+ 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
+ ]"
                     >
                       <span
                         :class="[
-                          permForm[key] ? 'translate-x-5' : 'translate-x-0',
-                          'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
-                        ]"
+ permForm[key] ? 'translate-x-5' : 'translate-x-0',
+ 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+ ]"
                       />
                     </button>
                   </div>
                 </div>
               </div>
 
+              <!-- Vendor extras (vendedor only) -->
+              <div v-if="formModel.rol_admin === 'vendedor'" class="border border-blue-100 rounded-lg p-3 bg-blue-50/40">
+                <h4 class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-2 border-b border-blue-100 pb-1">Permisos de Vendedor</h4>
+                <div class="flex items-center justify-between py-1.5">
+                  <div>
+                    <span class="text-sm font-semibold text-slate-700">Gestionar cartera de clientes</span>
+                    <p class="text-xs text-slate-400 mt-0.5">Puede crear clientes y asignarlos a vendedores</p>
+                  </div>
+                  <button
+                    type="button"
+                    @click="permForm.gestionar_clientes = !permForm.gestionar_clientes"
+                    :class="[
+ permForm.gestionar_clientes ? 'bg-blue-500' : 'bg-slate-300',
+ 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
+ ]"
+                  >
+                    <span
+                      :class="[
+ permForm.gestionar_clientes ? 'translate-x-5' : 'translate-x-0',
+ 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+ ]"
+                    />
+                  </button>
+                </div>
+              </div>
+
               <!-- Lab Section -->
-              <div class="border border-slate-100 dark:border-slate-800/60 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/40">
-                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">Módulos Laboratorio</h4>
+              <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos Laboratorio</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'inventario_mp', 'entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800/40 last:border-0">
-                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300 capitalize">{{ key.replace(/_/g, ' ') }}</span>
+                  <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'proveedores_lab', 'inventario_mp', 'entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                    <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"
                       @click="permForm[key] = !permForm[key]"
                       :class="[
-                        permForm[key] ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-800',
-                        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
-                      ]"
+ permForm[key] ? 'bg-emerald-500' : 'bg-slate-300',
+ 'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none'
+ ]"
                     >
                       <span
                         :class="[
-                          permForm[key] ? 'translate-x-5' : 'translate-x-0',
-                          'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
-                        ]"
+ permForm[key] ? 'translate-x-5' : 'translate-x-0',
+ 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out'
+ ]"
                       />
                     </button>
                   </div>
@@ -817,7 +881,7 @@ onMounted(async () => {
         </div>
       </template>
       <template #footer>
-        <div class="flex justify-end gap-2 p-4 border-t w-full bg-slate-50 dark:bg-slate-900">
+        <div class="flex justify-end gap-2 p-4 border-t w-full bg-slate-50">
           <UButton color="neutral" variant="ghost" size="sm" @click="isSlideoverOpen = false">Cancelar</UButton>
           <UButton color="primary" size="sm" :loading="savingAdmin" @click="handleSaveAdmin">Guardar Administrador</UButton>
         </div>
@@ -839,6 +903,19 @@ onMounted(async () => {
         <div class="flex justify-end gap-2">
           <UButton color="neutral" variant="ghost" size="sm" @click="isResetPasswordOpen = false">Cancelar</UButton>
           <UButton color="primary" size="sm" :loading="resettingPassword" @click="handleResetPassword">Confirmar Clave</UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="confirmDialog.open" :ui="{ content: 'max-w-sm' }">
+      <template #content>
+        <div class="p-6 space-y-4">
+          <h3 class="text-base font-semibold text-slate-800">{{ confirmDialog.title }}</h3>
+          <p class="text-sm text-slate-600">{{ confirmDialog.message }}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="onConfirmCancel" />
+            <UButton label="Confirmar" color="error" @click="onConfirmOk" />
+          </div>
         </div>
       </template>
     </UModal>

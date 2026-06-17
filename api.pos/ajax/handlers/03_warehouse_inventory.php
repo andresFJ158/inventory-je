@@ -5,53 +5,50 @@ if (isset($_POST["getSubWarehouseStock"])) {
 	$role = $_POST["role"];
 	$db = LocalConnection::connect();
 
-	if ($role == 'despachador' || $role == 'admin' || $role == 'superadmin') {
-		// Despachador/admin: muestra inventario disponible del almac�n
-		$stmt = $db->prepare("
-			SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
-				   pi.stock_inventory as stock
-			FROM products p
-			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
-			WHERE p.status_product = 1
-		");
-		$stmt->execute([':office' => $id_office]);
-		$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-	} else {
-		// Para cajero, vendedor u otro rol: verificar si tiene sub-almac�n (por oficina)
-		$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
-		$stmtHasSub->execute([':office' => $id_office]);
-		$subRow = $stmtHasSub->fetch(PDO::FETCH_ASSOC);
-
-		if ($subRow) {
-			// Tiene sub-almac�n � mostrar stock de la sucursal (suma de todos los sub-almacenes de esa sucursal)
-			$stmt = $db->prepare("
-				SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
-				       (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
-				        COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
-				FROM warehouse_assignments wa
-				JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-				JOIN products p ON wa.id_product_assignment = p.id_product
-				WHERE sw.id_office_sub_warehouse = :office
-				GROUP BY wa.id_product_assignment
-				HAVING stock > 0
-			");
-			$stmt->execute([':office' => $id_office]);
-			$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-		} else {
-			// Sin sub-almac�n: mostrar inventario principal de la sucursal
-			$stmt = $db->prepare("
-				SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
-				       pi.stock_inventory as stock
-				FROM products p
-				INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
-				WHERE p.status_product = 1
-			");
-			$stmt->execute([':office' => $id_office]);
-			$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-		}
-	}
+	// product_inventory es la fuente única de stock vendible confirmado.
+	$stmt = $db->prepare("
+		SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
+			   COALESCE(pi.stock_inventory, 0) as stock
+		FROM products p
+		INNER JOIN product_inventory pi
+			ON pi.id_product_inventory = p.id_product
+			AND pi.id_office_inventory = :office
+			AND pi.status_inventory = 1
+		WHERE p.status_product = 1
+		  AND COALESCE(pi.stock_inventory, 0) > 0
+		ORDER BY p.title_product ASC
+	");
+	$stmt->execute([':office' => $id_office]);
+	$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 	echo json_encode($results);
 	exit;
+}
+
+//=====================================
+// GET PURCHASABLE PRODUCTS
+// Productos externos: sin receta, sin producción y sin combo.
+//=====================================
+if (isset($_POST["getPurchasableProducts"])) {
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT p.id_product,
+		       CONCAT(
+		       	COALESCE(NULLIF(p.title_product, ''), CONCAT('Producto #', p.id_product)),
+		       	CASE WHEN COALESCE(p.sku_product, '') <> '' THEN CONCAT(' · ', p.sku_product) ELSE '' END
+		       ) AS title_product,
+		       p.sku_product,
+		       p.unit_product
+		FROM products p
+		WHERE p.status_product = 1
+		  AND COALESCE(p.is_manufactured_product, 0) = 0
+		  AND COALESCE(p.is_combo_product, 0) = 0
+		  AND COALESCE(NULLIF(p.source_type_product, ''), 'externo') <> 'laboratorio'
+		  AND NOT EXISTS (SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product)
+		  AND NOT EXISTS (SELECT 1 FROM productions pr WHERE pr.id_packaged_product = p.id_product)
+		ORDER BY p.title_product ASC
+	");
+	$stmt->execute();
+	pos_ok(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
 //=====================================
@@ -75,6 +72,160 @@ if (isset($_POST["getMyWarehouseMovements"])) {
 }
 
 //=====================================
+// GET PENDING INBOUND TRANSFERS
+//=====================================
+if (isset($_POST["getPendingInboundTransfers"])) {
+	$id_office = intval($_POST["id_office"]);
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT st.id_transfer, st.id_origin_office, st.id_dest_office, st.id_product_transfer,
+			   st.qty_transfer, st.notes_transfer, st.status_transfer,
+			   st.date_created_transfer, p.title_product, p.sku_product, p.unit_product,
+			   o.title_office AS origin_office_name, a.name_admin AS dispatched_by
+		FROM stock_transfers st
+		JOIN products p ON st.id_product_transfer = p.id_product
+		LEFT JOIN offices o ON st.id_origin_office = o.id_office
+		LEFT JOIN admins a ON st.id_admin_transfer = a.id_admin
+		WHERE st.id_dest_office = :office
+		  AND st.status_transfer = 'en_transito'
+		ORDER BY st.id_transfer DESC
+	");
+	$stmt->execute([':office' => $id_office]);
+	pos_ok(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
+//=====================================
+// GET INBOUND TRANSFER HISTORY
+//=====================================
+if (isset($_POST["getInboundTransferHistory"])) {
+	$id_office = intval($_POST["id_office"]);
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT st.id_transfer, st.qty_transfer, st.notes_transfer, st.status_transfer,
+			   st.date_created_transfer, p.title_product, p.sku_product, p.unit_product,
+			   o.title_office AS origin_office_name, a.name_admin AS dispatched_by
+		FROM stock_transfers st
+		JOIN products p ON st.id_product_transfer = p.id_product
+		LEFT JOIN offices o ON st.id_origin_office = o.id_office
+		LEFT JOIN admins a ON st.id_admin_transfer = a.id_admin
+		WHERE st.id_dest_office = :office
+		  AND st.status_transfer IN ('recibido', 'rechazado')
+		ORDER BY st.id_transfer DESC
+		LIMIT 100
+	");
+	$stmt->execute([':office' => $id_office]);
+	pos_ok(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
+//=====================================
+// CONFIRM / REJECT INBOUND TRANSFER
+//=====================================
+if (isset($_POST["confirmInboundTransfer"])) {
+	$db = LocalConnection::connect();
+	try {
+		$db->beginTransaction();
+		pos_confirm_stock_transfer(
+			$db,
+			intval($_POST['id_transfer']),
+			intval($_POST['id_office']),
+			intval($_POST['id_admin'])
+		);
+		$db->commit();
+		pos_ok([], 'Transferencia recibida.');
+	} catch (Exception $e) {
+		if ($db->inTransaction()) $db->rollBack();
+		error_log("warehouse receive error: " . $e->getMessage());
+		pos_fail(400, $e->getMessage());
+	}
+}
+
+if (isset($_POST["rejectInboundTransfer"])) {
+	$db = LocalConnection::connect();
+	try {
+		$db->beginTransaction();
+		pos_reject_stock_transfer(
+			$db,
+			intval($_POST['id_transfer']),
+			intval($_POST['id_office']),
+			intval($_POST['id_admin']),
+			trim($_POST['reason'] ?? 'Rechazado por sucursal')
+		);
+		$db->commit();
+		pos_ok([], 'Transferencia rechazada.');
+	} catch (Exception $e) {
+		if ($db->inTransaction()) $db->rollBack();
+		error_log("warehouse reject error: " . $e->getMessage());
+		pos_fail(400, $e->getMessage());
+	}
+}
+
+//=====================================
+// GET PRODUCT PRICES FOR POS
+//=====================================
+if (isset($_POST["getProductPricesForOffice"])) {
+	$db = LocalConnection::connect();
+	$id_office = intval($_POST["id_office"]);
+	$prices = [];
+
+	try {
+		$stmt = $db->prepare("
+			SELECT pp.id_product_price, pp.price_sale, pp.price_wholesale, pp.wholesale_qty, pp.cost_reference, pp.source_price
+			FROM product_prices pp
+			INNER JOIN (
+				SELECT id_product_price,
+					   COALESCE(
+					   	MAX(CASE WHEN id_office_price = :office_pick THEN id_price END),
+					   	MAX(CASE WHEN id_office_price = 0 OR id_office_price IS NULL THEN id_price END)
+					   ) AS selected_price_id
+				FROM product_prices
+				WHERE status_price = 1
+				  AND (id_office_price = :office_filter OR id_office_price = 0 OR id_office_price IS NULL)
+				GROUP BY id_product_price
+			) pick ON pick.selected_price_id = pp.id_price
+		");
+		$stmt->execute([
+			':office_pick' => $id_office,
+			':office_filter' => $id_office
+		]);
+		foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+			$prices[$row['id_product_price']] = [
+				'price' => (float)$row['price_sale'],
+				'wholesalePrice' => (float)$row['price_wholesale'],
+				'wholesaleQty' => (int)$row['wholesale_qty'],
+				'costReference' => (float)$row['cost_reference'],
+				'source' => $row['source_price'] ?: 'product_prices'
+			];
+		}
+	} catch (Throwable $e) {
+		error_log("[PRODUCT_PRICES] ".$e->getMessage());
+	}
+
+	$stmtLegacy = $db->prepare("
+		SELECT p.id_product_purchase, p.cost_purchase, p.price_purchase, p.may_product, p.wholesale_quantity
+		FROM purchases p
+		INNER JOIN (
+			SELECT id_product_purchase, MAX(id_purchase) AS max_purchase
+			FROM purchases
+			WHERE COALESCE(price_purchase, 0) > 0 OR COALESCE(cost_purchase, 0) > 0
+			GROUP BY id_product_purchase
+		) latest ON latest.max_purchase = p.id_purchase
+	");
+	$stmtLegacy->execute();
+	foreach ($stmtLegacy->fetchAll(PDO::FETCH_ASSOC) as $row) {
+		if (!isset($prices[$row['id_product_purchase']])) {
+			$prices[$row['id_product_purchase']] = [
+				'price' => (float)($row['price_purchase'] ?: $row['cost_purchase']),
+				'wholesalePrice' => (float)$row['may_product'],
+				'wholesaleQty' => (int)$row['wholesale_quantity'],
+				'costReference' => (float)$row['cost_purchase'],
+				'source' => 'purchases_legacy'
+			];
+		}
+	}
+	pos_ok(['results' => $prices]);
+}
+
+//=====================================
 // GET ASSIGNED BY OFFICE
 //=====================================
 if (isset($_POST["getAssignedByOffice"])) {
@@ -82,7 +233,7 @@ if (isset($_POST["getAssignedByOffice"])) {
 	$id_disp = isset($_POST["id_dispatcher"]) ? (int)$_POST["id_dispatcher"] : 0;
 	$db = LocalConnection::connect();
 
-	// Resolver la sucursal real del almac�n (Didier tiene id_office=0 pero id_warehouse_admin=1 -> sucursal 8)
+	// Resolver la sucursal real del almacen del despachador.
 	$officeFilter = $id_office;
 	if ($id_disp > 0) {
 		$stmtDisp = $db->prepare("SELECT id_office_admin, id_warehouse_admin FROM admins WHERE id_admin = :id LIMIT 1");
@@ -101,7 +252,8 @@ if (isset($_POST["getAssignedByOffice"])) {
 		SELECT wa.id_product_assignment as id_product,
 			   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment
 						WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment
-						ELSE 0 END) as total_assigned
+						ELSE 0 END) as total_assigned,
+			   SUM(CASE WHEN wa.type_assignment = 'despacho_pendiente' THEN wa.qty_assignment ELSE 0 END) as total_pending
 		FROM warehouse_assignments wa
 		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
 		WHERE sw.id_office_sub_warehouse = :office
@@ -232,40 +384,11 @@ if (isset($_POST["assignToSubWarehouse"])) {
 	try {
 		$db->beginTransaction();
 		
-		// Find destination admin's real office ID
 		$stmtAdmin = $db->prepare("SELECT id_office_admin, name_admin FROM admins WHERE id_admin = :admin LIMIT 1");
 		$stmtAdmin->execute([':admin' => $id_admin_dest]);
 		$adminRow = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
 		$dest_office_id = $adminRow ? (int)$adminRow['id_office_admin'] : $id_office;
-		
-		// Find or create sub-warehouse for dest admin using destination office ID (compartido por oficina)
-		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
-		$stmtCheck->execute([':office' => $dest_office_id]);
-		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-		
-		if (!$sub) {
-			$subName = "Sub-Almac�n de la Sucursal";
-			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (0, :office, :name, 1, CURDATE())");
-			$stmtIns->execute([':office' => $dest_office_id, ':name' => $subName]);
-			$id_sub = $db->lastInsertId();
-		} else {
-			$id_sub = $sub['id_sub_warehouse'];
-		}
-		
-		// Insert warehouse_assignment record
-		$stmtAssign = $db->prepare("
-			INSERT INTO warehouse_assignments (id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, type_assignment, notes_assignment, date_created_assignment)
-			VALUES (:id_sub, :id_prod, :qty, :disp, 'despacho', :notes, NOW())
-		");
-		$stmtAssign->execute([
-			':id_sub' => $id_sub,
-			':id_prod' => $id_product,
-			':qty' => $qty,
-			':disp' => $id_dispatched_by,
-			':notes' => $notes
-		]);
 
-		// Descontar del inventario principal de la sucursal del despachador
 		$stmtDispOffice = $db->prepare("SELECT id_office_admin, id_warehouse_admin FROM admins WHERE id_admin = :disp LIMIT 1");
 		$stmtDispOffice->execute([':disp' => $id_dispatched_by]);
 		$dispRow = $stmtDispOffice->fetch(PDO::FETCH_ASSOC);
@@ -276,45 +399,13 @@ if (isset($_POST["assignToSubWarehouse"])) {
 			$stmtWHOff->execute([':wh' => $dispRow['id_warehouse_admin']]);
 			$dispOffice = (int)$stmtWHOff->fetchColumn();
 		}
-		if ($dispOffice > 0) {
-			$stmtAvail = $db->prepare("SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = :prod AND id_office_inventory = :office AND status_inventory = 1 LIMIT 1");
-			$stmtAvail->execute([':prod' => $id_product, ':office' => $dispOffice]);
-			$avail = (double)$stmtAvail->fetchColumn();
-			if ($avail < (double)$qty) {
-				throw new Exception('Stock insuficiente en el almac�n de origen.');
-			}
-			$stmtDecrease = $db->prepare("
-				UPDATE product_inventory
-				SET stock_inventory = stock_inventory - :qty
-				WHERE id_product_inventory = :prod AND id_office_inventory = :office AND status_inventory = 1
-			");
-			$stmtDecrease->execute([':qty' => $qty, ':prod' => $id_product, ':office' => $dispOffice]);
-		}
-
-		// Incrementar en el inventario principal de la sucursal de destino
-		if ($dest_office_id > 0) {
-			$stmtIncrease = $db->prepare("
-				INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
-				VALUES (:prod, :office, :qty, 1, CURDATE())
-				ON DUPLICATE KEY UPDATE
-					stock_inventory = stock_inventory + :qty
-			");
-			$stmtIncrease->execute([':qty' => $qty, ':prod' => $id_product, ':office' => $dest_office_id]);
-		}
-
-		// Update products.stock_product
-		$stmtUpdProd = $db->prepare("
-			UPDATE products SET stock_product = (
-				SELECT COALESCE(SUM(stock_inventory), 0) FROM product_inventory WHERE id_product_inventory = :prod
-			) WHERE id_product = :prod
-		");
-		$stmtUpdProd->execute([':prod' => $id_product]);
+		pos_create_stock_transfer($db, (int)$id_product, (int)$dispOffice, (int)$dest_office_id, (float)$qty, (int)$id_dispatched_by, $notes);
 
 		$db->commit();
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error: " . $e->getMessage();
+		error_log("warehouse error: " . $e->getMessage()); echo "error: Error al procesar la operación.";
 	}
 	exit;
 }
@@ -334,73 +425,78 @@ if (isset($_POST["transferStockBetweenOffices"])) {
 	try {
 		$db->beginTransaction();
 
-		// Validate availability in source office
-		$stmtAvail = $db->prepare("SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = :prod AND id_office_inventory = :office AND status_inventory = 1 LIMIT 1");
-		$stmtAvail->execute([':prod' => $id_product, ':office' => $id_office_source]);
-		$avail = (double)$stmtAvail->fetchColumn();
-		if ($avail < (double)$qty) {
-			echo "error: Stock insuficiente en el almac�n de origen.";
-			$db->rollBack();
-			exit;
-		}
-
-		// Find or create sub-warehouse for destination office (compartido por oficina)
-		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
-		$stmtCheck->execute([':office' => $id_office_dest]);
-		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-
-		if (!$sub) {
-			$subName = "Sub-Almac�n de la Sucursal";
-			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (0, :office, :name, 1, CURDATE())");
-			$stmtIns->execute([':office' => $id_office_dest, ':name' => $subName]);
-			$id_sub = $db->lastInsertId();
-		} else {
-			$id_sub = $sub['id_sub_warehouse'];
-		}
-
-		// Insert warehouse_assignment record with type 'despacho'
-		$stmtAssign = $db->prepare("
-			INSERT INTO warehouse_assignments (id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, type_assignment, notes_assignment, date_created_assignment)
-			VALUES (:id_sub, :id_prod, :qty, :disp, 'despacho', :notes, NOW())
-		");
-		$stmtAssign->execute([
-			':id_sub' => $id_sub,
-			':id_prod' => $id_product,
-			':qty' => $qty,
-			':disp' => $id_dispatched_by,
-			':notes' => $notes
-		]);
-
-		// Subtract from source office stock (ya validado arriba)
-		$stmtDecrease = $db->prepare("
-			UPDATE product_inventory
-			SET stock_inventory = stock_inventory - :qty
-			WHERE id_product_inventory = :prod AND id_office_inventory = :office AND status_inventory = 1
-		");
-		$stmtDecrease->execute([':qty' => $qty, ':prod' => $id_product, ':office' => $id_office_source]);
-
-		// Add to destination office stock
-		$stmtIncrease = $db->prepare("
-			INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
-			VALUES (:prod, :office, :qty, 1, CURDATE())
-			ON DUPLICATE KEY UPDATE
-				stock_inventory = stock_inventory + :qty
-		");
-		$stmtIncrease->execute([':qty' => $qty, ':prod' => $id_product, ':office' => $id_office_dest]);
-
-		// Update products.stock_product
-		$stmtUpdProd = $db->prepare("
-			UPDATE products SET stock_product = (
-				SELECT COALESCE(SUM(stock_inventory), 0) FROM product_inventory WHERE id_product_inventory = :prod
-			) WHERE id_product = :prod
-		");
-		$stmtUpdProd->execute([':prod' => $id_product]);
+		pos_create_stock_transfer($db, (int)$id_product, (int)$id_office_source, (int)$id_office_dest, (float)$qty, (int)$id_dispatched_by, $notes);
 
 		$db->commit();
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error: " . $e->getMessage();
+		error_log("warehouse error: " . $e->getMessage()); echo "error: Error al procesar la operación.";
+	}
+	exit;
+}
+
+//=====================================
+// DISPATCH DIRECT TO WAREHOUSE (AS PURCHASE)
+//=====================================
+if (isset($_POST["dispatchDirectToWarehouse"])) {
+	$id_product = $_POST["id_product"];
+	$id_office_source = $_POST["id_office_source"];
+	$id_warehouse_dest = (int)$_POST["id_warehouse_dest"];
+	$qty = $_POST["qty"];
+	$notes = $_POST["notes"];
+	$id_dispatched_by = $_POST["id_dispatched_by"];
+	$db = LocalConnection::connect();
+
+	try {
+		$db->beginTransaction();
+
+		// Find the true office associated with the destination warehouse
+		$stmtWh = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh LIMIT 1");
+		$stmtWh->execute([':wh' => $id_warehouse_dest]);
+		$id_office_dest = (int)$stmtWh->fetchColumn();
+
+		if ($id_office_dest <= 0) {
+			echo "error: El almacén de destino seleccionado no está configurado correctamente.";
+			$db->rollBack();
+			exit;
+		}
+
+		$unit_price = floatval($_POST['unit_price'] ?? 0);
+		$wholesale_price = floatval($_POST['wholesale_price'] ?? 0);
+		$wholesale_qty = floatval($_POST['wholesale_qty'] ?? 0);
+		if ($unit_price <= 0) {
+			echo "error: Debe registrar un precio POS mayor a cero para el destino.";
+			$db->rollBack();
+			exit;
+		}
+
+		$stmtCost = $db->prepare("SELECT COALESCE(rte_product, 0) FROM products WHERE id_product = :prod LIMIT 1");
+		$stmtCost->execute([':prod' => $id_product]);
+		$unit_cost = (float)($stmtCost->fetchColumn() ?: 0);
+		$stmtPrice = $db->prepare("
+			INSERT INTO product_prices
+				(id_product_price, id_office_price, price_sale, price_wholesale, wholesale_qty, cost_reference, source_price, status_price, id_admin_price, date_created_price)
+			VALUES
+				(:prod, :office, :price, :wholesale_price, :wholesale_qty, :cost, 'despacho_laboratorio', 1, :admin, NOW())
+		");
+		$stmtPrice->execute([
+			':prod' => $id_product,
+			':office' => $id_office_dest,
+			':price' => $unit_price,
+			':wholesale_price' => $wholesale_price,
+			':wholesale_qty' => $wholesale_qty,
+			':cost' => $unit_cost,
+			':admin' => $id_dispatched_by
+		]);
+
+		pos_create_stock_transfer($db, (int)$id_product, (int)$id_office_source, (int)$id_office_dest, (float)$qty, (int)$id_dispatched_by, $notes);
+
+		$db->commit();
+		echo "ok";
+	} catch (Exception $e) {
+		$db->rollBack();
+		error_log("warehouse error: " . $e->getMessage()); echo "error: Error al procesar la operación.";
 	}
 	exit;
 }
@@ -431,13 +527,13 @@ if(isset($_POST["submitQualityCheck"]) && $_POST["submitQualityCheck"] == "ok") 
 		$qty_rejected   = floatval($_POST['qty_rejected']);
 		$notes          = trim($_POST['notes_qc']);
 
-		// Validar que la producci�n existe y est� pendiente de QC
+		// Validar que la producción existe y está pendiente de QC
 		$stmtCheck = $db->prepare("SELECT id_production, id_packaged_product, status_production, real_unit_cost FROM productions WHERE id_production = :id AND id_office_production = :office");
 		$stmtCheck->execute([':id' => $id_production, ':office' => $id_office]);
 		$prod = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
 		if (!$prod || $prod['status_production'] !== 'pendiente_qc') {
-			echo 'error|La producci�n no est� en estado pendiente de QC.';
+			echo 'error|La producción no está en estado pendiente de QC.';
 			exit;
 		}
 
@@ -499,26 +595,33 @@ if(isset($_POST["submitQualityCheck"]) && $_POST["submitQualityCheck"] == "ok") 
             $new_stock = $old_stock + $qty_approved;
             $new_rte = (($old_stock * $old_rte) + ($qty_approved * $unit_cost)) / $new_stock;
 
-			$stmtStock = $db->prepare("UPDATE products SET stock_product = :stock, rte_product = :rte WHERE id_product = :id_product");
-			$stmtStock->execute([':stock' => $new_stock, ':rte' => $new_rte, ':id_product' => $prod['id_packaged_product']]);
-
-			$stmtInv = $db->prepare("
-				INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
-				VALUES (:prod, :office, :qty, 1, CURDATE())
-				ON DUPLICATE KEY UPDATE stock_inventory = stock_inventory + :qty
+			$stmtStock = $db->prepare("
+				UPDATE products
+				SET rte_product = :rte,
+					is_manufactured_product = 1,
+					source_type_product = 'laboratorio',
+					origin_office_product = CASE WHEN COALESCE(origin_office_product, 0) = 0 THEN :office ELSE origin_office_product END
+				WHERE id_product = :id_product
 			");
-			$stmtInv->execute([
-				':prod' => $prod['id_packaged_product'],
-				':office' => $id_office,
-				':qty' => $qty_approved
-			]);
+			$stmtStock->execute([':rte' => $new_rte, ':office' => $id_office, ':id_product' => $prod['id_packaged_product']]);
+
+			pos_adjust_product_inventory(
+				$db,
+				(int)$prod['id_packaged_product'],
+				(int)$id_office,
+				(float)$qty_approved,
+				'produccion_aprobada',
+				(int)$id_admin,
+				null,
+				'Ingreso por QC aprobado de producción #' . $id_production
+			);
 		}
 
 		$db->commit();
 		echo json_encode(['status' => 'ok', 'result' => $new_status]);
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo 'error|' . $e->getMessage();
+		error_log('warehouse error: ' . $e->getMessage()); echo 'error|Error al procesar la operación.';
 	}
 	exit;
 }
@@ -697,6 +800,7 @@ if (isset($_POST["getRequestHistory"])) {
 // REJECT REQUEST
 //=====================================
 if (isset($_POST["rejectRequest"])) {
+	pos_require_role(['despachador', 'despachador_laboratorio', 'admin', 'superadmin']);
 	$id_request = $_POST["id_request"];
 	$notes_dispatcher = $_POST["notes_dispatcher"];
 	$id_dispatched_by = $_POST["id_dispatched_by"];
@@ -725,6 +829,7 @@ if (isset($_POST["rejectRequest"])) {
 // DISPATCH REQUEST
 //=====================================
 if (isset($_POST["dispatchRequest"])) {
+	pos_require_role(['despachador', 'despachador_laboratorio', 'admin', 'superadmin']);
 	$id_request = $_POST["id_request"];
 	$qty_dispatch = $_POST["qty_dispatch"];
 	$notes_dispatcher = $_POST["notes_dispatcher"];
@@ -752,24 +857,10 @@ if (isset($_POST["dispatchRequest"])) {
 		$adminRow = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
 		$dest_office_id = $adminRow ? (int)$adminRow['id_office_admin'] : $id_office;
 		
-		// Find or create sub-warehouse for dest admin using destination office ID (compartido por oficina)
-		$stmtCheck = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
-		$stmtCheck->execute([':office' => $dest_office_id]);
-		$sub = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-		
-		if (!$sub) {
-			$subName = "Sub-Almac�n de la Sucursal";
-			$stmtIns = $db->prepare("INSERT INTO sub_warehouses (id_admin_sub_warehouse, id_office_sub_warehouse, name_sub_warehouse, status_sub_warehouse, date_created_sub_warehouse) VALUES (0, :office, :name, 1, CURDATE())");
-			$stmtIns->execute([':office' => $dest_office_id, ':name' => $subName]);
-			$id_sub = $db->lastInsertId();
-		} else {
-			$id_sub = $sub['id_sub_warehouse'];
-		}
-		
 		// Update request status
 		$stmtUpd = $db->prepare("
 			UPDATE inventory_requests
-			SET status_request = 'despachada',
+			SET status_request = 'en_transito',
 				qty_dispatched_request = :qty,
 				notes_dispatcher_request = :notes,
 				id_dispatched_by_request = :dispatcher
@@ -780,20 +871,6 @@ if (isset($_POST["dispatchRequest"])) {
 			':notes' => $notes_dispatcher,
 			':dispatcher' => $id_dispatched_by,
 			':id' => $id_request
-		]);
-		
-		// Insert assignment
-		$stmtAssign = $db->prepare("
-			INSERT INTO warehouse_assignments (id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, id_request_assignment, type_assignment, notes_assignment, date_created_assignment)
-			VALUES (:id_sub, :id_prod, :qty, :disp, :id_req, 'despacho', :notes, NOW())
-		");
-		$stmtAssign->execute([
-			':id_sub' => $id_sub,
-			':id_prod' => $id_product,
-			':qty' => $qty_dispatch,
-			':disp' => $id_dispatched_by,
-			':id_req' => $id_request,
-			':notes' => $notes_dispatcher
 		]);
 
 		// Descontar del inventario principal de la sucursal del despachador
@@ -807,45 +884,13 @@ if (isset($_POST["dispatchRequest"])) {
 			$stmtWHOff->execute([':wh' => $dispRow['id_warehouse_admin']]);
 			$dispOffice = (int)$stmtWHOff->fetchColumn();
 		}
-		if ($dispOffice > 0) {
-			$stmtAvail = $db->prepare("SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = :prod AND id_office_inventory = :office AND status_inventory = 1 LIMIT 1");
-			$stmtAvail->execute([':prod' => $id_product, ':office' => $dispOffice]);
-			$avail = (double)$stmtAvail->fetchColumn();
-			if ($avail < (double)$qty_dispatch) {
-				throw new Exception('Stock insuficiente en el almac�n de origen.');
-			}
-			$stmtDecrease = $db->prepare("
-				UPDATE product_inventory
-				SET stock_inventory = stock_inventory - :qty
-				WHERE id_product_inventory = :prod AND id_office_inventory = :office AND status_inventory = 1
-			");
-			$stmtDecrease->execute([':qty' => $qty_dispatch, ':prod' => $id_product, ':office' => $dispOffice]);
-		}
-
-		// Incrementar en el inventario principal de la sucursal de destino
-		if ($dest_office_id > 0) {
-			$stmtIncrease = $db->prepare("
-				INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
-				VALUES (:prod, :office, :qty, 1, CURDATE())
-				ON DUPLICATE KEY UPDATE
-					stock_inventory = stock_inventory + :qty
-			");
-			$stmtIncrease->execute([':qty' => $qty_dispatch, ':prod' => $id_product, ':office' => $dest_office_id]);
-		}
-
-		// Update products.stock_product
-		$stmtUpdProd = $db->prepare("
-			UPDATE products SET stock_product = (
-				SELECT COALESCE(SUM(stock_inventory), 0) FROM product_inventory WHERE id_product_inventory = :prod
-			) WHERE id_product = :prod
-		");
-		$stmtUpdProd->execute([':prod' => $id_product]);
+		pos_create_stock_transfer($db, (int)$id_product, (int)$dispOffice, (int)$dest_office_id, (float)$qty_dispatch, (int)$id_dispatched_by, $notes_dispatcher, (int)$id_request);
 		
 		$db->commit();
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error: " . $e->getMessage();
+		error_log("warehouse error: " . $e->getMessage()); echo "error: Error al procesar la operación.";
 	}
 	exit;
 }

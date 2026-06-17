@@ -1,5 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  app: {
+    head: {
+      title: 'J.E Bolivia ERP',
+      link: [{ rel: 'icon', type: 'image/png', href: '/favicon.png' }]
+    }
+  },
+
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
@@ -19,8 +26,8 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   routeRules: {
-    '/ajax/**': { proxy: 'http://api/ajax/**' },
-    '/views/**': { proxy: 'http://api/views/**' }
+    '/ajax/**': { proxy: 'http://localhost:8081/ajax/**' },
+    '/views/**': { proxy: 'http://localhost:8081/views/**' }
   },
 
   runtimeConfig: {
@@ -30,6 +37,12 @@ export default defineNuxtConfig({
       apiBase: '/api',
       ajaxBase: '/ajax/pos.ajax.php'
     }
+  },
+
+  colorMode: {
+    preference: 'light',
+    fallback: 'light',
+    classSuffix: ''
   },
 
   compatibilityDate: '2025-01-15',

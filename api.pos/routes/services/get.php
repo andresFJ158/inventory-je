@@ -14,6 +14,64 @@ $inTo = $_GET["inTo"] ?? null;
 $response = new GetController();
 
 /*=============================================
+Endpoint especial: GET /api/purchasable-products
+Devuelve productos comprables (no fabricados, no combos, no laboratorio)
+=============================================*/
+if ($table === 'purchasable-products') {
+	try {
+		$db = Connection::connect();
+		$stmt = $db->prepare("
+			SELECT p.id_product,
+			       CONCAT(
+			       	COALESCE(NULLIF(p.title_product, ''), CONCAT('Producto #', p.id_product)),
+			       	CASE WHEN COALESCE(p.sku_product, '') <> '' THEN CONCAT(' · ', p.sku_product) ELSE '' END
+			       ) AS title_product,
+			       p.sku_product,
+			       p.unit_product
+			FROM products p
+			WHERE p.status_product = 1
+			  AND COALESCE(p.is_manufactured_product, 0) = 0
+			  AND COALESCE(p.is_combo_product, 0) = 0
+			  AND COALESCE(NULLIF(p.source_type_product, ''), 'externo') <> 'laboratorio'
+			  AND NOT EXISTS (SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product)
+			  AND NOT EXISTS (SELECT 1 FROM productions pr WHERE pr.id_packaged_product = p.id_product)
+			ORDER BY p.title_product ASC
+		");
+		$stmt->execute();
+		$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+		echo json_encode(['status' => 200, 'results' => $results]);
+	} catch (Throwable $e) {
+		echo json_encode(['status' => 500, 'message' => $e->getMessage()]);
+	}
+	return;
+}
+
+/*=============================================
+Filtro de cartera: vendedor sin gestionar_clientes
+solo ve sus clientes + pool (id_admin_client = 0)
+=============================================*/
+if ($table === 'clients' && isset($_GET['token']) && !isset($_GET['rel'])) {
+	$tableToken = $_GET['table'] ?? 'admins';
+	$sfx        = $_GET['suffix'] ?? 'admin';
+	$adminRows  = GetModel::getDataFilter($tableToken, "rol_admin,permissions_admin,id_admin", "token_".$sfx, $_GET["token"], null, null, null, null);
+	$adminRow   = !empty($adminRows) ? $adminRows[0] : null;
+	$role       = $adminRow->rol_admin ?? '';
+	$perms      = json_decode(urldecode($adminRow->permissions_admin ?? '{}'), true);
+	$canSeeAll  = in_array($role, ['superadmin', 'admin', 'cajero'])
+		|| ($perms['gestionar_clientes'] ?? '') === 'on';
+
+	if (!$canSeeAll && $role === 'vendedor') {
+		$myId  = (int)($adminRow->id_admin ?? 0);
+		$db    = Connection::connect();
+		$stmt  = $db->prepare("SELECT * FROM clients WHERE id_admin_client = ? OR id_admin_client = 0 ORDER BY id_client DESC");
+		$stmt->execute([$myId]);
+		$rows  = $stmt->fetchAll(PDO::FETCH_OBJ);
+		echo json_encode(['status' => 200, 'results' => $rows]);
+		return;
+	}
+}
+
+/*=============================================
 Peticiones GET con filtro
 =============================================*/
 

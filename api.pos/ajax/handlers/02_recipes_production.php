@@ -5,28 +5,58 @@ if(isset($_POST["saveRecipe"])){
 	try {
 		$db->beginTransaction();
 
-		$name_product = trim(htmlspecialchars($_POST['name_product']));
+		$name_product = trim($_POST['name_product']);
 		$batch_size = (float)$_POST['batch_size'];
-		$unit_batch = trim(htmlspecialchars($_POST['unit_batch']));
+		$unit_batch = trim($_POST['unit_batch']);
 		$id_office = (int)$_POST['id_office'];
 		$id_admin = (int)$_POST['id_admin'];
+		$existing_product_id = isset($_POST['existing_product_id']) ? (int)$_POST['existing_product_id'] : 0;
 
-		// INC-05: Validar duplicados de nombre en la sucursal
-		$stmtDup = $db->prepare("SELECT id_product FROM products WHERE title_product = :name AND id_office_product = :office LIMIT 1");
-		$stmtDup->execute([':name' => $name_product, ':office' => $id_office]);
-		if($stmtDup->fetch()) {
-			echo "error|Ya existe un producto con ese nombre en esta sucursal.";
-			$db->rollBack();
-			exit;
+		if ($existing_product_id > 0) {
+			// Vincular receta a producto existente del catálogo
+			$stmtCheck = $db->prepare("SELECT id_product FROM products WHERE id_product = :id AND status_product = 1 LIMIT 1");
+			$stmtCheck->execute([':id' => $existing_product_id]);
+			if (!$stmtCheck->fetch()) {
+				echo "error|El producto seleccionado no existe o está inactivo.";
+				$db->rollBack();
+				exit;
+			}
+			// Verificar que no tenga receta ya asignada
+			$stmtRecCheck = $db->prepare("SELECT id_recipe FROM recipes WHERE id_product_recipe = :id LIMIT 1");
+			$stmtRecCheck->execute([':id' => $existing_product_id]);
+			if ($stmtRecCheck->fetch()) {
+				echo "error|Este producto ya tiene una receta asignada.";
+				$db->rollBack();
+				exit;
+			}
+			$id_product = $existing_product_id;
+			// Marcar el producto como fabricado por laboratorio
+			$stmtUpdate = $db->prepare("UPDATE products SET is_manufactured_product = 1, source_type_product = 'laboratorio', origin_office_product = :office WHERE id_product = :id");
+			$stmtUpdate->execute([':office' => $id_office, ':id' => $id_product]);
+		} else {
+			// Catálogo global: un producto no debe duplicarse por sucursal.
+			$stmtDup = $db->prepare("SELECT id_product FROM products WHERE title_product = :name AND status_product = 1 LIMIT 1");
+			$stmtDup->execute([':name' => $name_product]);
+			if($stmtDup->fetch()) {
+				echo "error|Ya existe un producto con ese nombre en el catálogo global.";
+				$db->rollBack();
+				exit;
+			}
+
+			// 1. Crear producto fabricado por laboratorio en catálogo global.
+			$stmtProd = $db->prepare("
+				INSERT INTO products
+					(title_product, unit_product, id_office_product, origin_office_product, is_compound_product, is_manufactured_product, is_combo_product, source_type_product, status_product, stock_product, rte_product)
+				VALUES
+					(:name, :unit, 0, :office, 1, 1, 0, 'laboratorio', 1, '0', '0')
+			");
+			$stmtProd->execute([
+				':name' => $name_product,
+				':unit' => $unit_batch,
+				':office' => $id_office
+			]);
+			$id_product = $db->lastInsertId();
 		}
-
-		// 1. Crear producto (a granel, is_compound_product=1)
-		$stmtProd = $db->prepare("INSERT INTO products (title_product, unit_product, id_office_product, is_compound_product, status_product, stock_product, rte_product) VALUES (:name, :unit, 0, 1, 1, '0', '0')");
-		$stmtProd->execute([
-			':name' => $name_product,
-			':unit' => $unit_batch
-		]);
-		$id_product = $db->lastInsertId();
 
 		// Crear registro en product_inventory para esta oficina
 		$stmtInv = $db->prepare("INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory) VALUES (:product, :office, 0, 1, NOW()) ON DUPLICATE KEY UPDATE status_inventory = 1");
@@ -76,13 +106,13 @@ if(isset($_POST["saveRecipe"])){
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error: " . $e->getMessage();
+		error_log("recipes_production error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
 
 /*=============================================
-Completar Producci�n (Laboratorio)
+Completar Producción (Laboratorio)
 =============================================*/
 if(isset($_POST["completeProduction"])){
 	// require_once removed
@@ -98,8 +128,8 @@ if(isset($_POST["completeProduction"])){
 	$extra_cif = (float)($_POST['extra_cif'] ?? 0);
 	
 	$pkg_final_qty = (float)($_POST['pkg_final_qty'] ?? 0);
-	$pkg_final_name = trim(htmlspecialchars($_POST['pkg_final_name'] ?? ''));
-    $pkg_envase_type = trim(htmlspecialchars($_POST['pkg_envase_type'] ?? 'und'));
+	$pkg_final_name = trim($_POST['pkg_final_name'] ?? '');
+    $pkg_envase_type = trim($_POST['pkg_envase_type'] ?? 'und');
 	$id_office = $_POST['id_office'] ?? 1; // Default or taken from session
 	
 	$real_bulk_qty = isset($_POST['real_bulk_qty']) && $_POST['real_bulk_qty'] !== '' 
@@ -130,7 +160,7 @@ if(isset($_POST["completeProduction"])){
 		$stmtCheckStatus->execute([':id' => $id_production]);
 		$status = $stmtCheckStatus->fetchColumn();
 		if($status === 'completado') {
-			echo "error|La producci�n ya fue completada anteriormente.";
+			echo "error|La producción ya fue completada anteriormente.";
 			$db->rollBack();
 			exit;
 		}
@@ -148,9 +178,9 @@ if(isset($_POST["completeProduction"])){
 			$qty_needed = $ing['qty_ingredient'] * $batches;
 
 			// BUG-02 Fix: Stock ya fue descontado en startProduction. 
-			// Solo obtenemos el precio actual de la �ltima entrada aprobada.
+			// Solo obtenemos el precio actual de la última entrada aprobada.
 
-			// Obtener precio actual de la �ltima entrada aprobada
+			// Obtener precio actual de la última entrada aprobada
 			$stmtPrice = $db->prepare("SELECT id_entry, unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
 			$stmtPrice->execute([':id' => $id_raw]);
 			$price_info = $stmtPrice->fetch(PDO::FETCH_ASSOC);
@@ -163,6 +193,7 @@ if(isset($_POST["completeProduction"])){
 			// Guardar snapshot para luego
 			$costs_snapshot[] = [
 				'id_raw' => $id_raw,
+				'id_supply' => 0,
 				'id_entry' => $id_entry,
 				'qty' => $qty_needed,
 				'price' => $unit_price,
@@ -172,38 +203,81 @@ if(isset($_POST["completeProduction"])){
 
 		// 1.5. Procesar Materiales Extra de Envasado
 		foreach($extra_mats as $ext) {
-			$id_raw = $ext['id_raw'];
+			$id_raw_val = $ext['id_raw'];
 			$qty_needed = (float)$ext['qty'];
 
-			$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
-			$stmtCheck->execute([':id' => $id_raw]);
-			$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+			if (strpos($id_raw_val, 'ls_') === 0) {
+				// Es un insumo de lab_supplies
+				$id_supply = (int)str_replace('ls_', '', $id_raw_val);
+				
+				$stmtCheck = $db->prepare("SELECT name_supply as name_raw_material, stock_supply as stock_raw_material, price_supply FROM lab_supplies WHERE id_supply = :id");
+				$stmtCheck->execute([':id' => $id_supply]);
+				$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
-			if($mp_info['stock_raw_material'] < $qty_needed) {
-				echo "stock_insuficiente_envasado|" . $mp_info['name_raw_material'];
-				$db->rollBack();
-				exit;
+				if($mp_info && $mp_info['stock_raw_material'] < $qty_needed) {
+					echo "stock_insuficiente_envasado|" . $mp_info['name_raw_material'];
+					$db->rollBack();
+					exit;
+				}
+
+				$unit_price = $mp_info ? (float)$mp_info['price_supply'] : 0;
+				$id_entry = 0;
+				
+				$subtotal = $unit_price * $qty_needed;
+				$total_mp_cost += $subtotal;
+
+				$costs_snapshot[] = [
+					'id_raw' => 0,
+					'id_supply' => $id_supply,
+					'id_entry' => $id_entry,
+					'qty' => $qty_needed,
+					'price' => $unit_price,
+					'subtotal' => $subtotal
+				];
+
+				// Descontar stock de lab_supplies e insertar movimiento
+				$stmtUpdMP = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply - :qty WHERE id_supply = :id");
+				$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_supply]);
+
+				$stmtLog = $db->prepare("INSERT INTO lab_supply_entries (id_supply_entry, qty_entry, type_entry, concept_entry, notes_entry, status_entry, id_admin_entry, date_entry) VALUES (:id, :qty, 'egreso', 'envasado', 'Uso en producción de lote', 'aprobado', :admin, CURDATE())");
+				$stmtLog->execute([':id' => $id_supply, ':qty' => $qty_needed, ':admin' => $id_admin]);
+
+			} else {
+				// Es un insumo de raw_materials
+				$id_raw = (int)$id_raw_val;
+				$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material, no_stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
+				$stmtCheck->execute([':id' => $id_raw]);
+				$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+				if($mp_info && !intval($mp_info['no_stock_raw_material']) && $mp_info['stock_raw_material'] < $qty_needed) {
+					echo "stock_insuficiente_envasado|" . $mp_info['name_raw_material'];
+					$db->rollBack();
+					exit;
+				}
+
+				$stmtPrice = $db->prepare("SELECT id_entry, unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
+				$stmtPrice->execute([':id' => $id_raw]);
+				$price_info = $stmtPrice->fetch(PDO::FETCH_ASSOC);
+				$unit_price = $price_info ? (float)$price_info['unit_price_entry'] : 0;
+				$id_entry = $price_info ? (int)$price_info['id_entry'] : 0;
+
+				$subtotal = $unit_price * $qty_needed;
+				$total_mp_cost += $subtotal;
+
+				$costs_snapshot[] = [
+					'id_raw' => $id_raw,
+					'id_supply' => 0,
+					'id_entry' => $id_entry,
+					'qty' => $qty_needed,
+					'price' => $unit_price,
+					'subtotal' => $subtotal
+				];
+
+				if(!intval($mp_info['no_stock_raw_material'] ?? 0)) {
+					$stmtUpdMP = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
+					$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_raw]);
+				}
 			}
-
-			$stmtPrice = $db->prepare("SELECT id_entry, unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
-			$stmtPrice->execute([':id' => $id_raw]);
-			$price_info = $stmtPrice->fetch(PDO::FETCH_ASSOC);
-			$unit_price = $price_info ? (float)$price_info['unit_price_entry'] : 0;
-			$id_entry = $price_info ? (int)$price_info['id_entry'] : 0;
-
-			$subtotal = $unit_price * $qty_needed;
-			$total_mp_cost += $subtotal;
-
-			$costs_snapshot[] = [
-				'id_raw' => $id_raw,
-				'id_entry' => $id_entry,
-				'qty' => $qty_needed,
-				'price' => $unit_price,
-				'subtotal' => $subtotal
-			];
-
-			$stmtUpdMP = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
-			$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_raw]);
 		}
 
 		// 2. Calcular otros costos (Mano de obra y CIF)
@@ -218,11 +292,12 @@ if(isset($_POST["completeProduction"])){
 		$total_production_cost = $total_mp_cost + $total_mo_cost + $total_cif_cost;
 
 		// 3. Registrar snapshot en production_material_costs
-		$stmtSnap = $db->prepare("INSERT INTO production_material_costs (id_production_mat_cost, id_raw_material_mat_cost, id_entry_used_mat_cost, qty_used_mat_cost, unit_price_at_production, total_cost_mat_cost) VALUES (:id_prod, :id_raw, :id_ent, :qty, :price, :sub)");
+		$stmtSnap = $db->prepare("INSERT INTO production_material_costs (id_production_mat_cost, id_raw_material_mat_cost, id_supply_mat_cost, id_entry_used_mat_cost, qty_used_mat_cost, unit_price_at_production, total_cost_mat_cost) VALUES (:id_prod, :id_raw, :id_sup, :id_ent, :qty, :price, :sub)");
 		foreach($costs_snapshot as $snap) {
 			$stmtSnap->execute([
 				':id_prod' => $id_production,
-				':id_raw' => $snap['id_raw'],
+				':id_raw' => $snap['id_raw'] ?? 0,
+				':id_sup' => $snap['id_supply'] ?? 0,
 				':id_ent' => $snap['id_entry'],
 				':qty' => $snap['qty'],
 				':price' => $snap['price'],
@@ -230,7 +305,7 @@ if(isset($_POST["completeProduction"])){
 			]);
 		}
 
-		// 4. Actualizar Producci�n (Estado y Costo)
+		// 4. Actualizar Producción (Estado y Costo)
 		$unit_cost_final = $pkg_final_qty > 0 ? ($total_production_cost / $pkg_final_qty) : 0;
 		
 		$real_mo = $prod_info ? (float)$prod_info['proj_labor_cost'] : 0;
@@ -263,14 +338,28 @@ if(isset($_POST["completeProduction"])){
 
 			if($existing_product) {
 				// Solo actualizamos la unidad, el stock se mantiene hasta pasar QC
-				$stmtUpdProd = $db->prepare("UPDATE products SET unit_product = :unit WHERE id_product = :id");
-				$stmtUpdProd->execute([':unit' => $pkg_envase_type, ':id' => $existing_product['id_product']]);
+				$stmtUpdProd = $db->prepare("
+					UPDATE products
+					SET unit_product = :unit,
+						is_manufactured_product = 1,
+						is_combo_product = 0,
+						source_type_product = 'laboratorio',
+						origin_office_product = CASE WHEN COALESCE(origin_office_product, 0) = 0 THEN :office ELSE origin_office_product END
+					WHERE id_product = :id
+				");
+				$stmtUpdProd->execute([':unit' => $pkg_envase_type, ':office' => $id_office, ':id' => $existing_product['id_product']]);
 				$id_packaged_product = $existing_product['id_product'];
 			} else {
-				// Insertar nuevo producto final con stock 0 temporalmente
-				$stmtInsProd = $db->prepare("INSERT INTO products (title_product, unit_product, stock_product, rte_product, is_compound_product, id_office_product, status_product) VALUES (:name, 'und', 0, 0, 1, :office, 1)");
+				// Insertar nuevo producto final global con stock 0 temporalmente.
+				$stmtInsProd = $db->prepare("
+					INSERT INTO products
+						(title_product, unit_product, stock_product, rte_product, is_compound_product, is_manufactured_product, is_combo_product, source_type_product, id_office_product, origin_office_product, status_product)
+					VALUES
+						(:name, :unit, 0, 0, 1, 1, 0, 'laboratorio', 0, :office, 1)
+				");
 				$stmtInsProd->execute([
 					':name' => $pkg_final_name,
+					':unit' => $pkg_envase_type,
 					':office' => $id_office
 				]);
 				$id_packaged_product = $db->lastInsertId();
@@ -301,11 +390,26 @@ if(isset($_POST["completeProduction"])){
 		$stmtUpdateProd->execute($updateProdData);
 
 		if ($waste_packaged_qty > 0 && $id_packaged_product > 0) {
-			$waste_supply_id = (int)($_POST['waste_packaged_id_raw'] ?? 0);
-			if ($waste_supply_id > 0) {
-				$stmtSup = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply - :qty WHERE id_supply = :id");
-				$stmtSup->execute([':qty' => $waste_packaged_qty, ':id' => $waste_supply_id]);
+			$waste_supply_raw = $_POST['waste_packaged_id_raw'] ?? '';
+			
+			if (strpos($waste_supply_raw, 'ls_') === 0) {
+				$waste_supply_id = (int)str_replace('ls_', '', $waste_supply_raw);
+				if ($waste_supply_id > 0) {
+					$stmtSup = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply - :qty WHERE id_supply = :id");
+					$stmtSup->execute([':qty' => $waste_packaged_qty, ':id' => $waste_supply_id]);
+					
+					// Registrar en lab_supply_entries
+					$stmtLog = $db->prepare("INSERT INTO lab_supply_entries (id_supply_entry, qty_entry, type_entry, concept_entry, notes_entry, status_entry, id_admin_entry, date_entry) VALUES (:id, :qty, 'egreso', 'merma', 'Merma por envasado', 'aprobado', :admin, CURDATE())");
+					$stmtLog->execute([':id' => $waste_supply_id, ':qty' => $waste_packaged_qty, ':admin' => $id_admin]);
+				}
+			} else {
+				$waste_supply_id = (int)$waste_supply_raw;
+				if ($waste_supply_id > 0) {
+					$stmtSup = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
+					$stmtSup->execute([':qty' => $waste_packaged_qty, ':id' => $waste_supply_id]);
+				}
 			}
+			
 			$stmtWaste = $db->prepare("INSERT INTO waste_packaged (id_production_waste, id_product_waste, qty_waste, id_office_waste, status_waste, id_admin_waste, date_created_waste) VALUES (:prod, :product, :qty, :office, 'en_almacen', :admin, NOW())");
 			$stmtWaste->execute([
 				':prod' => $id_production,
@@ -320,7 +424,7 @@ if(isset($_POST["completeProduction"])){
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error|" . $e->getMessage();
+		error_log("recipes_production error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 }
 /*=============================================
@@ -368,7 +472,7 @@ if(isset($_POST["getRecipeIngredients"])){
 }
 
 /*=============================================
-Iniciar Producci�n (En Proceso)
+Iniciar Producción (En Proceso)
 =============================================*/
 if(isset($_POST["startProduction"])){
 	$db = LocalConnection::connect();
@@ -381,7 +485,7 @@ if(isset($_POST["startProduction"])){
 		$stmtCheckStatus->execute([':id' => $id]);
 		$prod = $stmtCheckStatus->fetch(PDO::FETCH_ASSOC);
 		if(!$prod || $prod['status_production'] !== 'pendiente') {
-			echo "error|La producci�n no est� pendiente.";
+			echo "error|La producción no está pendiente.";
 			$db->rollBack();
 			exit;
 		}
@@ -398,19 +502,21 @@ if(isset($_POST["startProduction"])){
 			$id_raw = $ing['id_raw_material_ingredient'];
 			$qty_needed = $ing['qty_ingredient'] * $batches;
 
-			$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
+			$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material, no_stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
 			$stmtCheck->execute([':id' => $id_raw]);
 			$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
-			if($mp_info && $mp_info['stock_raw_material'] < $qty_needed) {
+			if($mp_info && !intval($mp_info['no_stock_raw_material']) && $mp_info['stock_raw_material'] < $qty_needed) {
 				echo "stock_insuficiente|" . $mp_info['name_raw_material'];
 				$db->rollBack();
 				exit;
 			}
-			
-			// Descontar stock
-			$stmtUpdMP = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
-			$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_raw]);
+
+			// Descontar stock solo si la materia prima lleva control de stock
+			if(!intval($mp_info['no_stock_raw_material'] ?? 0)) {
+				$stmtUpdMP = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material - :qty WHERE id_raw_material = :id");
+				$stmtUpdMP->execute([':qty' => $qty_needed, ':id' => $id_raw]);
+			}
 		}
 
 		$stmt = $db->prepare("UPDATE productions SET status_production = 'en_proceso', start_date_production = NOW() WHERE id_production = :id");
@@ -423,13 +529,13 @@ if(isset($_POST["startProduction"])){
 		}
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error|" . $e->getMessage();
+		error_log("recipes_production error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
 
 /*=============================================
-Obtener Detalles de Producci�n
+Obtener Detalles de Producción
 =============================================*/
 if(isset($_POST["getProductionDetails"])){
 	$id_production = $_POST["id_production"];
@@ -463,7 +569,7 @@ if(isset($_POST["getProductionDetails"])){
 }
 
 /*=============================================
-Obtener Datos de Receta para Edici�n
+Obtener Datos de Receta para Edición
 =============================================*/
 if(isset($_POST["getRecipeDataForEdit"])){
     $id_recipe = $_POST["id_recipe"];
@@ -522,15 +628,14 @@ if(isset($_POST["editRecipe"])){
 		$id_product = $recipeData['id_product_recipe'];
 		$id_office = $recipeData['id_office_recipe'];
 
-		// Validar duplicado de nombre en la sucursal (excluyendo el actual)
-		$stmtDup = $db->prepare("SELECT id_product FROM products WHERE title_product = :name AND id_office_product = :office AND id_product != :id_prod LIMIT 1");
+		// Validar duplicado global (excluyendo el actual)
+		$stmtDup = $db->prepare("SELECT id_product FROM products WHERE title_product = :name AND id_product != :id_prod AND status_product = 1 LIMIT 1");
 		$stmtDup->execute([
 			':name' => $name_product,
-			':office' => $id_office,
 			':id_prod' => $id_product
 		]);
 		if($stmtDup->fetch()) {
-			echo "error|Ya existe un producto con ese nombre en esta sucursal.";
+			echo "error|Ya existe un producto con ese nombre en el catálogo global.";
 			$db->rollBack();
 			exit;
 		}
@@ -585,7 +690,7 @@ if(isset($_POST["editRecipe"])){
         echo "ok";
     } catch (Exception $e) {
         $db->rollBack();
-        echo "error|" . $e->getMessage();
+        error_log("recipes_production error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
     }
     exit;
 }
@@ -637,6 +742,25 @@ if(isset($_POST["getProductionLots"]) && $_POST["getProductionLots"] == "ok") {
 	$stmt = $db->prepare("SELECT id_production, total_qty_production, real_unit_cost, real_total_cost, date_updated_production FROM productions WHERE id_packaged_product = :id AND status_production IN ('completado','pendiente_qc') ORDER BY date_updated_production DESC");
 	$stmt->execute([':id' => $id_packaged_product]);
 	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	exit;
+}
+
+//=====================================
+// GET PRODUCTS WITHOUT RECIPE
+//=====================================
+if(isset($_POST["getProductsWithoutRecipe"]) && $_POST["getProductsWithoutRecipe"] == "ok") {
+	$db = LocalConnection::connect();
+	$stmt = $db->prepare("
+		SELECT id_product, title_product, unit_product, source_type_product
+		FROM products
+		WHERE status_product = 1
+		  AND is_combo_product = 0
+		  AND id_product NOT IN (SELECT id_product_recipe FROM recipes)
+		ORDER BY title_product ASC
+	");
+	$stmt->execute();
+	$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+	echo json_encode(['status' => 200, 'results' => $rows]);
 	exit;
 }
 

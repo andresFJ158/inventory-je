@@ -30,57 +30,26 @@ class PosController{
 		}
 		
 		if ($this->search != "") {
-			$searchQuery = " AND (p.title_product LIKE :search OR p.sku_product LIKE :search OR p.code_product LIKE :search OR p.unit_product LIKE :search)";
-			$params[':search'] = "%" . $this->search . "%";
+			$searchQuery = " AND (p.title_product LIKE :search_title OR p.sku_product LIKE :search_sku OR p.code_product LIKE :search_code OR p.unit_product LIKE :search_unit)";
+			$searchTerm = "%" . $this->search . "%";
+			$params[':search_title'] = $searchTerm;
+			$params[':search_sku'] = $searchTerm;
+			$params[':search_code'] = $searchTerm;
+			$params[':search_unit'] = $searchTerm;
 		}
 		
-		$hasSubWarehouse = false;
-		if ($id_admin) {
-			$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
-			$stmtHasSub->execute([':office' => $this->idOffice]);
-			$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
-		}
-
-		if ($hasSubWarehouse) {
-			$sql = "
-				SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
-					   sub.stock as stock_product
-				FROM products p
-				INNER JOIN categories c ON p.id_category_product = c.id_category
-				INNER JOIN (
-					SELECT wa.id_product_assignment,
-						   (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
-							COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
-					FROM warehouse_assignments wa
-					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-					WHERE sw.id_office_sub_warehouse = :office
-					GROUP BY wa.id_product_assignment
-					HAVING stock > 0
-				) sub ON p.id_product = sub.id_product_assignment
-				WHERE p.status_product = 1
-				$categoryQuery
-				$searchQuery
-				ORDER BY p.id_product DESC
-			";
-		} else {
-			$sql = "
-				SELECT p.*, c.title_category, c.img_category, c.order_category, c.status_category,
-					   COALESCE(pi.stock_inventory, 0) as stock_product
-				FROM products p
-				INNER JOIN categories c ON p.id_category_product = c.id_category
-				INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
-				WHERE p.status_product = 1
-				$categoryQuery
-				$searchQuery
-				ORDER BY p.id_product DESC
-			";
-		}
-		$warehouseIds = [];
-		try {
-			$stmtWH = $db->prepare("SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office");
-			$stmtWH->execute([':office' => $this->idOffice]);
-			$warehouseIds = $stmtWH->fetchAll(PDO::FETCH_COLUMN) ?: [];
-		} catch (Exception $e) {}
+		$sql = "
+			SELECT p.*, COALESCE(c.title_category, '') AS title_category, c.img_category, c.order_category, c.status_category,
+				   COALESCE(pi.stock_inventory, 0) as stock_product
+			FROM products p
+			LEFT JOIN categories c ON p.id_category_product = c.id_category
+			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
+			WHERE p.status_product = 1
+			  AND COALESCE(pi.stock_inventory, 0) > 0
+			$categoryQuery
+			$searchQuery
+			ORDER BY p.id_product DESC
+		";
 
 		$stmtAll = $db->prepare($sql . " LIMIT " . (int)$this->startAt . ", " . (int)$this->limit);
 		$stmtAll->execute($params);
@@ -88,8 +57,8 @@ class PosController{
 
 		$countSql = "SELECT COUNT(*) FROM products p
 			LEFT JOIN categories c ON p.id_category_product = c.id_category
-			LEFT JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office
-			WHERE p.status_product = 1 $categoryQuery $searchQuery";
+			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
+			WHERE p.status_product = 1 AND COALESCE(pi.stock_inventory, 0) > 0 $categoryQuery $searchQuery";
 		$stmtCount = $db->prepare($countSql);
 		$stmtCount->execute($params);
 		$totalProducts = (int)$stmtCount->fetchColumn();
@@ -142,22 +111,8 @@ class PosController{
 								'</div>';
 
 
-								$url = "purchases?linkTo=id_product_purchase&equalTo=".$value->id_product."&select=cost_purchase,id_office_purchase&orderBy=date_created_purchase&orderMode=DESC";
-
-								$price = CurlController::request($url,$method,$fields);
-
-								$costPurchase = 0;
-								if($price->status == 200 && !empty($price->results)){
-									foreach ($price->results as $pRow) {
-										if (in_array((int)$pRow->id_office_purchase, $warehouseIds)) {
-											$costPurchase = $pRow->cost_purchase;
-											break;
-										}
-									}
-									if ($costPurchase == 0) {
-										$costPurchase = $price->results[0]->cost_purchase;
-									}
-								}
+									$priceMeta = pos_get_product_price($db, (int)$value->id_product, (int)$this->idOffice);
+									$costPurchase = $priceMeta['price'];
 
 								if($costPurchase > 0){
 
@@ -306,28 +261,26 @@ class PosController{
 
 	public function updateOrder(){
 
-		$url = "orders?id=".$this->idOrder."&nameId=id_order&token=".$this->token."&table=admins&suffix=admin";
-		$method = "PUT";
-		$fields = array(
-			"id_client_order" => $this->idClient,
-			"subtotal_order" => round($this->subtotalOrder),
-			"discount_order" => round($this->discountOrder),
-			"tax_order" => round($this->taxOrder),
-			"total_order" => round($this->totalOrder)
-		);
+		$db = LocalConnection::connect();
+		$stmt = $db->prepare("
+			UPDATE orders SET
+				id_client_order  = :client,
+				subtotal_order   = :subtotal,
+				discount_order   = :discount,
+				tax_order        = :tax,
+				total_order      = :total
+			WHERE id_order = :id
+		");
+		$ok = $stmt->execute([
+			':client'   => intval($this->idClient),
+			':subtotal' => round($this->subtotalOrder, 2),
+			':discount' => round($this->discountOrder, 2),
+			':tax'      => round($this->taxOrder, 2),
+			':total'    => round($this->totalOrder, 2),
+			':id'       => intval($this->idOrder)
+		]);
 
-		$fields = http_build_query($fields);
-
-		$updateOrder = CurlController::request($url,$method,$fields);
-
-		if($updateOrder->status == 200){
-
-			echo "ok";
-		
-		}else{
-
-			echo "logout";
-		}	
+		echo $ok ? "ok" : "logout";
 
 	}
 
@@ -344,30 +297,25 @@ class PosController{
 	
 	public function newClient(){
 
-		$url = "clients?token=".$this->token."&table=admins&suffix=admin";
-		$method = "POST";
-		$fields = array(
-			"name_client" => $this->name_client,
-			"surname_client" => $this->surname_client,
-			"dni_client" => $this->dni_client,
-			"email_client" => $this->email_client,
-			"phone_client" => $this->phone_client,
-			"address_client" => $this->address_client,
-			"id_office_client" => $this->idOffice,
-			"date_created_client" => date("Y-m-d")
-		);
+		$db = LocalConnection::connect();
+		$stmt = $db->prepare("
+			INSERT INTO clients
+				(name_client, surname_client, dni_client, email_client,
+				 phone_client, address_client, id_office_client, date_created_client)
+			VALUES
+				(:name, :surname, :dni, :email, :phone, :address, :office, CURDATE())
+		");
+		$ok = $stmt->execute([
+			':name'    => $this->name_client,
+			':surname' => $this->surname_client,
+			':dni'     => $this->dni_client,
+			':email'   => $this->email_client,
+			':phone'   => $this->phone_client,
+			':address' => $this->address_client,
+			':office'  => intval($this->idOffice)
+		]);
 
-		$addClient = CurlController::request($url,$method,$fields);
-
-		if($addClient->status == 200){
-
-			echo $addClient->results->lastId;
-		
-		}else{
-
-			echo "logout";
-		}
-
+		echo $ok ? $db->lastInsertId() : "logout";
 
 	}
 
@@ -379,240 +327,125 @@ class PosController{
 
 	public function addProductPos(){
 
-		// Fetch warehouse IDs for this office
 		$db = LocalConnection::connect();
-		$stmtWH = $db->prepare("SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office");
-		$stmtWH->execute([':office' => $this->idOffice]);
-		$warehouseIds = $stmtWH->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
-		$url = "relations?rel=purchases,products&type=purchase,product&linkTo=id_product&equalTo=".$this->idProduct."&orderBy=date_created_purchase&orderMode=DESC";
-		$method = "GET";
-		$fields = array();
+		$stmtP = $db->prepare("SELECT * FROM products WHERE id_product = :id AND status_product = 1 LIMIT 1");
+		$stmtP->execute([':id' => $this->idProduct]);
+		$product = $stmtP->fetch(PDO::FETCH_OBJ);
 
-		$getProduct = CurlController::request($url,$method,$fields);
-
-		$matchedProduct = null;
-		if($getProduct->status == 200 && !empty($getProduct->results)){
-			foreach ($getProduct->results as $pRow) {
-				if (in_array((int)$pRow->id_office_purchase, $warehouseIds)) {
-					$matchedProduct = $pRow;
-					break;
-				}
-			}
-			if (!$matchedProduct) {
-				$matchedProduct = $getProduct->results[0];
-			}
-		} else {
-			$urlFallback = "products?linkTo=id_product&equalTo=".$this->idProduct;
-			$getProductFallback = CurlController::request($urlFallback, "GET", array());
-			if($getProductFallback->status == 200 && !empty($getProductFallback->results)){
-				$matchedProduct = $getProductFallback->results[0];
-				$matchedProduct->cost_purchase = 0;
-				$matchedProduct->may_product = 0;
-			}
+		if (!$product) {
+			echo "error|Producto no encontrado";
+			return;
 		}
 
-		if($matchedProduct !== null){
+		$stmtComboCount = $db->prepare("SELECT COUNT(*) FROM combo_items WHERE id_combo_ci = :id");
+		$stmtComboCount->execute([':id' => $this->idProduct]);
+		$isCombo = intval($product->is_combo_product ?? 0) === 1 || intval($stmtComboCount->fetchColumn()) > 0;
+		$comboPrice = null;
 
-			$product = $matchedProduct;
+		if ($isCombo) {
+			// Para combos: verificar stock de cada componente
+			$stmtCI = $db->prepare("SELECT id_product_ci, qty_ci, price_ci FROM combo_items WHERE id_combo_ci = :id");
+			$stmtCI->execute([':id' => $this->idProduct]);
+			$comboItems = $stmtCI->fetchAll(PDO::FETCH_OBJ);
 
-			// Obtener si el vendedor tiene sub-almacén asignado y calcular el stock correspondiente (por oficina)
-			$db = LocalConnection::connect();
-			$stmtHasSub = $db->prepare("SELECT id_sub_warehouse FROM sub_warehouses WHERE id_office_sub_warehouse = :office LIMIT 1");
-			$stmtHasSub->execute([':office' => $this->idOffice]);
-			$hasSubWarehouse = (bool)$stmtHasSub->fetch(PDO::FETCH_ASSOC);
+			if (empty($comboItems)) {
+				echo "error|El combo no tiene componentes configurados";
+				return;
+			}
 
-			$stock = 0;
-			if ($hasSubWarehouse) {
-				// Consultar stock en sub-almacén de la oficina
-				$stmtStock = $db->prepare("
-					SELECT (COALESCE(SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment ELSE 0 END), 0) -
-							COALESCE(SUM(CASE WHEN wa.type_assignment IN ('devolucion', 'venta') THEN wa.qty_assignment ELSE 0 END), 0)) as stock
-					FROM warehouse_assignments wa
-					JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-					WHERE sw.id_office_sub_warehouse = :office AND wa.id_product_assignment = :product
-				");
-				$stmtStock->execute([
-					':office' => $this->idOffice,
-					':product' => $this->idProduct
-				]);
-				$stock = (int)($stmtStock->fetchColumn() ?: 0);
-			} else {
-				// Consultar stock en product_inventory para la oficina actual
-				$stmtStock = $db->prepare("
-					SELECT COALESCE(stock_inventory, 0) as stock
-					FROM product_inventory
+			$minCombos = PHP_INT_MAX;
+			foreach ($comboItems as $ci) {
+				// Combos siempre usan product_inventory (misma fuente que el trigger after_sale_update)
+				$stmtCS = $db->prepare("
+					SELECT COALESCE(stock_inventory, 0) FROM product_inventory
 					WHERE id_product_inventory = :product AND id_office_inventory = :office LIMIT 1
 				");
-				$stmtStock->execute([
-					':product' => $this->idProduct,
-					':office' => $this->idOffice
-				]);
-				$stock = (int)($stmtStock->fetchColumn() ?: 0);
+				$stmtCS->execute([':product' => $ci->id_product_ci, ':office' => $this->idOffice]);
+				$compStock = (int)($stmtCS->fetchColumn() ?: 0);
+				$possible  = $ci->qty_ci > 0 ? floor($compStock / $ci->qty_ci) : 0;
+				if ($possible < $minCombos) $minCombos = $possible;
 			}
 
-			if($stock <= 0){
-
+			if ($minCombos <= 0) {
 				echo "error stock";
-
 				return;
-			
-			}else{
-
-				/*=============================================
-				Validar que el producto no exista en esa orden
-				=============================================*/
-
-				$url = "sales?linkTo=id_order_sale,id_product_sale&equalTo=".$this->idOrder.",".$this->idProduct."&select=id_sale";
-				$method = "GET";
-				$fields = array();
-
-				$getSale = CurlController::request($url,$method,$fields);
-
-				if($getSale->status == 200){
-
-					echo "product exist";
-					return;
-				}
-
-				/*=============================================
-				Subir a ventas
-				=============================================*/
-
-				$selling_price = (isset($_POST["isWholesale"]) && $_POST["isWholesale"] == 1 && !empty($product->may_product) && $product->discount_product <= 0) ? $product->may_product : $product->cost_purchase;
-
-				if($product->discount_product > 0){
-
-					$price_purchase = round($selling_price-($selling_price*($product->discount_product/100)));
-				}else{
-
-					$price_purchase = round($selling_price);
-
-				}
-
-				$url = "sales?token=".$this->token."&table=admins&suffix=admin";
-				$method = "POST";
-				$fields = array(
-					"id_order_sale" => $this->idOrder,
-					"id_product_sale" => $this->idProduct,
-					"tax_type_sale" => explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[0],
-					"tax_sale" => explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[1] ?? "0",
-					"discount_sale" => $product->discount_product,
-					"qty_sale" => 1,
-					"subtotal_sale" => $selling_price,
-					"status_sale" => "Pendiente",
-					"id_admin_sale" => $this->seller,
-					"id_client_sale" => $this->idClient,
-					"id_office_sale" => $this->idOffice,
-					"date_created_sale" => date("Y-m-d")
-				);
-
-				$createSale = CurlController::request($url,$method,$fields);
-				
-				if($createSale->status == 200){
-
-					/*=============================================
-					Devolver HTML
-					=============================================*/
-
-					$imgSrcCart = TemplateController::fallbackProductImage($product->sku_product ?? '', $product->title_product ?? '', $product->img_product ?? '');
-					if (empty($imgSrcCart) || $imgSrcCart === 'NULL' || $imgSrcCart === 'null') {
-						$imgSrcCart = 'views/assets/img/multimedia.png';
-					}
-
-					$html = '<tr>
-				
-								<td>
-									<div>
-										<img src="'.urldecode($imgSrcCart).'" class="me-auto rounded mt-2 float-start"style="width:60px !important; height:60px !important">
-
-										<div class="ms-2 float-start">
-											
-											<span class="badge badge-default backColor rounded" style="font-size:10px">'.urldecode($product->sku_product).'</span>';
-
-											if($product->discount_product > 0){
-
-												$html .= '<span class="badge badge-default bg-red rounded ms-1" style="font-size:10px">'.$product->discount_product.'%</span>
-
-												<h6 class="font-weight-bold  mb-0 text-muted"><strong>'.urldecode($product->title_product).'</strong></h6>
-												<small>Bs '.number_format($price_purchase,2).' <span class="ms-1 text-red" style="font-size:12px"><s>Bs '.number_format($selling_price,2).' </s></span></small>';
-
-											}else{
-
-												$html .= '<h6 class="font-weight-bold  mb-0 text-muted"><strong>'.urldecode($product->title_product).'</strong></h6>
-												<small>Bs '.number_format($selling_price,2).'</small>';
-											}
-
-										$html .= '</div>
-									</div>
-								</td>
-
-								<td class="text-center">
-
-									<div class="d-flex justify-content-center">
-										
-										<div class="input-group mb-3 mt-2" style="width:160px">
-											
-											<span class="input-group-text rounded-start bg-light btnQty" type="btnMin" style="cursor:pointer" key="'.$product->id_product.'" stock="'.$stock.'">
-												<i class="bi bi-dash-lg"></i>
-											</span>
-
-											<input type="number" class="form-control text-center showQuantity showQuantity_'.$product->id_product.'" value="1" key="'.$product->id_product.'" style="font-size:12px" stock="'.$stock.'">
-
-											<span class="input-group-text rounded-end bg-light btnQty" type="btnMax" style="cursor:pointer" key="'.$product->id_product.'" stock="'.$stock.'">
-												<i class="bi bi-plus-lg"></i>
-											</span>
-
-										</div>
-									</div>
-									
-								</td>
-
-								<td>
-									<h6 class="text-center my-3 pricePurchase pricePurchase_'.$product->id_product.'" 
-									pricePurchase="'.$selling_price.'" 
-									originalPricePurchase="'.$selling_price.'"
-									basePrice="'.$product->cost_purchase.'"
-									wholesalePrice="'.(empty($product->may_product) ? 0 : $product->may_product).'"
-									wholesaleQty="'.(empty($product->wholesale_quantity) ? 0 : $product->wholesale_quantity).'"
-									appliedPriceType="base"
-									>Bs '.number_format($selling_price,2).'</h6>
-								</td>
-
-								<td class="text-center">
-									<div class="d-flex justify-content-center">';
-
-										$urlAdmin = "admins?linkTo=id_admin&equalTo=".$this->seller."&select=permissions_admin";
-										$adminReq = CurlController::request($urlAdmin, "GET", array());
-										$canOverride = false;
-										if (isset($adminReq->status) && $adminReq->status == 200 && !empty($adminReq->results)) {
-											$perms = json_decode(urldecode($adminReq->results[0]->permissions_admin), true);
-											$canOverride = isset($perms["todo"]) || isset($perms["pos_override_price"]) ? true : false;
-										}
-
-										if($canOverride){
-											$html .= '<button type="button" class="btn btn-sm rounded mt-2 py-2 px-3 btn-info editPriceSale text-white" idSale="'.$createSale->results->lastId.'" idProduct="'.$product->id_product.'" currentPrice="'.$price_purchase.'">
-												<i class="bi bi-pencil"></i>
-											</button>';
-										}
-
-										$html .= '<button type="button" class="btn btn-sm rounded ms-1 mt-2 py-2 px-3 bg-red deleteSale deleteSale_'.$product->id_product.'" idSale="'.$createSale->results->lastId.'" taxSale="'.(explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0")[1] ?? "0").'" discountSale="'.$product->discount_product.'">
-											<i class="bi bi-trash"></i>
-										</button>
-									</div>
-								</td>
-							</tr>';
-
-						echo $html;
-				}else{
-					echo json_encode($createSale);
-				}
-
 			}
 
+			// Precio del combo: suma de price_ci × qty_ci de sus componentes
+			$comboPrice = array_sum(array_map(fn($ci) => floatval($ci->price_ci) * floatval($ci->qty_ci), $comboItems));
+
+		} else {
+			// Producto normal o fabricado: verificar stock confirmado de la sucursal.
+			$stmtStock = $db->prepare("
+				SELECT COALESCE(stock_inventory, 0) FROM product_inventory
+				WHERE id_product_inventory = :product AND id_office_inventory = :office AND status_inventory = 1 LIMIT 1
+			");
+			$stmtStock->execute([':product' => $this->idProduct, ':office' => $this->idOffice]);
+			$stock = (int)($stmtStock->fetchColumn() ?: 0);
+
+			if ($stock <= 0) {
+				echo "error stock";
+				return;
+			}
 		}
 
+		// Verificar si ya existe en la orden
+		$stmtExist = $db->prepare("SELECT id_sale FROM sales WHERE id_order_sale = :order AND id_product_sale = :product LIMIT 1");
+		$stmtExist->execute([':order' => $this->idOrder, ':product' => $this->idProduct]);
+		if ($stmtExist->fetchColumn()) {
+			echo "product exist";
+			return;
+		}
+
+		// Calcular precio
+		$isWholesale = isset($_POST["isWholesale"]) && $_POST["isWholesale"] == 1;
+		if ($isCombo && $comboPrice !== null) {
+			// Precio del combo = suma de price_ci × qty_ci de sus componentes
+			$selling_price = $comboPrice;
+		} else {
+			$priceMeta = pos_get_product_price($db, (int)$this->idProduct, (int)$this->idOffice);
+			$selling_price = ($isWholesale && !empty($priceMeta['wholesalePrice']) && ($product->discount_product ?? 0) <= 0)
+				? (float)$priceMeta['wholesalePrice']
+				: (float)$priceMeta['price'];
+		}
+
+		$taxParts = explode("_", (isset($product->tax_product) && !empty($product->tax_product)) ? $product->tax_product : "0_0");
+		$taxType = $taxParts[0];
+		$taxVal  = $taxParts[1] ?? "0";
+
+		// Insertar venta
+		$stmtIns = $db->prepare("
+			INSERT INTO sales (id_order_sale, id_product_sale, tax_type_sale, tax_sale, discount_sale,
+				qty_sale, subtotal_sale, status_sale, id_admin_sale, id_client_sale, id_office_sale, date_created_sale)
+			VALUES (:order, :product, :tax_type, :tax, :discount, 1, :subtotal, 'Pendiente',
+				:admin, :client, :office, :date)
+		");
+		$stmtIns->execute([
+			':order'    => $this->idOrder,
+			':product'  => $this->idProduct,
+			':tax_type' => $taxType,
+			':tax'      => $taxVal,
+			':discount' => $product->discount_product ?? 0,
+			':subtotal' => $selling_price,
+			':admin'    => $this->seller,
+			':client'   => $this->idClient ?: null,
+			':office'   => $this->idOffice,
+			':date'     => date("Y-m-d"),
+		]);
+
+		$newSaleId = $db->lastInsertId();
+
+		// Verificar permisos para override de precio
+		$stmtAdmin = $db->prepare("SELECT permissions_admin FROM admins WHERE id_admin = :id LIMIT 1");
+		$stmtAdmin->execute([':id' => $this->seller]);
+		$permsRaw = $stmtAdmin->fetchColumn();
+		$perms = $permsRaw ? json_decode(urldecode($permsRaw), true) : [];
+		$canOverride = isset($perms["todo"]) || isset($perms["pos_override_price"]);
+
+		echo "ok|" . $newSaleId . "|" . ($canOverride ? "1" : "0");
 	}
+
 
 	/*=============================================
 	Actualizar Cantidad
@@ -623,27 +456,18 @@ class PosController{
 	public $subtotalSale;
 
 	public function updateSale(){
-
-		$url = "sales?id=".$this->idSaleUpdate."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
-		$method = "PUT";
-		$fields = array(
-			"qty_sale" => $this->qtySale,
-			"subtotal_sale" => round($this->subtotalSale,2)
-		);
-
-		$fields = http_build_query($fields);
-
-		$updateSale = CurlController::request($url,$method,$fields);
-
-		if($updateSale->status == 200){
-
+		try {
+			$db = LocalConnection::connect();
+			$stmt = $db->prepare("UPDATE sales SET qty_sale = :qty, subtotal_sale = :subtotal WHERE id_sale = :id");
+			$stmt->execute([
+				':qty'      => $this->qtySale,
+				':subtotal' => round($this->subtotalSale, 2),
+				':id'       => $this->idSaleUpdate,
+			]);
 			echo "ok";
-		
-		}else{
-
+		} catch (Throwable $e) {
 			echo "logout";
 		}
-
 	}
 
 	/*=============================================
@@ -652,44 +476,21 @@ class PosController{
 	public $isWholesale;
 
 	public function toggleCartWholesale(){
+		try {
+			$db = LocalConnection::connect();
+			$stmt = $db->prepare("SELECT id_sale, id_product_sale, qty_sale, discount_sale, id_office_sale FROM sales WHERE id_order_sale = :order");
+			$stmt->execute([':order' => $this->idOrder]);
+			$sales = $stmt->fetchAll(PDO::FETCH_OBJ);
 
-		$url = "sales?linkTo=id_order_sale&equalTo=".$this->idOrder."&select=id_sale,id_product_sale,qty_sale,discount_sale,id_office_sale";
-		$method = "GET";
-		$fields = array();
-
-		$getSales = CurlController::request($url,$method,$fields);
-
-		if(isset($getSales->status) && $getSales->status == 200){
-
-			foreach ($getSales->results as $key => $sale) {
-				
-				$urlProduct = "purchases?linkTo=id_product_purchase,id_office_purchase&equalTo=".$sale->id_product_sale.",".$sale->id_office_sale."&select=cost_purchase,may_product&orderBy=date_created_purchase&orderMode=DESC";
-				$getProduct = CurlController::request($urlProduct,$method,$fields);
-
-				if($getProduct->status != 200){
-					$urlFallback = "purchases?linkTo=id_product_purchase&equalTo=".$sale->id_product_sale."&select=cost_purchase,may_product&orderBy=date_created_purchase&orderMode=DESC";
-					$getProduct = CurlController::request($urlFallback,$method,$fields);
-				}
-
-				if(isset($getProduct->status) && $getProduct->status == 200){
-					
-					$product = $getProduct->results[0];
-					$selling_price = ($this->isWholesale == 1 && !empty($product->may_product) && $sale->discount_sale <= 0) ? $product->may_product : $product->cost_purchase;
-
-					$urlUpdate = "sales?id=".$sale->id_sale."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
-					$methodUpdate = "PUT";
-					$fieldsUpdate = array(
-						"subtotal_sale" => round($selling_price * $sale->qty_sale, 2)
-					);
-					$fieldsUpdate = http_build_query($fieldsUpdate);
-
-					CurlController::request($urlUpdate, $methodUpdate, $fieldsUpdate);
-				}
+			foreach ($sales as $sale) {
+				$priceMeta = pos_get_product_price($db, (int)$sale->id_product_sale, (int)$sale->id_office_sale);
+				$selling_price = ($this->isWholesale == 1 && !empty($priceMeta['wholesalePrice']) && $sale->discount_sale <= 0)
+					? $priceMeta['wholesalePrice'] : $priceMeta['price'];
+				$stmtU = $db->prepare("UPDATE sales SET subtotal_sale = :subtotal WHERE id_sale = :id");
+				$stmtU->execute([':subtotal' => round($selling_price * $sale->qty_sale, 2), ':id' => $sale->id_sale]);
 			}
-
 			echo "ok";
-
-		}else{
+		} catch (Throwable $e) {
 			echo "error";
 		}
 	}
@@ -701,46 +502,23 @@ class PosController{
 	public $idSaleDelete;
 
 	public function deleteSale(){
+		try {
+			$db = LocalConnection::connect();
+			$stmt = $db->prepare("SELECT status_sale FROM sales WHERE id_sale = :id LIMIT 1");
+			$stmt->execute([':id' => $this->idSaleDelete]);
+			$status = $stmt->fetchColumn();
 
-		/*=============================================
-		Validar que la venta no esté finalizada
-		=============================================*/
-
-		$url = "sales?linkTo=id_sale,status_sale&equalTo=".$this->idSaleDelete.",Completada";
-		$method = "GET";
-		$fields = array();
-
-		$getSale = CurlController::request($url,$method,$fields);
-
-		if($getSale->status == 200){
-
-			echo "error";
-
-			return;
-
-		}else{
-
-			/*=============================================
-			Eliminar venta
-			=============================================*/
-		
-			$url = "sales?id=".$this->idSaleDelete."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
-			$method = "DELETE";
-			$fields = array();
-
-			$deleteSale = CurlController::request($url,$method,$fields);
-
-			if($deleteSale->status == 200){
-
-				echo "ok";	
-			
-			}else{
-
-				echo "logout";
+			if ($status === 'Completada') {
+				echo "error";
+				return;
 			}
 
+			$stmt = $db->prepare("DELETE FROM sales WHERE id_sale = :id");
+			$stmt->execute([':id' => $this->idSaleDelete]);
+			echo "ok";
+		} catch (Throwable $e) {
+			echo "logout";
 		}
-
 	}
 
 	/*=============================================
@@ -750,47 +528,12 @@ class PosController{
 	public $idOrderSale;
 
 	public function deleteAllSale(){
-
-		/*=============================================
-		Validar que la venta no esté finalizada
-		=============================================*/
-
-		$url = "sales?linkTo=id_order_sale,status_sale&equalTo=".$this->idOrderSale.",Pendiente";
-		$method = "GET";
-		$fields = array();
-
-		$getSale = CurlController::request($url,$method,$fields);
-
-		if($getSale->status == 200){
-
-			$countDeleteSale = 0;
-
-			foreach ($getSale->results as $key => $value) {
-
-
-				/*=============================================
-				Eliminar venta
-				=============================================*/
-
-				$url = "sales?id=".$value->id_sale."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
-				$method = "DELETE";
-				$fields = array();
-
-				$deleteSale = CurlController::request($url,$method,$fields);
-
-				if($deleteSale->status == 200){
-
-					$countDeleteSale++;
-
-					if($countDeleteSale == count($getSale->results)){
-
-						echo "ok";
-					}
-				}
-			}
-
-		}else{
-
+		try {
+			$db = LocalConnection::connect();
+			$stmt = $db->prepare("DELETE FROM sales WHERE id_order_sale = :order AND status_sale = 'Pendiente'");
+			$stmt->execute([':order' => $this->idOrderSale]);
+			echo "ok";
+		} catch (Throwable $e) {
 			echo "error";
 		}
 	}
@@ -802,72 +545,44 @@ class PosController{
 	public $idOrderDelete;
 
 	public function deleteOrder(){
+		try {
+			$db = LocalConnection::connect();
 
-		/*=============================================
-		Validar que la órden no esté finalizada
-		=============================================*/
+			// Verificar que la orden no esté finalizada
+			$stmt = $db->prepare("SELECT status_order FROM orders WHERE id_order = :id LIMIT 1");
+			$stmt->execute([':id' => $this->idOrderDelete]);
+			$order = $stmt->fetch(PDO::FETCH_ASSOC);
 
-		$url = "orders?linkTo=id_order,status_order&equalTo=".$this->idOrderDelete.",Completada";
-		$method = "GET";
-		$fields = array();
-
-		$getOrder = CurlController::request($url,$method,$fields);
-
-		if($getOrder->status == 200){
-
-			echo "error";
-		
-		}else{
-
-			/*=============================================
-			Eliminar orden
-			=============================================*/
-
-			$url = "orders?id=".$this->idOrderDelete."&nameId=id_order&token=".$this->token."&table=admins&suffix=admin";
-			$method = "DELETE";
-			$fields = array();
-
-			$deleteOrder = CurlController::request($url,$method,$fields);
-
-			if($deleteOrder->status == 200){
-
-				$url = "sales?linkTo=id_order_sale&equalTo=".$this->idOrderDelete;
-				$method = "GET";
-				$fields = array();
-
-				$getSales = CurlController::request($url,$method,$fields);
-
-				if($getSales->status == 200){
-
-					$countDeleteSales = 0;
-
-					foreach ($getSales->results as $key => $value) {
-
-						/*=============================================
-						Eliminar venta
-						=============================================*/
-
-						$url = "sales?id=".$value->id_sale."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
-						$method = "DELETE";
-						$fields = array();
-
-						$deleteSale = CurlController::request($url,$method,$fields);
-
-						if($deleteSale->status == 200){
-
-							$countDeleteSales++;
-
-							if($countDeleteSales == count($getSales->results)){
-
-								echo "ok";
-							}
-						}
-					}
-
-				}
-
+			if (!$order) {
+				echo "error|Orden no encontrada";
+				return;
 			}
 
+			if ($order['status_order'] === 'Completada') {
+				echo "error|No se puede eliminar una orden completada";
+				return;
+			}
+
+			// Iniciar transacción
+			$db->beginTransaction();
+
+			// Eliminar todas las ventas asociadas
+			$stmtSales = $db->prepare("DELETE FROM sales WHERE id_order_sale = :id");
+			$stmtSales->execute([':id' => $this->idOrderDelete]);
+
+			// Eliminar la orden
+			$stmtOrder = $db->prepare("DELETE FROM orders WHERE id_order = :id");
+			$stmtOrder->execute([':id' => $this->idOrderDelete]);
+
+			// Confirmar transacción
+			$db->commit();
+			echo "ok";
+
+		} catch (Exception $e) {
+			if (isset($db) && $db->inTransaction()) {
+				$db->rollBack();
+			}
+			echo "error|" . $e->getMessage();
 		}
 	}
 
@@ -886,47 +601,43 @@ class PosController{
 
 	public function overridePrice(){
 
-		/*=============================================
-		Actualizar Venta con nuevo precio
-		=============================================*/
+		$db          = LocalConnection::connect();
 		$newSubtotal = round($this->newPriceOverride, 2) * $this->qtyOverride;
 
-		$url = "sales?id=".$this->idSaleOverride."&nameId=id_sale&token=".$this->token."&table=admins&suffix=admin";
-		$method = "PUT";
-		$fields = array(
-			"subtotal_sale" => round($newSubtotal, 2),
-			"applied_price_type" => "manual",
-			"original_price_sale" => round($this->originalPriceOverride, 2)
-		);
+		// Actualizar venta con nuevo precio
+		$stmtSale = $db->prepare("
+			UPDATE sales SET
+				subtotal_sale         = :sub,
+				applied_price_type    = 'manual',
+				original_price_sale   = :orig
+			WHERE id_sale = :id
+		");
+		$ok = $stmtSale->execute([
+			':sub'  => round($newSubtotal, 2),
+			':orig' => round($this->originalPriceOverride, 2),
+			':id'   => intval($this->idSaleOverride)
+		]);
 
-		$fields = http_build_query($fields);
-
-		$updateSale = CurlController::request($url,$method,$fields);
-
-		if($updateSale->status == 200){
-
-			/*=============================================
-			Registrar en Auditoría (price_overrides)
-			=============================================*/
-			
-			$urlAudit = "price_overrides?token=".$this->token."&table=admins&suffix=admin";
-			$methodAudit = "POST";
-			$fieldsAudit = array(
-				"id_sale_override" => $this->idSaleOverride,
-				"id_order_override" => $this->idOrderOverride,
-				"id_product_override" => $this->idProductOverride,
-				"id_admin_override" => $this->seller,
-				"original_price" => round($this->originalPriceOverride, 2),
-				"override_price" => round($this->newPriceOverride, 2),
-				"reason_override" => $this->reasonOverride
-			);
-
-			CurlController::request($urlAudit, $methodAudit, $fieldsAudit);
-
+		if ($ok) {
+			// Registrar en auditoría
+			$stmtAudit = $db->prepare("
+				INSERT INTO price_overrides
+					(id_sale_override, id_order_override, id_product_override,
+					 id_admin_override, original_price, override_price, reason_override)
+				VALUES
+					(:sale, :order, :product, :admin, :orig, :new, :reason)
+			");
+			$stmtAudit->execute([
+				':sale'    => intval($this->idSaleOverride),
+				':order'   => intval($this->idOrderOverride),
+				':product' => intval($this->idProductOverride),
+				':admin'   => intval($this->seller),
+				':orig'    => round($this->originalPriceOverride, 2),
+				':new'     => round($this->newPriceOverride, 2),
+				':reason'  => $this->reasonOverride
+			]);
 			echo "ok";
-		
-		}else{
-
+		} else {
 			echo "logout";
 		}
 

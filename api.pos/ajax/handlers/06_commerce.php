@@ -1,12 +1,12 @@
 <?php
 if (isset($_POST['updateOrderStatus'])) {
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    pos_require_role(['admin', 'superadmin', 'cajero', 'despachador', 'despachador_laboratorio']);
     $db = LocalConnection::connect();
     $id   = intval($_POST['id_order'] ?? 0);
     $status = $_POST['status'] ?? '';
     $allowed = ['Pendiente Despacho', 'Despachado', 'Pago Pendiente', 'Venta Confirmada', 'Cancelada'];
     if (!$id || !in_array($status, $allowed)) {
-        echo json_encode(['status' => 400, 'message' => 'Datos inv�lidos']); exit;
+        echo json_encode(['status' => 400, 'message' => 'Datos inválidos']); exit;
     }
     $stmt = $db->prepare("UPDATE orders SET status_order=:s WHERE id_order=:id");
     $stmt->execute([':s' => $status, ':id' => $id]);
@@ -19,8 +19,10 @@ if (isset($_POST['updateOrderStatus'])) {
 //=====================================
 if (isset($_POST['addOrderExpense'])) {
     $db = LocalConnection::connect();
-    $stmt = $db->prepare("INSERT INTO order_expenses (id_order_expense, concept_expense, amount_expense, id_admin_expense, date_created_expense) VALUES (:ord, :con, :amt, :adm, CURDATE())");
-    $stmt->execute([':ord' => intval($_POST['id_order']), ':con' => $_POST['concept'], ':amt' => floatval($_POST['amount']), ':adm' => intval($_POST['id_admin'] ?? 0)]);
+    $db->exec("ALTER TABLE order_expenses ADD COLUMN IF NOT EXISTS charge_to_client_expense tinyint(1) NOT NULL DEFAULT 0");
+    $chargeToClient = intval($_POST['charge_to_client'] ?? 0) ? 1 : 0;
+    $stmt = $db->prepare("INSERT INTO order_expenses (id_order_expense, concept_expense, amount_expense, charge_to_client_expense, id_admin_expense, date_created_expense) VALUES (:ord, :con, :amt, :ctc, :adm, CURDATE())");
+    $stmt->execute([':ord' => intval($_POST['id_order']), ':con' => $_POST['concept'], ':amt' => floatval($_POST['amount']), ':ctc' => $chargeToClient, ':adm' => intval($_POST['id_admin'] ?? 0)]);
     echo json_encode(['status' => 200, 'message' => 'Gasto registrado']);
     exit;
 }
@@ -36,6 +38,50 @@ if (isset($_POST['deleteOrderExpense'])) {
     $stmt = $db->prepare("DELETE FROM order_expenses WHERE id_expense=:id");
     $stmt->execute([':id' => intval($_POST['id_expense'])]);
     echo json_encode(['status' => 200, 'message' => 'Gasto eliminado']);
+    exit;
+}
+
+//=====================================
+// ÓRDENES PENDIENTES DE DESPACHO
+//=====================================
+if (isset($_POST['getPendingDispatchOrders'])) {
+    $db = LocalConnection::connect();
+    $officeId    = intval($_POST['id_office']    ?? 0);
+    $warehouseId = intval($_POST['id_warehouse'] ?? 0);
+
+    // Si el despachador tiene un almacén asignado, la sucursal a la que pertenece
+    // ese almacén es la que origina las órdenes de venta (id_office_order).
+    if ($warehouseId > 0) {
+        $stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh LIMIT 1");
+        $stmtWH->execute([':wh' => $warehouseId]);
+        $parentOffice = intval($stmtWH->fetchColumn());
+        if ($parentOffice > 0) {
+            $officeId = $parentOffice;
+        }
+    }
+
+    $stmt = $db->prepare("
+        SELECT o.*,
+               c.name_client, c.phone_client,
+               a.name_admin AS vendedor_name,
+               COALESCE(sp.has_proof, 0) AS has_proof,
+               sp.proof_file
+        FROM orders o
+        LEFT JOIN clients c ON o.id_client_order = c.id_client
+        LEFT JOIN admins a ON o.id_admin_order = a.id_admin
+        LEFT JOIN (
+            SELECT id_order_payment,
+                   MAX(CASE WHEN file_payment IS NOT NULL AND file_payment != '' THEN 1 ELSE 0 END) AS has_proof,
+                   MAX(file_payment) AS proof_file
+            FROM sale_payments
+            GROUP BY id_order_payment
+        ) sp ON sp.id_order_payment = o.id_order
+        WHERE o.status_order = 'Pendiente Despacho'
+          AND (:office = 0 OR o.id_office_order = :office2)
+        ORDER BY o.date_created_order DESC
+    ");
+    $stmt->execute([':office' => $officeId, ':office2' => $officeId]);
+    echo json_encode(['status' => 200, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     exit;
 }
 
@@ -191,30 +237,252 @@ if (isset($_POST['deleteSalePayment'])) {
 //=====================================
 // COMBOS (Productos Compuestos)
 //=====================================
+
+// Listar todos los combos con sus componentes y stock mínimo
+if (isset($_POST['getCombos'])) {
+    $db = LocalConnection::connect();
+    $officeId = intval($_POST['id_office'] ?? 0);
+
+    // Query 1: all combos
+    $combos = $db->query("
+        SELECT p.id_product, p.title_product, p.sku_product, p.discount_product,
+               p.combo_price_mode, p.status_product, p.id_category_product, p.img_product
+        FROM products p
+        WHERE p.is_compound_product = 1
+        ORDER BY p.title_product ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($combos)) {
+        echo json_encode(['status' => 200, 'results' => []]);
+        exit;
+    }
+
+    // Query 2: all items for all combos at once
+    $comboIds     = array_column($combos, 'id_product');
+    $phCombos     = implode(',', array_fill(0, count($comboIds), '?'));
+    $stmtAllItems = $db->prepare("
+        SELECT ci.id_combo_item, ci.id_combo_ci, ci.id_product_ci, ci.qty_ci,
+               p.title_product, p.sku_product, p.unit_product
+        FROM combo_items ci
+        JOIN products p ON ci.id_product_ci = p.id_product
+        WHERE ci.id_combo_ci IN ($phCombos)
+        ORDER BY ci.id_combo_ci, ci.id_combo_item ASC
+    ");
+    $stmtAllItems->execute($comboIds);
+    $allItems = $stmtAllItems->fetchAll(PDO::FETCH_ASSOC);
+
+    // Query 3: all component stock in one query
+    $allProductIds = array_values(array_unique(array_column($allItems, 'id_product_ci')));
+    $stockMap = [];
+    if (!empty($allProductIds)) {
+        $phProducts = implode(',', array_fill(0, count($allProductIds), '?'));
+        if ($officeId > 0) {
+            $stmtStock = $db->prepare("
+                SELECT id_product_inventory, COALESCE(stock_inventory, 0) AS stock
+                FROM product_inventory
+                WHERE id_product_inventory IN ($phProducts) AND id_office_inventory = ?
+            ");
+            $stmtStock->execute([...$allProductIds, $officeId]);
+        } else {
+            $stmtStock = $db->prepare("
+                SELECT id_product_inventory, COALESCE(SUM(stock_inventory), 0) AS stock
+                FROM product_inventory
+                WHERE id_product_inventory IN ($phProducts)
+                GROUP BY id_product_inventory
+            ");
+            $stmtStock->execute($allProductIds);
+        }
+        foreach ($stmtStock->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $stockMap[(int)$row['id_product_inventory']] = (int)$row['stock'];
+        }
+    }
+
+    // Group items by combo and compute per-item derived stock
+    $itemsByCombo = [];
+    foreach ($allItems as &$item) {
+        $rawStock = $stockMap[(int)$item['id_product_ci']] ?? 0;
+        $possible = $item['qty_ci'] > 0 ? (int)floor($rawStock / $item['qty_ci']) : 0;
+        $item['stock_available']      = $rawStock;
+        $item['combo_units_possible'] = $possible;
+        $itemsByCombo[(int)$item['id_combo_ci']][] = $item;
+    }
+    unset($item);
+
+    // Assign items + compute combo stock
+    foreach ($combos as &$combo) {
+        $items    = $itemsByCombo[(int)$combo['id_product']] ?? [];
+        $minStock = null;
+        foreach ($items as $i) {
+            $possible = (int)$i['combo_units_possible'];
+            if ($minStock === null || $possible < $minStock) $minStock = $possible;
+        }
+        $combo['items']       = $items;
+        $combo['stock_combo'] = $minStock ?? 0;
+        $combo['total_price'] = array_sum(array_map(fn($i) => $i['price_ci'] * $i['qty_ci'], $items));
+    }
+    unset($combo);
+
+    echo json_encode(['status' => 200, 'results' => $combos]);
+    exit;
+}
+
+// Crear nuevo combo
+if (isset($_POST['createCombo'])) {
+    pos_require_role(['admin', 'superadmin']);
+    $db = LocalConnection::connect();
+    try {
+        $db->beginTransaction();
+        $title = $_POST['title'] ?? '';
+        $sku   = $_POST['sku'] ?? '';
+        $idCat = intval($_POST['id_category'] ?? 0);
+        $discount = floatval($_POST['discount'] ?? 0);
+
+        if (empty($title)) { echo json_encode(['status' => 400, 'message' => 'Nombre requerido']); exit; }
+
+        $stmt = $db->prepare("
+            INSERT INTO products (title_product, sku_product, id_category_product, discount_product,
+                is_compound_product, combo_price_mode, status_product, date_created_product)
+            VALUES (:title, :sku, :cat, :discount, 1, 'fijo', 1, CURDATE())
+        ");
+        $stmt->execute([':title' => urlencode($title), ':sku' => $sku, ':cat' => $idCat, ':discount' => $discount]);
+        $comboId = $db->lastInsertId();
+
+        // Insertar items
+        $items = json_decode($_POST['items'] ?? '[]', true);
+        if (count($items) < 2) {
+            $db->rollBack();
+            echo json_encode(['status' => 400, 'message' => 'El combo debe tener al menos 2 productos']);
+            exit;
+        }
+        $stmtItem = $db->prepare("INSERT INTO combo_items (id_combo_ci, id_product_ci, qty_ci, price_ci, date_created_ci) VALUES (:combo, :product, :qty, :price, CURDATE())");
+        foreach ($items as $item) {
+            $stmtItem->execute([':combo' => $comboId, ':product' => intval($item['id_product']), ':qty' => max(1, intval($item['qty'])), ':price' => floatval($item['price'])]);
+        }
+
+        $db->commit();
+        echo json_encode(['status' => 200, 'id' => $comboId, 'message' => 'Combo creado']);
+    } catch (Throwable $e) {
+        if (isset($db) && $db->inTransaction()) $db->rollBack();
+        error_log('createCombo error: ' . $e->getMessage());
+        pos_fail(500, 'Error al crear el combo.');
+    }
+    exit;
+}
+
+// Actualizar combo (datos + items en una sola llamada)
+if (isset($_POST['updateCombo'])) {
+    pos_require_role(['admin', 'superadmin']);
+    $db = LocalConnection::connect();
+    try {
+        $db->beginTransaction();
+        $comboId  = intval($_POST['id_combo']);
+        $title    = $_POST['title'] ?? '';
+        $sku      = $_POST['sku'] ?? '';
+        $discount = floatval($_POST['discount'] ?? 0);
+        $idCat    = intval($_POST['id_category'] ?? 0);
+
+        $stmt = $db->prepare("UPDATE products SET title_product=:t, sku_product=:s, discount_product=:d, id_category_product=:c WHERE id_product=:id");
+        $stmt->execute([':t' => urlencode($title), ':s' => $sku, ':d' => $discount, ':c' => $idCat, ':id' => $comboId]);
+
+        // Reemplazar items
+        $items = json_decode($_POST['items'] ?? '[]', true);
+        if (count($items) < 2) {
+            $db->rollBack();
+            echo json_encode(['status' => 400, 'message' => 'El combo debe tener al menos 2 productos']);
+            exit;
+        }
+        $db->prepare("DELETE FROM combo_items WHERE id_combo_ci = :id")->execute([':id' => $comboId]);
+        $stmtItem = $db->prepare("INSERT INTO combo_items (id_combo_ci, id_product_ci, qty_ci, price_ci, date_created_ci) VALUES (:combo, :product, :qty, :price, CURDATE())");
+        foreach ($items as $item) {
+            $stmtItem->execute([':combo' => $comboId, ':product' => intval($item['id_product']), ':qty' => max(1, intval($item['qty'])), ':price' => floatval($item['price'])]);
+        }
+
+        $db->commit();
+        echo json_encode(['status' => 200, 'message' => 'Combo actualizado']);
+    } catch (Throwable $e) {
+        if (isset($db) && $db->inTransaction()) $db->rollBack();
+        error_log('updateCombo error: ' . $e->getMessage());
+        pos_fail(500, 'Error al actualizar el combo.');
+    }
+    exit;
+}
+
+// Eliminar combo completo
+if (isset($_POST['deleteCombo'])) {
+    pos_require_role(['admin', 'superadmin']);
+    $db = LocalConnection::connect();
+    try {
+        $db->beginTransaction();
+        $id = intval($_POST['id_combo']);
+        $db->prepare("DELETE FROM combo_items WHERE id_combo_ci=:id")->execute([':id' => $id]);
+        $db->prepare("DELETE FROM products WHERE id_product=:id AND is_compound_product=1")->execute([':id' => $id]);
+        $db->commit();
+        echo json_encode(['status' => 200, 'message' => 'Combo eliminado']);
+    } catch (Throwable $e) {
+        if (isset($db) && $db->inTransaction()) $db->rollBack();
+        error_log('deleteCombo error: ' . $e->getMessage());
+        pos_fail(500, 'Error al eliminar el combo.');
+    }
+    exit;
+}
+
+// Activar/desactivar combo
+if (isset($_POST['toggleComboStatus'])) {
+    pos_require_role(['admin', 'superadmin']);
+    $db = LocalConnection::connect();
+    $id = intval($_POST['id_combo']);
+    $status = intval($_POST['status']);
+    $db->prepare("UPDATE products SET status_product=:s WHERE id_product=:id AND is_compound_product=1")->execute([':s' => $status, ':id' => $id]);
+    echo json_encode(['status' => 200]);
+    exit;
+}
+
+// Subir imagen del combo
+if (isset($_POST['uploadComboImage'])) {
+    pos_require_role(['admin', 'superadmin']);
+    $db  = LocalConnection::connect();
+    $id  = intval($_POST['id_combo'] ?? 0);
+    if (!$id) { echo json_encode(['status' => 400, 'message' => 'ID requerido']); exit; }
+    try {
+        $file = $_FILES['comboImage'] ?? null;
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
+            echo json_encode(['status' => 400, 'message' => 'No se recibió imagen']); exit;
+        }
+        if ($file['size'] > 5 * 1024 * 1024) {
+            echo json_encode(['status' => 400, 'message' => 'La imagen no debe superar 5MB']); exit;
+        }
+        $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!isset($allowed[$ext])) {
+            echo json_encode(['status' => 400, 'message' => 'Formato no permitido (JPG, PNG o WEBP)']); exit;
+        }
+        $dir = __DIR__ . '/../../views/assets/products';
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
+        $fileName = 'combo_' . $id . '_' . time() . '.' . $ext;
+        $destPath = $dir . '/' . $fileName;
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            echo json_encode(['status' => 500, 'message' => 'No se pudo guardar la imagen']); exit;
+        }
+        if (!file_exists($destPath)) {
+            echo json_encode(['status' => 500, 'message' => 'La imagen no quedó en disco']); exit;
+        }
+        $path = 'views/assets/products/' . $fileName;
+        $db->prepare("UPDATE products SET img_product=:img WHERE id_product=:id AND is_compound_product=1")
+           ->execute([':img' => $path, ':id' => $id]);
+        echo json_encode(['status' => 200, 'path' => $path]);
+    } catch (Throwable $e) {
+        error_log('uploadComboImage error: ' . $e->getMessage());
+        pos_fail(500, 'Error al subir la imagen.');
+    }
+    exit;
+}
+
+// Legacy: getComboItems individual
 if (isset($_POST['getComboItems'])) {
     $db = LocalConnection::connect();
-    $stmt = $db->prepare("SELECT ci.*, p.title_product, p.sku_product, p.unit_product FROM combo_items ci JOIN products p ON ci.id_product_ci=p.id_product WHERE ci.id_combo_ci=:id");
+    $stmt = $db->prepare("SELECT ci.*, p.title_product, p.sku_product, p.unit_product FROM combo_items ci JOIN products p ON ci.id_product_ci=p.id_product WHERE ci.id_combo_ci=:id ORDER BY ci.id_combo_item ASC");
     $stmt->execute([':id' => intval($_POST['id_combo'])]);
     echo json_encode(['status' => 200, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
-    exit;
-}
-if (isset($_POST['saveComboItem'])) {
-    $db = LocalConnection::connect();
-    if (isset($_POST['id_combo_item']) && $_POST['id_combo_item']) {
-        $stmt = $db->prepare("UPDATE combo_items SET id_product_ci=:p, qty_ci=:q WHERE id_combo_item=:id");
-        $stmt->execute([':p' => intval($_POST['id_product']), ':q' => floatval($_POST['qty']), ':id' => intval($_POST['id_combo_item'])]);
-    } else {
-        $stmt = $db->prepare("INSERT INTO combo_items (id_combo_ci, id_product_ci, qty_ci) VALUES (:c, :p, :q)");
-        $stmt->execute([':c' => intval($_POST['id_combo']), ':p' => intval($_POST['id_product']), ':q' => floatval($_POST['qty'])]);
-    }
-    echo json_encode(['status' => 200, 'message' => 'Guardado']);
-    exit;
-}
-if (isset($_POST['deleteComboItem'])) {
-    $db = LocalConnection::connect();
-    $stmt = $db->prepare("DELETE FROM combo_items WHERE id_combo_item=:id");
-    $stmt->execute([':id' => intval($_POST['id_combo_item'])]);
-    echo json_encode(['status' => 200]);
     exit;
 }
 
@@ -414,6 +682,12 @@ if (isset($_POST['getSuppliers'])) {
 }
 
 if (isset($_POST['saveSupplier'])) {
+    $typeReq = $_POST['type_supplier'] ?? 'ambos';
+    if ($typeReq === 'materias_primas') {
+        pos_require_role(['admin', 'superadmin', 'lab_admin']);
+    } else {
+        pos_require_role(['admin', 'superadmin']);
+    }
     $db = LocalConnection::connect();
     $id = intval($_POST['id_supplier'] ?? 0);
     $fields = [
@@ -421,7 +695,7 @@ if (isset($_POST['saveSupplier'])) {
         'supplier_contact' => $_POST['supplier_contact'] ?? '',
         'email_supplier'   => $_POST['email_supplier'] ?? '',
         'ruc_supplier'     => $_POST['ruc_supplier'] ?? '',
-        'type_supplier'    => $_POST['type_supplier'] ?? 'ambos',
+        'type_supplier'    => $typeReq,
         'status_supplier'  => intval($_POST['status_supplier'] ?? 1)
     ];
     if ($id > 0) {
@@ -444,6 +718,22 @@ if (isset($_POST['saveSupplier'])) {
 
 if (isset($_POST['deleteSupplier'])) {
     $db = LocalConnection::connect();
+    $role = $_SESSION['admin']->rol_admin ?? '';
+    if (!in_array($role, ['admin', 'superadmin', 'lab_admin'])) {
+        http_response_code(403);
+        echo json_encode(['status' => 403, 'results' => 'Sin permiso para eliminar proveedores']);
+        exit;
+    }
+    if ($role === 'lab_admin') {
+        $check = $db->prepare("SELECT type_supplier FROM suppliers WHERE id_supplier=:id");
+        $check->execute([':id' => intval($_POST['id_supplier'])]);
+        $type = $check->fetchColumn();
+        if ($type !== 'materias_primas') {
+            http_response_code(403);
+            echo json_encode(['status' => 403, 'results' => 'Solo puedes eliminar proveedores de laboratorio']);
+            exit;
+        }
+    }
     $stmt = $db->prepare("UPDATE suppliers SET status_supplier=0 WHERE id_supplier=:id");
     $stmt->execute([':id' => intval($_POST['id_supplier'])]);
     echo json_encode(['status' => 200, 'message' => 'Proveedor eliminado']);
@@ -483,6 +773,7 @@ if (isset($_POST['getInvoices'])) {
 }
 
 if (isset($_POST['emitInvoice'])) {
+    pos_require_role(['admin', 'superadmin', 'cajero']);
     $db = LocalConnection::connect();
     $idInvoice = intval($_POST['id_invoice'] ?? 0);
     $invoiceNumber = $_POST['invoice_number'] ?? ('FAC-' . date('Y') . '-' . str_pad($idInvoice, 5, '0', STR_PAD_LEFT));
@@ -495,6 +786,7 @@ if (isset($_POST['emitInvoice'])) {
 }
 
 if (isset($_POST['voidInvoice'])) {
+    pos_require_role(['admin', 'superadmin']);
     $db = LocalConnection::connect();
     $stmt = $db->prepare("UPDATE invoices SET status_invoice='anulada' WHERE id_invoice=:id");
     $stmt->execute([':id' => intval($_POST['id_invoice'])]);
@@ -534,6 +826,7 @@ if (isset($_POST['getPackagings'])) {
 }
 
 if (isset($_POST['savePackaging'])) {
+    pos_require_role(['admin', 'superadmin']);
     $db = LocalConnection::connect();
     $id = intval($_POST['id_packaging'] ?? 0);
     $fields = [
@@ -561,6 +854,7 @@ if (isset($_POST['savePackaging'])) {
 }
 
 if (isset($_POST['deletePackaging'])) {
+    pos_require_role(['admin', 'superadmin']);
     $db = LocalConnection::connect();
     $stmt = $db->prepare("UPDATE packaging_catalog SET status_packaging=0 WHERE id_packaging=:id");
     $stmt->execute([':id' => intval($_POST['id_packaging'])]);
@@ -588,7 +882,7 @@ function updateCashTotals($db, $idCash) {
     // 3. Obtener ingresos de ventas (�rdenes completadas de esta caja)
     // Buscamos �rdenes que ocurrieron en la fecha de la caja o entre start y end de la caja.
     // Usaremos un filtro de fecha. Pero es mejor tener un registro. Si la caja no se ha cerrado, 
-    // contamos las ventas desde start_cash_date hasta AHORA. Si est� cerrada, hasta end_cash_date.
+    // contamos las ventas desde start_cash_date hasta AHORA. Si está cerrada, hasta end_cash_date.
     $stmtC = $db->prepare("SELECT * FROM cashs WHERE id_cash = :id");
     $stmtC->execute([':id' => $idCash]);
     $cash = $stmtC->fetch(PDO::FETCH_ASSOC);
@@ -658,6 +952,7 @@ if (isset($_POST['getCashDetails'])) {
 }
 
 if (isset($_POST['closeCashRegister'])) {
+    pos_require_role(['admin', 'superadmin', 'cajero']);
     $db = LocalConnection::connect();
     $idCash = intval($_POST['id_cash'] ?? 0);
     $physicalCash = floatval($_POST['physical_cash'] ?? 0);
@@ -799,7 +1094,8 @@ if (isset($_POST['uploadQR'])) {
         echo json_encode(["status" => 200, "message" => "QR guardado correctamente", "path" => $qrPath]);
 
     } catch (Exception $e) {
-        echo json_encode(["status" => 500, "message" => $e->getMessage()]);
+        error_log('uploadQR error: ' . $e->getMessage());
+        echo json_encode(["status" => 500, "message" => "Error al guardar el QR."]);
     }
     return;
 }

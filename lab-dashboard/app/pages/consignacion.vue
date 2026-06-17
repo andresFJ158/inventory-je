@@ -143,7 +143,7 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-3">
-      <p class="text-sm text-slate-500 dark:text-slate-400">Gestiona las consignaciones de productos para vendedores externos. Registra la entrega, el inventario asignado y la liquidación posterior.</p>
+      <p class="text-sm text-slate-500">Gestiona las consignaciones de productos para vendedores externos. Registra la entrega, el inventario asignado y la liquidación posterior.</p>
       <UButton color="primary" icon="i-lucide-plus" @click="() => { newItems = [{ id_product: '', qty: 1, price: 0 }]; createModal = true }">Nueva Consignación</UButton>
     </div>
 
@@ -158,15 +158,15 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
       </div>
       <!-- Cards en móvil -->
       <div class="block sm:hidden space-y-3">
-        <div v-for="c in consignments" :key="c.id_consignment" class="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+        <div v-for="c in consignments" :key="c.id_consignment" class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <p class="font-bold text-slate-800 dark:text-white text-sm">{{ decode(c.name_admin || '') || `Admin #${c.id_admin_consignment}` }}</p>
+              <p class="font-bold text-slate-800 text-sm">{{ decode(c.name_admin || '') || `Admin #${c.id_admin_consignment}` }}</p>
               <p class="text-xs text-slate-400 font-mono">#{{ c.id_consignment }} · {{ c.date_created_consignment }}</p>
             </div>
             <UBadge :color="c.status_consignment === 'liquidada' ? 'success' : c.status_consignment === 'parcial' ? 'warning' : 'primary'" variant="subtle" size="xs" class="capitalize shrink-0">{{ c.status_consignment }}</UBadge>
           </div>
-          <p v-if="c.notes_consignment" class="text-xs text-slate-500 dark:text-slate-400">{{ c.notes_consignment }}</p>
+          <p v-if="c.notes_consignment" class="text-xs text-slate-500">{{ c.notes_consignment }}</p>
           <UButton size="xs" variant="soft" color="primary" icon="i-lucide-clipboard-list" block @click="openDetail(c)">
             {{ c.status_consignment === 'liquidada' ? 'Ver Detalle' : 'Liquidar' }}
           </UButton>
@@ -177,7 +177,7 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
       <div class="hidden sm:block overflow-x-auto">
         <table class="w-full text-sm text-left">
           <thead>
-            <tr class="border-b border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-900">
+            <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase bg-slate-50">
               <th class="px-4 py-3">#</th>
               <th class="px-4 py-3">Vendedor</th>
               <th class="px-4 py-3">Estado</th>
@@ -187,14 +187,14 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
             </tr>
           </thead>
           <tbody>
-            <tr v-for="c in consignments" :key="c.id_consignment" class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-              <td class="px-4 py-3 font-mono text-slate-400 dark:text-slate-500 text-xs">#{{ c.id_consignment }}</td>
-              <td class="px-4 py-3 font-semibold text-slate-800 dark:text-white">{{ decode(c.name_admin || '') || `Admin #${c.id_admin_consignment}` }}</td>
+            <tr v-for="c in consignments" :key="c.id_consignment" class="border-b border-slate-100 hover:bg-slate-50">
+              <td class="px-4 py-3 font-mono text-slate-400 text-xs">#{{ c.id_consignment }}</td>
+              <td class="px-4 py-3 font-semibold text-slate-800">{{ decode(c.name_admin || '') || `Admin #${c.id_admin_consignment}` }}</td>
               <td class="px-4 py-3">
                 <UBadge :color="c.status_consignment === 'liquidada' ? 'success' : c.status_consignment === 'parcial' ? 'warning' : 'primary'" variant="subtle" size="xs" class="capitalize">{{ c.status_consignment }}</UBadge>
               </td>
-              <td class="px-4 py-3 hidden md:table-cell text-slate-500 dark:text-slate-400 text-xs">{{ c.date_created_consignment }}</td>
-              <td class="px-4 py-3 hidden lg:table-cell text-slate-500 dark:text-slate-400 max-w-xs truncate text-xs">{{ c.notes_consignment || '—' }}</td>
+              <td class="px-4 py-3 hidden md:table-cell text-slate-500 text-xs">{{ c.date_created_consignment }}</td>
+              <td class="px-4 py-3 hidden lg:table-cell text-slate-500 max-w-xs truncate text-xs">{{ c.notes_consignment || '—' }}</td>
               <td class="px-4 py-3 text-right">
                 <UButton size="xs" variant="soft" color="primary" icon="i-lucide-clipboard-list" @click="openDetail(c)">
                   {{ c.status_consignment === 'liquidada' ? 'Ver' : 'Liquidar' }}
@@ -217,7 +217,7 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
           <div class="space-y-3">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Productos a Consignar</p>
 
-            <div v-for="(item, idx) in newItems" :key="idx" class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 space-y-2">
+            <div v-for="(item, idx) in newItems" :key="idx" class="bg-slate-50 rounded-lg p-3 space-y-2">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-xs font-semibold text-slate-500">Producto {{ idx + 1 }}</span>
                 <UButton icon="i-lucide-x" color="error" variant="ghost" size="xs" @click="removeItemRow(idx)" />
@@ -262,15 +262,15 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
           <template v-else>
             <!-- Items para liquidar -->
             <div class="space-y-3">
-              <div v-for="item in items" :key="item.id_consignment_item" class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 space-y-2">
+              <div v-for="item in items" :key="item.id_consignment_item" class="bg-slate-50 rounded-xl p-3 space-y-2">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="font-semibold text-slate-800 dark:text-white text-sm">{{ decode(item.title_product) }}</p>
+                    <p class="font-semibold text-slate-800 text-sm">{{ decode(item.title_product) }}</p>
                     <p class="text-xs text-slate-500">{{ item.sku_product }} · {{ item.unit_product }}</p>
                   </div>
                   <div class="text-right">
                     <p class="text-xs text-slate-400">Asignado</p>
-                    <p class="font-bold text-slate-700 dark:text-slate-200">{{ item.qty_assigned }}</p>
+                    <p class="font-bold text-slate-700">{{ item.qty_assigned }}</p>
                   </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -289,7 +289,7 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
             </div>
 
             <!-- Resumen de cuenta -->
-            <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-2 border border-slate-200 dark:border-slate-700">
+            <div class="bg-slate-50 rounded-xl p-4 space-y-2 border border-slate-200">
               <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado de Cuenta</p>
               <div class="flex justify-between text-sm">
                 <span class="text-slate-500">Total Vendido</span>
@@ -302,7 +302,7 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
             </div>
 
             <!-- Comprobante de pago de la liquidación -->
-            <div v-if="selected.status_consignment !== 'liquidada'" class="border-t border-slate-200 dark:border-slate-700 pt-3 space-y-2">
+            <div v-if="selected.status_consignment !== 'liquidada'" class="border-t border-slate-200 pt-3 space-y-2">
               <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Comprobante de Pago</p>
               <UFormField label="Referencia / N° de operación">
                 <UInput v-model="liqReference" placeholder="Número de operación..." class="w-full" />
@@ -311,19 +311,19 @@ onMounted(async () => { await Promise.all([fetchProducts(), fetchConsignments()]
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
-                  class="block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-300"
+                  class="block w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                   @change="onLiqProofChange"
                 >
               </UFormField>
-              <p v-if="liqProofFile" class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+              <p v-if="liqProofFile" class="text-xs text-green-600 flex items-center gap-1">
                 <UIcon name="i-lucide-paperclip" class="w-3.5 h-3.5" /> {{ liqProofFile.name }}
               </p>
             </div>
 
-            <div v-if="selected.status_consignment === 'liquidada'" class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center">
+            <div v-if="selected.status_consignment === 'liquidada'" class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
               <UIcon name="i-lucide-check-circle" class="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-              <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Consignación liquidada</p>
-              <p v-if="selected.reference_consignment" class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">Ref: {{ selected.reference_consignment }}</p>
+              <p class="text-sm font-semibold text-emerald-700">Consignación liquidada</p>
+              <p v-if="selected.reference_consignment" class="text-xs text-emerald-600 mt-1">Ref: {{ selected.reference_consignment }}</p>
               <a v-if="selected.file_consignment" :href="`/${selected.file_consignment}`" target="_blank" class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-medium mt-1">
                 <UIcon name="i-lucide-receipt" class="w-4 h-4" /> Ver comprobante
               </a>

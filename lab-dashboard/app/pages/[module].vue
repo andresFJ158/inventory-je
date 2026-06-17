@@ -10,7 +10,7 @@ const moduleName = computed(() => {
 </script>
 
 <template>
-  <div class="container-fluid">
+  <div class="flex-1 flex flex-col min-h-0">
     <DynamicTable :module-name="moduleName" />
   </div>
 </template>

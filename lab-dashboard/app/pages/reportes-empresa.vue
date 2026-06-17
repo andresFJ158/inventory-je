@@ -141,7 +141,7 @@ function formatCurrency(val: number) {
   <div class="w-full space-y-6 relative" v-if="auth.role === 'superadmin' || auth.role === 'admin' || auth.officeId === 0">
     <div
       v-if="loading"
-      class="absolute inset-0 z-20 flex items-center justify-center bg-white/70 dark:bg-slate-950/70 rounded-lg"
+      class="absolute inset-0 z-20 flex items-center justify-center bg-white/70 rounded-lg"
     >
       <UIcon name="i-lucide-loader-circle" class="w-10 h-10 animate-spin text-indigo-600" />
     </div>
@@ -201,12 +201,12 @@ function formatCurrency(val: number) {
       </UCard>
     </div>
 
-    <UCard class="bg-indigo-50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900">
+    <UCard class="bg-indigo-50 border-indigo-100">
       <div class="flex items-start gap-4">
         <UIcon name="i-lucide-info" class="w-6 h-6 text-indigo-500 mt-1 shrink-0" />
         <div>
-          <h4 class="font-bold text-indigo-900 dark:text-indigo-300">Nota Confidencial</h4>
-          <p class="text-sm text-indigo-800 dark:text-indigo-400 mt-1">Este panel muestra datos consolidados de la compañía sin filtros de sucursal ni vendedor. Su acceso está restringido únicamente a usuarios con rol de Super Administrador.</p>
+          <h4 class="font-bold text-indigo-900">Nota Confidencial</h4>
+          <p class="text-sm text-indigo-800 mt-1">Este panel muestra datos consolidados de la compañía sin filtros de sucursal ni vendedor. Su acceso está restringido únicamente a usuarios con rol de Super Administrador.</p>
         </div>
       </div>
     </UCard>

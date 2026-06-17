@@ -1,7 +1,8 @@
-<?php 
+<?php
 
 require_once "connection.php";
 require_once "get.model.php";
+require_once "audit.model.php";
 
 class PutModel{
 
@@ -22,6 +23,12 @@ class PutModel{
 			return null;
 
 		}
+
+		/*=============================================
+		Capturar estado previo para auditoría
+		=============================================*/
+
+		$before = AuditLogger::snapshot($table, $nameId, $id);
 
 		/*=============================================
 		Actualizamos registros
@@ -66,13 +73,15 @@ class PutModel{
 
 		if($executed){
 
+			AuditLogger::log("UPDATE", $table, $id, array("before" => $before, "after" => $data));
+
 			$response = array(
 
 				"comment" => "The process was successful"
 			);
 
 			return $response;
-		
+
 		}else{
 
 			Connection::handleStatementError($stmt, array(

@@ -127,11 +127,11 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
       </UCard>
       <UCard>
         <p class="text-slate-500 text-xs font-bold uppercase">Créditos Activos</p>
-        <h2 class="text-2xl font-black text-slate-800 dark:text-white mt-1">{{ credits.filter(c => c.status_credit === 'activo').length }}</h2>
+        <h2 class="text-2xl font-black text-slate-800 mt-1">{{ credits.filter(c => c.status_credit === 'activo').length }}</h2>
       </UCard>
-      <UCard :class="overdue.length > 0 ? 'border-rose-300 dark:border-rose-700' : ''">
+      <UCard :class="overdue.length > 0 ? 'border-rose-300' : ''">
         <p class="text-xs font-bold uppercase" :class="overdue.length > 0 ? 'text-rose-500' : 'text-slate-500'">Créditos Vencidos</p>
-        <h2 class="text-2xl font-black mt-1" :class="overdue.length > 0 ? 'text-rose-600' : 'text-slate-800 dark:text-white'">{{ overdue.length }}</h2>
+        <h2 class="text-2xl font-black mt-1" :class="overdue.length > 0 ? 'text-rose-600' : 'text-slate-800'">{{ overdue.length }}</h2>
       </UCard>
     </div>
 
@@ -155,11 +155,11 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
       <div class="block sm:hidden space-y-3">
         <div
           v-for="c in filteredCredits" :key="c.id_credit"
-          class="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3"
+          class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3"
         >
           <div class="flex items-start justify-between gap-2">
             <div>
-              <p class="font-bold text-slate-800 dark:text-white text-sm">{{ decode(c.name_client) }} {{ decode(c.surname_client || '') }}</p>
+              <p class="font-bold text-slate-800 text-sm">{{ decode(c.name_client) }} {{ decode(c.surname_client || '') }}</p>
               <p v-if="c.nit_client" class="text-xs text-slate-400">NIT: {{ c.nit_client }}</p>
             </div>
             <UBadge
@@ -182,7 +182,7 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
       <div class="hidden sm:block overflow-x-auto">
         <table class="w-full text-sm text-left">
           <thead>
-            <tr class="border-b border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-900">
+            <tr class="border-b border-slate-200 text-xs text-slate-500 uppercase bg-slate-50">
               <th class="px-4 py-3">Cliente</th>
               <th class="px-4 py-3">Monto</th>
               <th class="px-4 py-3">Saldo</th>
@@ -192,14 +192,14 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
             </tr>
           </thead>
           <tbody>
-            <tr v-for="c in filteredCredits" :key="c.id_credit" class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-              <td class="px-4 py-3 font-semibold text-slate-800 dark:text-white">
+            <tr v-for="c in filteredCredits" :key="c.id_credit" class="border-b border-slate-100 hover:bg-slate-50">
+              <td class="px-4 py-3 font-semibold text-slate-800">
                 {{ decode(c.name_client) }} {{ decode(c.surname_client || '') }}
                 <p v-if="c.nit_client" class="text-xs text-slate-400 font-normal">NIT: {{ c.nit_client }}</p>
               </td>
-              <td class="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{{ fmt(parseFloat(c.amount_credit)) }}</td>
+              <td class="px-4 py-3 font-mono text-slate-700">{{ fmt(parseFloat(c.amount_credit)) }}</td>
               <td class="px-4 py-3 font-mono font-bold" :class="parseFloat(c.balance_credit) > 0 ? 'text-amber-600' : 'text-emerald-600'">{{ fmt(parseFloat(c.balance_credit)) }}</td>
-              <td class="px-4 py-3 hidden md:table-cell text-slate-600 dark:text-slate-400">
+              <td class="px-4 py-3 hidden md:table-cell text-slate-600">
                 <span v-if="c.due_date_credit">
                   {{ c.due_date_credit }}
                   <span v-if="daysDiff(c.due_date_credit)! < 0" class="text-rose-500 text-xs block">{{ Math.abs(daysDiff(c.due_date_credit)!) }} días vencido</span>
@@ -253,8 +253,8 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
         <div v-if="selectedCredit" class="space-y-4 p-1">
           <!-- Resumen -->
           <div class="grid grid-cols-2 gap-3 text-sm">
-            <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3"><p class="text-slate-400 text-xs">Monto Original</p><p class="font-bold text-lg">{{ fmt(parseFloat(selectedCredit.amount_credit)) }}</p></div>
-            <div :class="['rounded-lg p-3', parseFloat(selectedCredit.balance_credit) > 0 ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20']">
+            <div class="bg-slate-50 rounded-lg p-3"><p class="text-slate-400 text-xs">Monto Original</p><p class="font-bold text-lg">{{ fmt(parseFloat(selectedCredit.amount_credit)) }}</p></div>
+            <div :class="['rounded-lg p-3', parseFloat(selectedCredit.balance_credit) > 0 ? 'bg-amber-50' : 'bg-emerald-50']">
               <p class="text-xs" :class="parseFloat(selectedCredit.balance_credit) > 0 ? 'text-amber-500' : 'text-emerald-500'">Saldo Pendiente</p>
               <p class="font-black text-xl" :class="parseFloat(selectedCredit.balance_credit) > 0 ? 'text-amber-600' : 'text-emerald-600'">{{ fmt(parseFloat(selectedCredit.balance_credit)) }}</p>
             </div>
@@ -265,9 +265,9 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Historial de Abonos</p>
             <div v-if="loadingPayments" class="text-center py-3"><UIcon name="i-lucide-loader-2" class="w-5 h-5 animate-spin text-green-500 mx-auto" /></div>
             <div v-else class="space-y-1.5">
-              <div v-for="p in payments" :key="p.id_payment" class="flex justify-between items-center bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2 text-sm gap-2">
+              <div v-for="p in payments" :key="p.id_payment" class="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2 text-sm gap-2">
                 <div class="min-w-0">
-                  <p class="font-semibold text-slate-700 dark:text-slate-200">{{ p.date_created_payment }}</p>
+                  <p class="font-semibold text-slate-700">{{ p.date_created_payment }}</p>
                   <p class="text-xs text-slate-400 capitalize truncate">{{ p.method_payment }}{{ p.reference_payment ? ` · ${p.reference_payment}` : '' }}</p>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
@@ -282,7 +282,7 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
           </div>
 
           <!-- Agregar abono -->
-          <div v-if="selectedCredit.status_credit !== 'pagado'" class="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-3">
+          <div v-if="selectedCredit.status_credit !== 'pagado'" class="border-t border-slate-200 pt-4 space-y-3">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Registrar Abono</p>
             <div class="grid grid-cols-2 gap-2">
               <UFormField label="Monto (Bs.) *">
@@ -299,18 +299,18 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,application/pdf"
-                class="block w-full text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-300"
+                class="block w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                 @change="onProofChange"
               >
             </UFormField>
-            <p v-if="proofFile" class="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+            <p v-if="proofFile" class="text-xs text-green-600 flex items-center gap-1">
               <UIcon name="i-lucide-paperclip" class="w-3.5 h-3.5" /> {{ proofFile.name }}
             </p>
             <UButton color="primary" block :loading="paying" icon="i-lucide-plus" @click="addPayment">Registrar Abono</UButton>
           </div>
-          <div v-else class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-center">
+          <div v-else class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
             <UIcon name="i-lucide-check-circle" class="w-7 h-7 text-emerald-500 mx-auto mb-1" />
-            <p class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Crédito completamente pagado</p>
+            <p class="text-sm font-semibold text-emerald-700">Crédito completamente pagado</p>
           </div>
         </div>
       </template>

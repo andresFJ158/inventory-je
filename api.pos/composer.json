@@ -1,0 +1,13 @@
+{
+    "name": "unitech/api-pos",
+    "description": "API POS Unitech",
+    "require": {
+        "firebase/php-jwt": "^5.4"
+    },
+    "config": {
+        "policy.advisories.ignore-id": [
+            "PKSA-y2cr-5h3j-g3ys",
+            "PKSA-2kqm-ps5x-s4f5"
+        ]
+    }
+}

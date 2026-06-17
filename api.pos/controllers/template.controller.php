@@ -424,22 +424,14 @@ class TemplateController{
 	=============================================*/
 
 	static public function transValidate($numCode){
-
-		$url = "orders?linkTo=transaction_order&equalTo=".$numCode."&select=id_order";
-		$method = "GET";
-		$fields = array();
-
-		$validate = CurlController::request($url,$method,$fields);
-
-		if($validate->status == 200){
-
-			return false;
-
-		}else{
-
-			return true;
+		try {
+			$db = LocalConnection::connect();
+			$stmt = $db->prepare("SELECT id_order FROM orders WHERE transaction_order = :code LIMIT 1");
+			$stmt->execute([':code' => $numCode]);
+			return $stmt->fetchColumn() === false; // true = no existe = válido
+		} catch (Throwable $e) {
+			return true; // Si falla la consulta, asumimos que es válido
 		}
-
 	}
 }
 

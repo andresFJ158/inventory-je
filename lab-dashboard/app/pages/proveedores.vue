@@ -1,16 +1,25 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '~/stores/auth'
 
-const auth = useAuthStore()
 const toast = useToast()
 const ajaxBase = '/ajax/pos.ajax.php'
+
+const confirmDialog = ref({ open: false, title: '', message: '' })
+const confirmResolve = ref<((v: boolean) => void) | null>(null)
+function confirmAction(title: string, message: string): Promise<boolean> {
+  return new Promise(resolve => {
+    confirmDialog.value = { open: true, title, message }
+    confirmResolve.value = resolve
+  })
+}
+function onConfirmOk() { confirmResolve.value?.(true); confirmDialog.value.open = false }
+function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.open = false }
 
 const suppliers = ref<any[]>([])
 const loading = ref(true)
 const search = ref('')
-const filterType = ref<'todos' | 'productos' | 'materias_primas' | 'ambos'>('todos')
+const filterType = ref<'todos' | 'productos' | 'ambos'>('todos')
 
 const slideOpen = ref(false)
 const editing = ref<any>(null)
@@ -22,25 +31,22 @@ const form = ref({
   supplier_contact: '',
   email_supplier: '',
   ruc_supplier: '',
-  type_supplier: 'ambos' as 'productos' | 'materias_primas' | 'ambos',
+  type_supplier: 'ambos' as 'productos' | 'ambos',
   status_supplier: 1
 })
 
 const typeOptions = [
-  { value: 'ambos', label: 'Productos y Materias Primas' },
-  { value: 'productos', label: 'Solo Productos POS' },
-  { value: 'materias_primas', label: 'Solo Materias Primas / Lab' }
+  { value: 'ambos', label: 'Productos y Ambos' },
+  { value: 'productos', label: 'Solo Productos POS' }
 ]
 
 const typeColors: Record<string, any> = {
   productos: 'info',
-  materias_primas: 'success',
   ambos: 'secondary'
 }
 
 const typeLabels: Record<string, string> = {
   productos: 'POS',
-  materias_primas: 'Lab',
   ambos: 'Ambos'
 }
 
@@ -60,7 +66,7 @@ async function fetchSuppliers() {
   loading.value = true
   const res = await $fetch<any>(ajaxBase, {
     method: 'POST',
-    body: new URLSearchParams({ getSuppliers: 'ok', type: 'todos' }).toString(),
+    body: new URLSearchParams({ getSuppliers: 'ok', type: 'productos' }).toString(),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
   }).catch(() => null)
   const d = typeof res === 'string' ? JSON.parse(res) : res
@@ -70,7 +76,7 @@ async function fetchSuppliers() {
 
 function openCreate() {
   editing.value = null
-  form.value = { id_supplier: 0, supplier_name: '', supplier_contact: '', email_supplier: '', ruc_supplier: '', type_supplier: 'ambos', status_supplier: 1 }
+  form.value = { id_supplier: 0, supplier_name: '', supplier_contact: '', email_supplier: '', ruc_supplier: '', type_supplier: 'ambos' as 'productos' | 'ambos', status_supplier: 1 }
   slideOpen.value = true
 }
 
@@ -82,7 +88,7 @@ function openEdit(s: any) {
     supplier_contact: s.supplier_contact || '',
     email_supplier: s.email_supplier || '',
     ruc_supplier: s.ruc_supplier || '',
-    type_supplier: s.type_supplier || 'ambos',
+    type_supplier: (s.type_supplier === 'productos' ? 'productos' : 'ambos') as 'productos' | 'ambos',
     status_supplier: parseInt(s.status_supplier ?? 1)
   }
   slideOpen.value = true
@@ -117,7 +123,7 @@ async function saveSupplier() {
 }
 
 async function deleteSupplier(s: any) {
-  if (!confirm(`¿Desactivar a "${decode(s.supplier_name)}"?`)) return
+  if (!await confirmAction('Desactivar proveedor', `¿Desactivar a "${decode(s.supplier_name)}"?`)) return
   await $fetch<any>(ajaxBase, {
     method: 'POST',
     body: new URLSearchParams({ deleteSupplier: 'ok', id_supplier: String(s.id_supplier) }).toString(),
@@ -127,48 +133,43 @@ async function deleteSupplier(s: any) {
   await fetchSuppliers()
 }
 
-onMounted(() => {
-  if (['lab_admin', 'lab_worker', 'lab_calidad'].includes(auth.role || '')) {
-    filterType.value = 'materias_primas'
-  }
-  fetchSuppliers()
-})
+onMounted(fetchSuppliers)
 </script>
 
 <template>
   <div class="space-y-4">
 
     <!-- Header + filtros -->
-    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
       <div>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Proveedores unificados para el sistema POS y el Laboratorio. Un solo registro para ambos módulos.
+        <p class="text-xs text-slate-500 mt-0.5">
+          Proveedores de productos para el sistema POS y compras.
         </p>
       </div>
       <div class="flex flex-wrap gap-2 w-full sm:w-auto">
         <UInput v-model="search" icon="i-lucide-search" placeholder="Buscar..." size="sm" class="flex-1 sm:w-52" />
-        <USelect
-          v-model="filterType"
-          :items="[{ value: 'todos', label: 'Todos' }, { value: 'productos', label: 'POS' }, { value: 'materias_primas', label: 'Lab' }, { value: 'ambos', label: 'Ambos' }]"
-          size="sm" class="w-32"
-        />
+        <select v-model="filterType" class="text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+          <option value="todos">Todos</option>
+          <option value="productos">Solo POS</option>
+          <option value="ambos">Ambos</option>
+        </select>
         <UButton color="primary" icon="i-lucide-plus" size="sm" @click="openCreate">Nuevo</UButton>
       </div>
     </div>
 
     <!-- KPIs rápidos -->
     <div class="grid grid-cols-3 gap-3">
-      <div class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center">
-        <p class="text-2xl font-black text-slate-800 dark:text-white">{{ suppliers.length }}</p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Total</p>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+        <p class="text-2xl font-black text-slate-800">{{ suppliers.length }}</p>
+        <p class="text-xs text-slate-500 mt-0.5">Total</p>
       </div>
-      <div class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
         <p class="text-2xl font-black text-blue-600">{{ suppliers.filter(s => s.type_supplier === 'productos').length }}</p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Solo POS</p>
+        <p class="text-xs text-slate-500 mt-0.5">Solo POS</p>
       </div>
-      <div class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center">
-        <p class="text-2xl font-black text-green-600">{{ suppliers.filter(s => s.type_supplier === 'materias_primas' || s.type_supplier === 'ambos').length }}</p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Incluyen Lab</p>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+        <p class="text-2xl font-black text-secondary-600">{{ suppliers.filter(s => s.type_supplier === 'ambos').length }}</p>
+        <p class="text-xs text-slate-500 mt-0.5">Ambos tipos</p>
       </div>
     </div>
 
@@ -178,8 +179,8 @@ onMounted(() => {
     </div>
 
     <div v-else-if="filtered.length === 0" class="text-center py-16">
-      <UIcon name="i-lucide-truck" class="w-12 h-12 mx-auto text-slate-300 dark:text-slate-700 mb-3" />
-      <p class="text-slate-500 dark:text-slate-400">No hay proveedores registrados</p>
+      <UIcon name="i-lucide-truck" class="w-12 h-12 mx-auto text-slate-300 mb-3" />
+      <p class="text-slate-500">No hay proveedores registrados</p>
       <UButton color="primary" icon="i-lucide-plus" class="mt-4" @click="openCreate">Agregar primer proveedor</UButton>
     </div>
 
@@ -187,15 +188,15 @@ onMounted(() => {
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <div
         v-for="s in filtered" :key="s.id_supplier"
-        class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+        class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
       >
         <div class="flex items-start justify-between gap-2 mb-3">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+            <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
               <UIcon name="i-lucide-building-2" class="w-5 h-5 text-slate-500" />
             </div>
             <div class="min-w-0">
-              <h3 class="font-bold text-slate-800 dark:text-white truncate text-sm">{{ decode(s.supplier_name) }}</h3>
+              <h3 class="font-bold text-slate-800 truncate text-sm">{{ decode(s.supplier_name) }}</h3>
               <p v-if="s.ruc_supplier" class="text-xs text-slate-400 font-mono">RUC: {{ s.ruc_supplier }}</p>
             </div>
           </div>
@@ -204,7 +205,7 @@ onMounted(() => {
           </UBadge>
         </div>
 
-        <div class="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+        <div class="space-y-1.5 text-xs text-slate-500">
           <div v-if="s.supplier_contact" class="flex items-center gap-1.5">
             <UIcon name="i-lucide-phone" class="w-3.5 h-3.5 shrink-0" />
             <span>{{ s.supplier_contact }}</span>
@@ -215,7 +216,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="flex gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div class="flex gap-2 mt-4 pt-3 border-t border-slate-100">
           <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-edit" class="flex-1 justify-center" @click="openEdit(s)">Editar</UButton>
           <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash" @click="deleteSupplier(s)" />
         </div>
@@ -239,16 +240,13 @@ onMounted(() => {
             <UInput v-model="form.email_supplier" type="email" placeholder="proveedor@empresa.com" class="w-full" />
           </UFormField>
           <UFormField label="Tipo de Proveedor">
-            <USelect v-model="form.type_supplier" :items="typeOptions" class="w-full" />
+            <select v-model="form.type_supplier" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+              <option v-for="o in typeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
           </UFormField>
           <div class="flex items-center gap-3 pt-2">
             <USwitch :model-value="form.status_supplier === 1" @update:model-value="(v: boolean) => form.status_supplier = v ? 1 : 0" />
-            <span class="text-sm text-slate-600 dark:text-slate-400">{{ form.status_supplier ? 'Activo' : 'Inactivo' }}</span>
-          </div>
-
-          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-blue-700 dark:text-blue-300">
-            <UIcon name="i-lucide-info" class="w-3.5 h-3.5 inline mr-1" />
-            Seleccionar <strong>"Productos y Materias Primas"</strong> hace que este proveedor esté disponible tanto en compras del POS como en entradas del Laboratorio.
+            <span class="text-sm text-slate-600">{{ form.status_supplier ? 'Activo' : 'Inactivo' }}</span>
           </div>
         </div>
       </template>
@@ -259,5 +257,18 @@ onMounted(() => {
         </div>
       </template>
     </USlideover>
+
+    <UModal v-model:open="confirmDialog.open" :ui="{ width: 'max-w-sm' }">
+      <template #content>
+        <div class="p-6 space-y-4">
+          <h3 class="text-base font-semibold text-slate-800">{{ confirmDialog.title }}</h3>
+          <p class="text-sm text-slate-600">{{ confirmDialog.message }}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="onConfirmCancel" />
+            <UButton label="Confirmar" color="error" @click="onConfirmOk" />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

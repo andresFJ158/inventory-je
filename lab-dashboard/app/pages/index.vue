@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 const auth = useAuthStore()
 
@@ -37,7 +37,7 @@ const apiHeaders = { Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy' }
 const role = auth.role
 const isSuperAdmin = role === 'superadmin' || role === 'admin'
 const isCashier = role === 'cajero' || role === 'vendedor'
-const isDispatcher = role === 'despachador'
+const isDispatcher = role === 'despachador' || role === 'despachador_laboratorio'
 const isLab = role === 'lab_admin' || role === 'lab_worker' || (!isSuperAdmin && !isCashier && !isDispatcher)
 
 async function fetchDashboardMetrics() {
@@ -67,9 +67,11 @@ async function fetchLabMetrics() {
     method: 'POST',
     body: new URLSearchParams({
       getLabDashboardMetrics: 'ok',
-      id_office: String(auth.officeId || 6)
+      id_office: String(auth.officeId || 6),
+      token: auth.token || ''
     }),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    credentials: 'include'
   })
 
   const data = typeof response === 'string' ? JSON.parse(response) : response
@@ -138,9 +140,11 @@ async function fetchDispatcherMetrics() {
     method: 'POST',
     body: new URLSearchParams({
       getPendingRequests: 'true',
-      id_admin: String(auth.user?.id_admin || 1)
+      id_admin: String(auth.user?.id_admin || 1),
+      token: auth.token || ''
     }),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    credentials: 'include'
   }).catch(() => null)
   
   const parsed = typeof reqRes === 'string' ? JSON.parse(reqRes) : reqRes
@@ -150,7 +154,15 @@ async function fetchDispatcherMetrics() {
 }
 
 onMounted(() => {
-  fetchDashboardMetrics()
+  if (auth.isLogged) {
+    fetchDashboardMetrics()
+  }
+})
+
+watch(() => auth.isLogged, (logged) => {
+  if (logged) {
+    fetchDashboardMetrics()
+  }
 })
 
 const kpis = computed(() => [
@@ -163,22 +175,76 @@ const kpis = computed(() => [
 function formatCurrency(val: number) {
   return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(val)
 }
+
+// --- Encabezado de bienvenida ---
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  if (h < 12) return 'Buenos días'
+  if (h < 19) return 'Buenas tardes'
+  return 'Buenas noches'
+})
+
+const firstName = computed(() => {
+  const n = auth.user?.name_admin
+  return n ? decodeURIComponent(String(n)).replace(/\+/g, ' ').split(' ')[0] : 'Usuario'
+})
+
+const todayLabel = computed(() =>
+  new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+)
+
+const roleLabel = computed(() => {
+  const map: Record<string, string> = {
+    superadmin: 'Superadmin', admin: 'Administrador', cajero: 'Cajero', vendedor: 'Vendedor',
+    despachador: 'Despachador', despachador_laboratorio: 'Despachador Lab',
+    lab_admin: 'Admin Laboratorio', lab_worker: 'Operador Lab', lab_calidad: 'Control de Calidad'
+  }
+  return map[role] || 'Operador'
+})
+
+function activityDotClass(status: string) {
+  if (status === 'success') return 'bg-emerald-500'
+  if (status === 'warning') return 'bg-amber-500'
+  return 'bg-slate-400'
+}
 </script>
 
 <template>
   <div class="space-y-6">
 
+    <!-- Encabezado de bienvenida (compartido) -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-800 tracking-tight">
+          {{ greeting }}, {{ firstName }} <span class="inline-block">👋</span>
+        </h1>
+        <p class="text-sm text-slate-500 capitalize mt-0.5">{{ todayLabel }}</p>
+      </div>
+      <UBadge color="primary" variant="subtle" size="lg" class="w-max">{{ roleLabel }}</UBadge>
+    </div>
+
     <!-- Vista: LAB -->
     <template v-if="isLab">
+      <!-- KPIs (con skeleton de carga) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div 
-          v-for="kpi in kpis" 
-          :key="kpi.label" 
-          class="bg-white dark:bg-slate-950/40 backdrop-blur border border-slate-200 dark:border-slate-800/80 p-5 rounded-xl flex items-center justify-between shadow-sm"
+        <template v-if="loading">
+          <div v-for="n in 4" :key="n" class="bg-white border border-slate-200 p-5 rounded-xl flex items-center justify-between shadow-sm">
+            <div class="space-y-2">
+              <div class="h-3 w-20 rounded bg-slate-100 animate-pulse" />
+              <div class="h-7 w-14 rounded bg-slate-100 animate-pulse" />
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-slate-100 animate-pulse" />
+          </div>
+        </template>
+        <div
+          v-for="kpi in kpis"
+          v-else
+          :key="kpi.label"
+          class="bg-white border border-slate-200 p-5 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
         >
           <div>
             <span class="text-xs text-slate-500 uppercase tracking-wider font-bold">{{ kpi.label }}</span>
-            <h4 class="text-2xl font-black mt-1">{{ kpi.val }}</h4>
+            <h4 class="text-2xl font-black mt-1 text-slate-800">{{ kpi.val }}</h4>
           </div>
           <div :class="['w-12 h-12 rounded-xl flex items-center justify-center', kpi.color]">
             <UIcon :name="kpi.icon" class="w-6 h-6" />
@@ -186,12 +252,36 @@ function formatCurrency(val: number) {
         </div>
       </div>
 
-      <div class="bg-white dark:bg-slate-950/40 border p-6 rounded-xl space-y-4 shadow-sm">
-        <h3 class="font-bold flex items-center gap-2">
-          <UIcon name="i-lucide-activity" class="text-green-500" /> Actividad Reciente en Planta
+      <!-- Actividad reciente en planta -->
+      <div class="bg-white border border-slate-200 p-6 rounded-xl space-y-4 shadow-sm">
+        <h3 class="font-bold flex items-center gap-2 text-slate-800">
+          <UIcon name="i-lucide-activity" class="text-emerald-500" /> Actividad Reciente en Planta
         </h3>
-        <div v-if="recentActivities.length === 0" class="text-sm text-center py-4">No hay datos</div>
-        <!-- (omitted for brevity, list existing activities) -->
+
+        <div v-if="loading" class="space-y-3">
+          <div v-for="n in 3" :key="n" class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-slate-200 animate-pulse" />
+            <div class="h-3 flex-1 rounded bg-slate-100 animate-pulse" />
+          </div>
+        </div>
+
+        <div v-else-if="recentActivities.length === 0" class="flex flex-col items-center text-center py-6">
+          <UIcon name="i-lucide-clock-3" class="w-8 h-8 text-slate-300 mb-2" />
+          <p class="text-sm text-slate-500">Aún no hay actividad registrada hoy.</p>
+        </div>
+
+        <ul v-else class="divide-y divide-slate-100">
+          <li v-for="(act, idx) in recentActivities" :key="idx" class="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+            <span :class="['mt-1.5 w-2 h-2 rounded-full shrink-0', activityDotClass(act.status)]" />
+            <div class="flex-1 min-w-0">
+              <p class="text-sm text-slate-700 leading-snug">{{ act.action }}</p>
+              <p class="text-xs text-slate-400 mt-0.5">
+                <span class="font-semibold text-slate-500">{{ act.user }}</span>
+                <span v-if="act.time"> · {{ act.time }}</span>
+              </p>
+            </div>
+          </li>
+        </ul>
       </div>
     </template>
 

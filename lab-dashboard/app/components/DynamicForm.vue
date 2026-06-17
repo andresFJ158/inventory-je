@@ -33,13 +33,32 @@ const moduleConfig = computed(() => MODULE_MAPPING[props.moduleName])
 const columns = ref<any[]>([])
 const formModel = ref<Record<string, any>>({})
 const selectOptions = ref<Record<string, any[]>>({})
+const loadedRelations = new Set<string>() // tracks which tables have been fetched (even if result is empty)
 const loading = ref(true)
 const saving = ref(false)
 const toast = useToast()
+const ajaxBase = '/ajax/pos.ajax.php'
+
+const vendedoresList = ref<Array<{ value: string; label: string }>>([
+  { value: '0', label: 'Sin asignar (Pool)' }
+])
+
+const canManageClients = computed(() => {
+  const r = auth.role
+  let p: Record<string, string> = {}
+  try {
+    const raw = auth.permissions
+    p = typeof raw === 'string' ? JSON.parse(decodeURIComponent(raw)) : (raw || {})
+  } catch {}
+  return ['superadmin', 'admin'].includes(r) || (r === 'vendedor' && p.gestionar_clientes === 'on')
+})
 
 const apiHeaders = {
   Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
 }
+
+// ¿Estamos editando un registro existente o creando uno nuevo?
+const isEdit = computed(() => !!props.initialData)
 
 // Fetch columns metadata
 async function loadFormMetadata() {
@@ -78,7 +97,7 @@ async function loadFormMetadata() {
           let options = col.matrix_column ? col.matrix_column.split(',') : []
           // If rol_admin, override with all system roles
           if (colName === 'rol_admin') {
-            options = ['superadmin', 'admin', 'cajero', 'vendedor', 'despachador', 'lab_admin', 'lab_worker', 'lab_calidad']
+            options = ['superadmin', 'admin', 'cajero', 'vendedor', 'despachador', 'despachador_laboratorio', 'lab_admin', 'lab_worker', 'lab_calidad']
           }
           // Set model to first option or undefined (not empty string)
           model[colName] = val !== undefined && val !== '' ? String(val) : (options.length > 0 ? options[0].trim() : undefined)
@@ -90,6 +109,7 @@ async function loadFormMetadata() {
               cajero: 'Cajero / Caja',
               vendedor: 'Vendedor / Venta Despacho',
               despachador: 'Despachador de Envíos',
+              despachador_laboratorio: 'Despachador de Laboratorio',
               lab_admin: 'Administrador de Laboratorio',
               lab_worker: 'Operador de Laboratorio',
               lab_calidad: 'Control de Calidad'
@@ -137,21 +157,14 @@ async function loadFormMetadata() {
         }
       }
 
-      // Auto-populate warehouse for purchases if new and user is not superadmin
-      if (moduleConfig.value.title_module === 'purchases' && auth.role !== 'superadmin' && !props.initialData) {
-        if (auth.role === 'despachador') {
-          model['id_office_purchase'] = String(auth.warehouseId || '0')
-        } else if (auth.officeId) {
-          // Fetch corresponding warehouse for their office
-          try {
-            const whData = await $fetch<any>(`/api/warehouses?linkTo=id_office_warehouse&equalTo=${auth.officeId}`, {
-              headers: apiHeaders
-            })
-            if (whData.status === 200 && whData.results && whData.results.length > 0) {
-              model['id_office_purchase'] = String(whData.results[0].id_warehouse)
+      if (moduleConfig.value.title_module === 'purchases') {
+        const isDespachadorOrLab = auth.role === 'despachador' || auth.role === 'lab_admin'
+        const hasOfficeField = cols.some((c: any) => c.title_column === 'id_office_purchase')
+        if (hasOfficeField && isDespachadorOrLab) {
+          if (!isEdit.value && !props.initialData?.id_office_purchase) {
+            if (auth.effectiveOfficeId) {
+              model['id_office_purchase'] = String(auth.effectiveOfficeId)
             }
-          } catch (e) {
-            console.error('Error fetching warehouse for purchases:', e)
           }
         }
       }
@@ -185,6 +198,15 @@ async function loadFormMetadata() {
       }
 
       formModel.value = model
+
+      if (moduleConfig.value.title_module === 'clients') {
+        if (!formModel.value.id_admin_client) {
+          formModel.value.id_admin_client = '0'
+        }
+        if (canManageClients.value) {
+          await loadVendedores()
+        }
+      }
     }
   } catch (e) {
     console.error('Error loading form metadata:', e)
@@ -195,11 +217,19 @@ async function loadFormMetadata() {
 
 // Load relational options in dropdown
 async function loadRelationOptions(matrixTable: string) {
-  if (selectOptions.value[matrixTable]) return
+  // Use loadedRelations Set so we don't re-fetch the same table twice.
+  // We can't use `if (selectOptions.value[matrixTable]) return` because
+  // an empty array [] is truthy in JS and would block all future retries.
+  if (loadedRelations.has(matrixTable)) return
+  loadedRelations.add(matrixTable)
   try {
-    const data = await $fetch<any>(`/api/${matrixTable}`, {
-      headers: apiHeaders
-    })
+    const data = props.moduleName === 'compras' && matrixTable === 'products'
+      ? await $fetch<any>('/api/purchasable-products', {
+          headers: apiHeaders
+        })
+      : await $fetch<any>(`/api/${matrixTable}`, {
+          headers: apiHeaders
+        })
     if (data.status === 200 && data.results) {
       const mapped = data.results
         .filter((r: any) => {
@@ -219,17 +249,56 @@ async function loadRelationOptions(matrixTable: string) {
         [matrixTable]: mapped
       }
     } else {
+      // Remove from loaded set so a retry is possible on error
+      loadedRelations.delete(matrixTable)
       selectOptions.value = {
         ...selectOptions.value,
         [matrixTable]: []
       }
     }
   } catch (e) {
+    // Remove from loaded set so a retry is possible after network errors
+    loadedRelations.delete(matrixTable)
     console.error(`Error loading relations for ${matrixTable}:`, e)
     selectOptions.value = {
       ...selectOptions.value,
       [matrixTable]: []
     }
+  }
+}
+
+async function resolvePurchaseWarehouse(): Promise<string> {
+  if (auth.warehouseId) return String(auth.warehouseId)
+  if (!auth.officeId) return '0'
+  try {
+    const data = await $fetch<any>(`/api/warehouses?linkTo=id_office_warehouse&equalTo=${auth.officeId}`, {
+      headers: apiHeaders
+    })
+    if (data.status === 200 && data.results && data.results.length > 0) {
+      return String(data.results[0].id_warehouse || '0')
+    }
+  } catch (e) {
+    console.error('Error resolving purchase warehouse:', e)
+  }
+  return '0'
+}
+
+async function loadVendedores() {
+  try {
+    const data = await $fetch<any>('/api/admins?linkTo=rol_admin&equalTo=vendedor', {
+      headers: apiHeaders
+    })
+    if (data.status === 200 && data.results) {
+      vendedoresList.value = [
+        { value: '0', label: 'Sin asignar (Pool)' },
+        ...data.results.map((a: any) => ({
+          value: String(a.id_admin),
+          label: [a.name_admin, a.surname_admin].filter(Boolean).join(' ') || a.email_admin
+        }))
+      ]
+    }
+  } catch (e) {
+    console.error('Error loading vendedores:', e)
   }
 }
 
@@ -255,9 +324,22 @@ async function handleSubmit() {
       saving.value = false
       return
     }
+    const availableProducts = selectOptions.value.products || []
+    const selectedIsPurchasable = availableProducts.some((p: any) => String(p.value) === String(formModel.value.id_product_purchase))
+    if (!selectedIsPurchasable) {
+      toast.add({ title: 'Este producto tiene receta o producción asignada y no puede comprarse.', color: 'error' })
+      saving.value = false
+      return
+    }
     const qty = parseFormattedNumber(formModel.value.qty_purchase)
     if (qty <= 0) {
       toast.add({ title: 'Por favor ingresa una cantidad válida mayor a 0.', color: 'error' })
+      saving.value = false
+      return
+    }
+    const cost = parseFormattedNumber(formModel.value.cost_purchase)
+    if (cost <= 0) {
+      toast.add({ title: 'El costo de compra debe ser mayor a 0.', color: 'error' })
       saving.value = false
       return
     }
@@ -311,6 +393,15 @@ async function handleSubmit() {
       if (hasDateCreated) {
         body.append(dateCreatedCol, new Date().toISOString().split('T')[0] || '')
       }
+
+      if (config.title_module === 'products' && auth.role === 'lab_admin') {
+        body.set('id_office_product', '0')
+        body.set('initial_stock_product', '0')
+        body.set('is_combo_product', '0')
+        body.set('is_manufactured_product', '0')
+        body.set('source_type_product', 'externo')
+        body.set('origin_office_product', String(auth.officeId || 0))
+      }
     }
 
     let url = `/api/${config.title_module}`
@@ -355,11 +446,15 @@ async function handleSubmit() {
 
       emit('saved')
     } else {
-      toast.add({ title: `Error al guardar: ${res.results || 'Verifica los campos e intenta de nuevo'}`, color: 'error' })
+      toast.add({ title: res.results || 'Error al guardar el registro', color: 'error' })
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error saving form:', e)
-    toast.add({ title: 'Error al enviar los datos del formulario.', color: 'error' })
+    const backendMessage = e.response?._data?.results || e.data?.results || e.message
+    toast.add({ 
+      title: backendMessage || 'Error interno del servidor o de red', 
+      color: 'error' 
+    })
   } finally {
     saving.value = false
   }
@@ -382,6 +477,42 @@ function formatNumber(num: number): string {
     return intPart + ',' + decPart
   } else {
     return intPart
+  }
+}
+
+// Image upload state
+const uploadingImage = ref<Record<string, boolean>>({})
+
+async function handleImageUpload(colName: string, event: Event) {
+  const fileInput = event.target as HTMLInputElement
+  const file = fileInput.files?.[0]
+  if (!file) return
+
+  uploadingImage.value[colName] = true
+  const formData = new FormData()
+  formData.append('imageFile', file)
+  formData.append('uploadImage', 'ok')
+
+  try {
+    const res = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: formData
+    })
+    
+    // Convert string response to JSON if necessary
+    const data = typeof res === 'string' ? JSON.parse(res) : res
+    
+    if (data.status === 200 && data.url) {
+      formModel.value[colName] = data.url
+      toast.add({ title: 'Imagen subida exitosamente', color: 'success' })
+      toast.add({ title: 'Error al subir la imagen', color: 'error' })
+    }
+  } catch (e) {
+    console.error('Upload error:', e)
+    toast.add({ title: 'Fallo la conexión al subir imagen', color: 'error' })
+  } finally {
+    uploadingImage.value[colName] = false
+    fileInput.value = '' // reset input
   }
 }
 
@@ -409,21 +540,25 @@ watch(() => props.initialData, () => {
 <template>
   <div class="h-full flex flex-col justify-between">
     <div class="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-      <div v-if="loading" class="flex justify-center items-center py-12">
-        <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-green-500" />
+      <!-- Skeleton de carga -->
+      <div v-if="loading" class="space-y-5">
+        <div v-for="n in 5" :key="n" class="space-y-2">
+          <div class="h-3 w-24 rounded bg-slate-100 animate-pulse" />
+          <div class="h-9 w-full rounded-lg bg-slate-100 animate-pulse" />
+        </div>
       </div>
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'id_office_purchase' && auth.role === 'despachador')">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'id_office_purchase' && auth.role === 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'utility_purchase') && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client')">
 
-            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
               {{ col.alias_column || col.title_column }}
             </label>
 
             <div v-if="col.type_column === 'boolean'" class="flex items-center gap-3">
               <USwitch v-model="formModel[col.title_column]" />
-              <span class="text-sm text-slate-600 dark:text-slate-400">
+              <span class="text-sm text-slate-600">
                 {{ formModel[col.title_column] ? 'Activo (ON)' : 'Inactivo (OFF)' }}
               </span>
             </div>
@@ -437,7 +572,7 @@ watch(() => props.initialData, () => {
                 :ui="{ content: 'z-[100]' }"
                 value-key="value"
                 label-key="label"
-                :disabled="(moduleConfig?.title_module === 'bills' && ['id_admin_bill', 'id_office_bill', 'id_cash_bill'].includes(col.title_column)) || (moduleConfig?.title_module === 'incomes' && ['id_admin_income', 'id_office_income', 'id_cash_income'].includes(col.title_column))"
+                :disabled="(moduleConfig?.title_module === 'bills' && ['id_admin_bill', 'id_office_bill', 'id_cash_bill'].includes(col.title_column)) || (moduleConfig?.title_module === 'incomes' && ['id_admin_income', 'id_office_income', 'id_cash_income'].includes(col.title_column)) || (moduleConfig?.title_module === 'purchases' && auth.role === 'lab_admin' && col.title_column === 'id_office_purchase' && !!formModel.id_office_purchase && String(formModel.id_office_purchase) !== '0')"
               />
             </div>
 
@@ -472,13 +607,26 @@ watch(() => props.initialData, () => {
             </div>
 
             <div v-else-if="col.type_column === 'image'" class="space-y-2">
-              <UInput
-                v-model="formModel[col.title_column]"
-                placeholder="URL de la imagen..."
-                class="w-full"
-              />
-              <div v-if="formModel[col.title_column]" class="mt-2 flex items-center border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-slate-50 dark:bg-slate-900 w-max">
-                <img :src="formModel[col.title_column]" class="w-16 h-16 rounded object-cover" />
+              <div class="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="block w-full text-sm text-slate-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-emerald-50 file:text-emerald-700
+                    hover:file:bg-emerald-100 cursor-pointer"
+                  @change="handleImageUpload(col.title_column, $event)"
+                  :disabled="uploadingImage[col.title_column]"
+                />
+                <div v-if="uploadingImage[col.title_column]" class="absolute right-3 top-2 flex items-center gap-2 text-xs text-emerald-600 font-medium">
+                  <UIcon name="i-heroicons-arrow-path" class="animate-spin w-4 h-4" /> Subiendo...
+                </div>
+              </div>
+              <div v-if="formModel[col.title_column]" class="mt-2 flex flex-col gap-2 border border-slate-200 rounded-lg p-2 bg-slate-50 w-max">
+                <img :src="formModel[col.title_column]" class="w-24 h-24 rounded-lg object-cover ring-1 ring-slate-200" alt="Vista previa">
+                <button type="button" class="text-xs text-red-500 hover:text-red-700 font-medium text-left" @click="formModel[col.title_column] = ''">Quitar imagen</button>
               </div>
             </div>
 
@@ -500,23 +648,42 @@ watch(() => props.initialData, () => {
           </div>
         </div>
       </form>
+
+      <!-- Vendor assignment (clients module, gestor/admin only) -->
+      <div v-if="moduleConfig?.title_module === 'clients' && canManageClients && !loading">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+          Vendedor Asignado
+        </label>
+        <USelectMenu
+          v-model="formModel.id_admin_client"
+          :items="vendedoresList"
+          class="w-full"
+          placeholder="Sin asignar (Pool)"
+          :ui="{ content: 'z-[100]' }"
+          value-key="value"
+          label-key="label"
+        />
+      </div>
     </div>
 
     <!-- Actions Footer -->
-    <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-950">
+    <div class="p-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50">
       <UButton
         color="neutral"
         variant="ghost"
+        :disabled="saving"
         @click="emit('cancel')"
       >
         Cancelar
       </UButton>
       <UButton
         color="primary"
+        :icon="isEdit ? 'i-lucide-save' : 'i-lucide-plus'"
         :loading="saving"
+        :disabled="loading"
         @click="handleSubmit"
       >
-        Guardar
+        {{ saving ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Crear') }}
       </UButton>
     </div>
   </div>

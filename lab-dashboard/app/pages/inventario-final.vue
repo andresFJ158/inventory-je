@@ -7,7 +7,7 @@ const api = useApi()
 const toast = useToast()
 
 const items = ref<any[]>([])
-const offices = ref<any[]>([])
+const warehouses = ref<any[]>([])
 const loading = ref(true)
 const apiBase = '/ajax/pos.ajax.php'
 
@@ -18,7 +18,10 @@ const dispatchForm = ref({
   product_name: '',
   max_qty: 0,
   qty: 1,
-  id_office_dest: ''
+  id_warehouse_dest: '',
+  unit_price: 0,
+  wholesale_price: 0,
+  wholesale_qty: 0
 })
 
 async function fetchWarehouse() {
@@ -37,9 +40,10 @@ async function fetchWarehouse() {
     if (data.status === 200) {
       items.value = data.results.map((w: any) => ({
         id: w.id_warehouse,
-        name: w.name_product || 'Producto Compuesto',
+        name: w.name_product || 'Producto Terminado',
         stock: parseFloat(w.qty_warehouse) || 0,
-        cost: parseFloat(w.cost_warehouse) || 0.00
+        cost: parseFloat(w.cost_warehouse) || 0.00,
+        salePrice: parseFloat(w.sale_price_warehouse) || 0
       }))
     } else {
       items.value = []
@@ -52,30 +56,22 @@ async function fetchWarehouse() {
   }
 }
 
-async function fetchOffices() {
+async function fetchWarehouses() {
   try {
-    const data = await api.rest<any>('/api/offices')
-    offices.value = data.status === 200 && data.results ? data.results : []
+    const data = await api.rest<any>('/api/warehouses')
+    warehouses.value = data.status === 200 && data.results ? data.results : []
   } catch (e) {
-    console.error('Error fetching offices:', e)
+    console.error('Error fetching warehouses:', e)
   }
 }
 
-const officeOptions = computed(() => {
-  const defaultOption = { value: '', label: 'Seleccionar Sucursal' }
-  if (!offices.value || !Array.isArray(offices.value)) return [defaultOption]
+const warehouseOptions = computed(() => {
+  if (!warehouses.value || !Array.isArray(warehouses.value)) return []
 
-  const filtered = offices.value.filter((o: any) => {
-    const currentId = auth.officeId || 6
-    return String(o.id_office) !== String(currentId)
-  })
-
-  const mapped = filtered.map((o: any) => ({
-    value: String(o.id_office),
-    label: String(o.title_office || o.name_office || 'Sucursal ' + o.id_office)
+  return warehouses.value.map((w: any) => ({
+    value: String(w.id_warehouse),
+    label: String(w.title_warehouse || 'Almacén ' + w.id_warehouse)
   }))
-
-  return [defaultOption, ...mapped]
 })
 
 function openDispatchModal(item: any) {
@@ -84,38 +80,47 @@ function openDispatchModal(item: any) {
     product_name: item.name,
     max_qty: parseFloat(item.stock),
     qty: 1,
-    id_office_dest: ''
+    id_warehouse_dest: '',
+    unit_price: parseFloat(item.salePrice || item.cost) || 0,
+    wholesale_price: 0,
+    wholesale_qty: 0
   }
   isDispatchModalOpen.value = true
 }
 
 async function submitDispatch() {
-  if (!dispatchForm.value.id_office_dest) {
-    return toast.add({ title: 'Error', description: 'Seleccione una sucursal de destino.', color: 'error' })
+  if (!dispatchForm.value.id_warehouse_dest) {
+    return toast.add({ title: 'Error', description: 'Seleccione un almacén de destino.', color: 'error' })
   }
   if (dispatchForm.value.qty <= 0 || dispatchForm.value.qty > dispatchForm.value.max_qty) {
     return toast.add({ title: 'Error', description: 'Cantidad inválida o superior al stock.', color: 'error' })
+  }
+  if (dispatchForm.value.unit_price <= 0) {
+    return toast.add({ title: 'Error', description: 'Ingrese un precio POS mayor a cero para la sucursal destino.', color: 'error' })
   }
 
   submittingDispatch.value = true
   try {
     const response = await api.ajax({
-      createStockTransfer: 'true',
+      dispatchDirectToWarehouse: 'ok',
       id_product: dispatchForm.value.id_product,
       qty: String(dispatchForm.value.qty),
-      id_admin: String(auth.id || 1),
-      id_origin_office: String(auth.officeId || 6),
-      id_dest_office: String(dispatchForm.value.id_office_dest),
+      id_dispatched_by: String(auth.user?.id_admin || 1),
+      id_office_source: String(auth.officeId || 6),
+      id_warehouse_dest: String(dispatchForm.value.id_warehouse_dest),
+      unit_price: String(dispatchForm.value.unit_price || 0),
+      wholesale_price: String(dispatchForm.value.wholesale_price || 0),
+      wholesale_qty: String(dispatchForm.value.wholesale_qty || 0),
       notes: 'Despacho directo desde Laboratorio'
     })
 
     const data = typeof response === 'string' ? JSON.parse(response) : response
     if (data.status === 200 || data.success) {
-      toast.add({ title: 'Éxito', description: 'Traspaso completado correctamente.', color: 'success' })
+      toast.add({ title: 'Enviado', description: 'El despacho quedó pendiente de confirmación en destino.', color: 'success' })
       isDispatchModalOpen.value = false
       fetchWarehouse()
     } else {
-      toast.add({ title: 'Error', description: data.message || 'Error al completar traspaso.', color: 'error' })
+      toast.add({ title: 'Error', description: data.message || 'Error al enviar despacho.', color: 'error' })
     }
   } catch (e) {
     console.error('Error despachando:', e)
@@ -127,48 +132,48 @@ async function submitDispatch() {
 
 onMounted(() => {
   fetchWarehouse()
-  fetchOffices()
+  fetchWarehouses()
 })
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 p-6 rounded-2xl shadow-sm">
-      <h1 class="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+    <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+      <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
         <UIcon
           name="i-lucide-boxes"
           class="text-green-500"
         />
         Inventario Final
       </h1>
-      <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">
-        Visualización de stock de productos finales compuestos y costos de manufactura.
+      <p class="text-slate-500 text-sm mt-1">
+        Stock de productos terminados del laboratorio, costos y reposición hacia almacenes.
       </p>
     </div>
 
-    <div class="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-sm">
-      <div class="p-5 border-b border-slate-200 dark:border-slate-800/80 flex justify-between items-center">
-        <h3 class="font-bold text-slate-800 dark:text-white tracking-wide">
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div class="p-5 border-b border-slate-200 flex justify-between items-center">
+        <h3 class="font-bold text-slate-800 tracking-wide">
           Productos Terminados Disponibles
         </h3>
         <UButton icon="i-lucide-refresh-cw" variant="ghost" color="neutral" size="xs" @click="fetchWarehouse" />
       </div>
       <div class="overflow-x-auto">
-        <div v-if="loading" class="p-8 text-center text-slate-500 dark:text-slate-400">
+        <div v-if="loading" class="p-8 text-center text-slate-500">
           <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin mx-auto text-green-500 mb-2" />
           Cargando inventario final desde la base de datos...
         </div>
         <div v-else-if="items.length === 0" class="text-center p-8 text-slate-500">
           No hay productos finalizados disponibles en el Almacén Central.
         </div>
-        <table v-else class="w-full text-left text-sm text-slate-650 dark:text-slate-350">
-          <thead class="bg-slate-50 dark:bg-slate-900/60 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800/80">
+        <table v-else class="w-full text-left text-sm text-slate-700">
+          <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
             <tr>
               <th class="px-6 py-4">
                 ID Producto
               </th>
               <th class="px-6 py-4">
-                Producto Compuesto
+                Producto Terminado
               </th>
               <th class="px-6 py-4 text-right">
                 Stock Central Disponible
@@ -184,25 +189,25 @@ onMounted(() => {
               </th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60 font-mono">
+          <tbody class="divide-y divide-slate-200 font-mono">
             <tr
               v-for="item in items"
               :key="item.id"
-              class="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-all duration-150"
+              class="hover:bg-slate-50 transition-all duration-150"
             >
               <td class="px-6 py-4 font-bold text-slate-500">
                 #{{ item.id }}
               </td>
-              <td class="px-6 py-4 font-bold text-slate-800 dark:text-white uppercase font-sans">
+              <td class="px-6 py-4 font-bold text-slate-800 uppercase font-sans">
                 {{ item.name }}
               </td>
-              <td class="px-6 py-4 text-right font-bold text-green-600 dark:text-green-400">
+              <td class="px-6 py-4 text-right font-bold text-green-600">
                 {{ item.stock.toLocaleString() }} <span class="text-xs text-slate-500 font-normal">und</span>
               </td>
-              <td class="px-6 py-4 text-right text-slate-700 dark:text-slate-300">
+              <td class="px-6 py-4 text-right text-slate-700">
                 Bs {{ item.cost.toFixed(2) }}
               </td>
-              <td class="px-6 py-4 text-right font-bold text-slate-800 dark:text-slate-200">
+              <td class="px-6 py-4 text-right font-bold text-slate-800">
                 Bs. {{ (item.stock * item.cost).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
               </td>
               <td class="px-6 py-4 text-right">
@@ -225,9 +230,9 @@ onMounted(() => {
     <!-- Modal de Despacho Rápido -->
     <UModal v-model:open="isDispatchModalOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 dark:text-white bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-          <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white tracking-wide">
+        <div class="w-full p-6 space-y-4 text-slate-900 bg-white rounded-xl border border-slate-200">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+            <h3 class="text-lg font-bold text-slate-800 tracking-wide">
               Despacho Directo de Producto Terminado
             </h3>
             <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" @click="isDispatchModalOpen = false" />
@@ -236,17 +241,17 @@ onMounted(() => {
           <form class="space-y-4" @submit.prevent="submitDispatch">
             <div class="space-y-1.5">
               <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Producto a Despachar</label>
-              <UInput :model-value="dispatchForm.product_name" readonly class="opacity-70 cursor-not-allowed bg-slate-100 dark:bg-slate-900" />
+              <UInput :model-value="dispatchForm.product_name" readonly class="opacity-70 cursor-not-allowed bg-slate-100" />
             </div>
 
             <div class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Sucursal Destino *</label>
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Almacén de destino *</label>
               <USelectMenu
-                v-model="dispatchForm.id_office_dest"
-                :items="officeOptions"
+                v-model="dispatchForm.id_warehouse_dest"
+                :items="warehouseOptions"
                 value-key="value"
                 label-key="label"
-                placeholder="Seleccionar Sucursal..."
+                placeholder="Seleccionar Almacén..."
                 class="w-full"
                 required
               />
@@ -267,9 +272,24 @@ onMounted(() => {
               />
             </div>
 
-            <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-800 pt-4 mt-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="space-y-1.5">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Precio POS *</label>
+                <UInput v-model.number="dispatchForm.unit_price" type="number" min="0.01" step="0.01" required />
+              </div>
+              <div class="space-y-1.5">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Mayorista</label>
+                <UInput v-model.number="dispatchForm.wholesale_price" type="number" min="0" step="0.01" />
+              </div>
+              <div class="space-y-1.5">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Cant. Mayorista</label>
+                <UInput v-model.number="dispatchForm.wholesale_qty" type="number" min="0" step="1" />
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isDispatchModalOpen = false" />
-              <UButton type="submit" label="Confirmar Despacho" color="primary" class="font-bold!" :loading="submittingDispatch" />
+              <UButton type="submit" label="Enviar Reposición" color="primary" class="font-bold!" :loading="submittingDispatch" />
             </div>
           </form>
         </div>

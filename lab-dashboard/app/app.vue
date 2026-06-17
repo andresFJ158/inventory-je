@@ -3,18 +3,15 @@ import { useAuthStore } from '~/stores/auth'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const auth = useAuthStore()
-const colorMode = useColorMode()
 const route = useRoute()
-
-function toggleColorMode() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
-}
 
 const apiBase = '/ajax/pos.ajax.php'
 
 async function checkSession() {
   // Si ya estamos en la página de login, no verificamos ni redirigimos
   if (route.path === '/login') return
+
+  if (import.meta.server) return; // Prevent SSR from fetching without cookies and failing
 
   try {
     const response = await $fetch<any>(apiBase, {
@@ -62,6 +59,7 @@ const lowStockMaterials = ref<any[]>([])
 
 async function fetchNotifications() {
   if (route.path === '/login') return
+  if (!auth.isLogged) return
   const officeId = String(auth.officeId || 6)
 
   try {
@@ -70,9 +68,11 @@ async function fetchNotifications() {
       method: 'POST',
       body: new URLSearchParams({
         getLabEntries: 'ok',
-        id_office: officeId
+        id_office: officeId,
+        token: auth.token || ''
       }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
     })
     const data = typeof response === 'string' ? JSON.parse(response) : response
     if (data && data.status === 200) {
@@ -90,9 +90,11 @@ async function fetchNotifications() {
       method: 'POST',
       body: new URLSearchParams({
         getLabProductions: 'ok',
-        id_office: officeId
+        id_office: officeId,
+        token: auth.token || ''
       }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
     })
     const data = typeof response === 'string' ? JSON.parse(response) : response
     if (data && data.status === 200) {
@@ -110,9 +112,11 @@ async function fetchNotifications() {
       method: 'POST',
       body: new URLSearchParams({
         getLabQCTests: 'ok',
-        id_office: officeId
+        id_office: officeId,
+        token: auth.token || ''
       }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
     })
     const data = typeof response === 'string' ? JSON.parse(response) : response
     if (data && data.status === 200) {
@@ -130,9 +134,11 @@ async function fetchNotifications() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: officeId
+        id_office: officeId,
+        token: auth.token || ''
       }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include'
     })
     const data = typeof response === 'string' ? JSON.parse(response) : response
     if (data && data.status === 200) {
@@ -158,7 +164,7 @@ const notificationItems = computed(() => {
       label: `Ingresos Pendientes (${pendingEntries.value.length})`,
       icon: 'i-lucide-truck',
       to: '/ingreso-egreso',
-      class: 'text-amber-500 font-bold bg-amber-50/50 dark:bg-amber-950/20'
+      class: 'text-amber-500 font-bold bg-amber-50/50'
     })
     pendingEntries.value.slice(0, 3).forEach((e: any) => {
       items.push({
@@ -175,7 +181,7 @@ const notificationItems = computed(() => {
       label: `Producciones en Curso (${activeProductions.value.length})`,
       icon: 'i-lucide-cog',
       to: '/produccion',
-      class: 'text-blue-500 font-bold bg-blue-50/50 dark:bg-blue-950/20'
+      class: 'text-blue-500 font-bold bg-blue-50/50'
     })
     activeProductions.value.slice(0, 3).forEach((p: any) => {
       items.push({
@@ -192,7 +198,7 @@ const notificationItems = computed(() => {
       label: `Controles Pendientes (${pendingQCTests.value.length})`,
       icon: 'i-lucide-shield-alert',
       to: '/calidad',
-      class: 'text-rose-500 font-bold bg-rose-50/50 dark:bg-rose-950/20'
+      class: 'text-rose-500 font-bold bg-rose-50/50'
     })
     pendingQCTests.value.slice(0, 3).forEach((q: any) => {
       items.push({
@@ -209,7 +215,7 @@ const notificationItems = computed(() => {
       label: `Sin Stock / Stock Agotado (${lowStockMaterials.value.length})`,
       icon: 'i-lucide-alert-triangle',
       to: '/inventario',
-      class: 'text-red-500 font-bold bg-red-50/50 dark:bg-red-950/20'
+      class: 'text-red-500 font-bold bg-red-50/50'
     })
     lowStockMaterials.value.slice(0, 3).forEach((m: any) => {
       items.push({
@@ -233,8 +239,8 @@ const notificationItems = computed(() => {
 
 let intervalId: any = null
 
-onMounted(() => {
-  checkSession()
+onMounted(async () => {
+  await checkSession()
   fetchNotifications()
   intervalId = setInterval(fetchNotifications, 15000) // update every 15s
 })
@@ -295,11 +301,18 @@ const sidebarItems = computed(() => {
     if (hasPerm('mi_inventario') || role === 'cajero' || role === 'vendedor') {
       items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
     }
-    if (hasPerm('solicitar_inventario') || role === 'cajero' || role === 'vendedor') {
-      items.push({ label: 'Solicitar Inventario', to: '/solicitar-inventario', icon: 'i-lucide-clipboard-list' })
-    }
 
-    // Reportes
+  }
+
+  // Módulos de Despachador de Laboratorio
+  if (role === 'despachador_laboratorio') {
+    items.push({ label: 'Almacén Central Lab', to: '/almacen', icon: 'i-lucide-warehouse' })
+    items.push({ label: 'Despacho Lab', to: '/despachos', icon: 'i-lucide-truck' })
+    items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
+  }
+
+  // Reportes (solo roles de venta/admin)
+  if (role === 'superadmin' || role === 'admin' || role === 'cajero' || role === 'vendedor' || role === 'editor' || role === 'despachador') {
     if (role === 'superadmin' || role === 'admin' || role === 'cajero' || hasPerm('reports') || hasPerm('reportes')) {
       items.push({ label: 'Reportes', to: '/reportes', icon: 'i-lucide-bar-chart-2' })
     }
@@ -311,10 +324,16 @@ const sidebarItems = computed(() => {
   // Módulos de Laboratorio
   if (role === 'superadmin' || role === 'admin' || role === 'lab_admin' || role === 'lab_worker') {
     items.push({ label: 'Dashboard Lab', to: '/', icon: 'i-lucide-layout-dashboard' })
+    if (role === 'lab_admin') {
+      items.push({ label: 'Catálogo Productos', to: '/productos', icon: 'i-lucide-box' })
+      items.push({ label: 'Compras Producto', to: '/compras', icon: 'i-lucide-shopping-bag' })
+      items.push({ label: 'Proveedores Producto', to: '/proveedores', icon: 'i-lucide-truck' })
+    }
     items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
     items.push({ label: 'Insumos Lab', to: '/insumos-lab', icon: 'i-lucide-beaker' })
+    if (hasPerm('proveedores_lab')) items.push({ label: 'Proveedores Lab', to: '/proveedores-lab', icon: 'i-lucide-building-2' })
     items.push({ label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' })
-    items.push({ label: 'Entradas M.P.', to: '/ingreso-egreso', icon: 'i-lucide-truck' })
+    items.push({ label: 'Ingresos / Egresos', to: '/ingreso-egreso', icon: 'i-lucide-arrow-left-right' })
     items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })
     items.push({ label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' })
     if (role !== 'lab_worker') {
@@ -336,25 +355,16 @@ const sidebarItems = computed(() => {
 
     <!-- Si estamos en cualquier otra página, mostramos el layout completo del Dashboard -->
     <template v-else>
-      <div class="flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans overflow-hidden transition-colors duration-200">
+      <div class="flex h-screen bg-white text-slate-900 font-sans overflow-hidden">
         <!-- Sidebar de Navegación -->
-        <aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col shrink-0">
-          <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-flask-conical"
-                class="w-6 h-6 text-green-600 animate-pulse"
-              />
-              <span class="font-bold text-lg tracking-wider bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent">
-                UniTech LAB
+        <aside class="w-64 border-r border-slate-200 bg-white flex flex-col shrink-0">
+          <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <img :src="'/logo.png'" alt="J.E Bolivia ERP" class="w-8 h-8 object-contain rounded-md" />
+              <span class="font-bold text-sm tracking-wide text-slate-800">
+                J.E Bolivia ERP
               </span>
             </div>
-            <UButton
-              :icon="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'"
-              variant="ghost"
-              color="neutral"
-              @click="toggleColorMode"
-            />
           </div>
 
           <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -362,8 +372,8 @@ const sidebarItems = computed(() => {
               v-for="item in sidebarItems"
               :key="item.to"
               :to="item.to"
-              class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-650 dark:text-slate-300 hover:text-green-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all duration-150 group"
-              active-class="bg-green-600 text-white dark:bg-green-600 dark:text-white font-semibold!"
+              class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:text-green-600 hover:bg-slate-100 transition-all duration-150 group"
+              active-class="bg-green-600 text-white font-semibold!"
             >
               <UIcon
                 :name="item.icon"
@@ -373,18 +383,18 @@ const sidebarItems = computed(() => {
             </NuxtLink>
           </nav>
 
-          <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center gap-3">
+          <div class="p-4 border-t border-slate-200 bg-white flex items-center gap-3">
             <UAvatar
               src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
               alt="Usuario"
               size="md"
             />
             <div class="truncate flex-1">
-              <p class="text-sm font-semibold text-slate-800 dark:text-white truncate">
+              <p class="text-sm font-semibold text-slate-800 truncate">
                 {{ auth.user?.name_admin || 'Usuario Lab' }}
               </p>
-              <span class="text-xs text-slate-550 dark:text-slate-400 capitalize block">
-                {{ auth.role === 'superadmin' ? 'Superadmin' : auth.role === 'admin' ? 'Administrador' : auth.role === 'despachador' ? 'Despachador' : auth.role === 'cajero' ? 'Cajero' : auth.role === 'vendedor' ? 'Vendedor' : auth.role === 'lab_admin' ? 'Admin Lab' : auth.role === 'lab_calidad' ? 'Control Calidad' : 'Operador' }}
+              <span class="text-xs text-slate-500 capitalize block">
+                {{ auth.role === 'superadmin' ? 'Superadmin' : auth.role === 'admin' ? 'Administrador' : auth.role === 'despachador' ? 'Despachador' : auth.role === 'despachador_laboratorio' ? 'Despachador Lab' : auth.role === 'cajero' ? 'Cajero' : auth.role === 'vendedor' ? 'Vendedor' : auth.role === 'lab_admin' ? 'Admin Lab' : auth.role === 'lab_calidad' ? 'Control Calidad' : 'Operador' }}
               </span>
             </div>
             <UButton
@@ -398,14 +408,11 @@ const sidebarItems = computed(() => {
         </aside>
 
         <!-- Panel de Contenido Principal -->
-        <main class="flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-900 overflow-hidden">
+        <main class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
           <!-- Topbar -->
-          <header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/40 backdrop-blur px-6 flex items-center justify-between shrink-0">
+          <header class="h-16 border-b border-slate-200 bg-white/80 backdrop-blur px-6 flex items-center justify-between shrink-0">
             <div>
-              <h2 class="text-lg font-bold text-slate-800 dark:text-white tracking-wide">
-                Módulo de Laboratorio
-              </h2>
-              <p class="text-xs text-slate-550 dark:text-slate-400">
+              <p class="text-xs text-slate-500">
                 Sucursal: <span class="text-green-600 font-medium">{{ auth.office?.title_office || 'Laboratorio Central' }}</span>
               </p>
             </div>
@@ -423,18 +430,18 @@ const sidebarItems = computed(() => {
                 >
                   <span
                     v-if="totalNotificationsCount > 0"
-                    class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-900 animate-pulse"
+                    class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-white animate-pulse"
                   >
                     {{ totalNotificationsCount }}
                   </span>
                 </UButton>
               </UDropdownMenu>
-              <div class="h-6 w-px bg-slate-200 dark:bg-slate-800" />
+              <div class="h-6 w-px bg-slate-200" />
               <div class="text-right hidden sm:block">
-                <p class="text-xs text-slate-500 dark:text-slate-400">
+                <p class="text-xs text-slate-500">
                   Fecha del Sistema
                 </p>
-                <p class="text-sm text-slate-700 dark:text-slate-200 font-semibold">
+                <p class="text-sm text-slate-700 font-semibold">
                   {{ new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) }}
                 </p>
               </div>
@@ -442,7 +449,7 @@ const sidebarItems = computed(() => {
           </header>
 
           <!-- Area de Vistas Nuxt -->
-          <section class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 bg-slate-50/50 dark:bg-slate-900">
+          <section class="flex-1 overflow-y-auto p-6 md:p-8 bg-white flex flex-col">
             <NuxtPage />
           </section>
         </main>

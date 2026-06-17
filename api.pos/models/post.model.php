@@ -1,6 +1,7 @@
-<?php 
+<?php
 
 require_once "connection.php";
+require_once "audit.model.php";
 
 class PostModel{
 
@@ -50,14 +51,18 @@ class PostModel{
 
 		if($executed){
 
+			$lastId = $link->lastInsertId();
+
+			AuditLogger::log("INSERT", $table, $lastId, $data);
+
 			$response = array(
 
-				"lastId" => $link->lastInsertId(),
+				"lastId" => $lastId,
 				"comment" => "The process was successful"
 			);
 
 			return $response;
-		
+
 		}else{
 
 			Connection::handleStatementError($stmt, array(

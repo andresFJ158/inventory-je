@@ -1,0 +1,83 @@
+[14-Jun-2026 15:17:59 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [2002] Connection refused at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/lib/LocalConnection.php:12
+[14-Jun-2026 15:34:32 America/La_Paz] Session Admin Token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODE0NjUwNjIsImV4cCI6MTc4MTU1MTQ2MiwiZGF0YSI6eyJpZCI6MSwiZW1haWwiOiJzdXBlcmFkbWluQHBvcy5jb20ifX0.UzazCfvoagQbqAd6Wqj6evofDjE8SYGiX-w_-emOjgA
+[14-Jun-2026 15:34:32 America/La_Paz] Session Admin ID: 1
+[14-Jun-2026 15:34:37 America/La_Paz] Session Admin Token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODE0NjUwNjIsImV4cCI6MTc4MTU1MTQ2MiwiZGF0YSI6eyJpZCI6MSwiZW1haWwiOiJzdXBlcmFkbWluQHBvcy5jb20ifX0.UzazCfvoagQbqAd6Wqj6evofDjE8SYGiX-w_-emOjgA
+[14-Jun-2026 15:34:37 America/La_Paz] Session Admin ID: 1
+[14-Jun-2026 15:34:44 America/La_Paz] Session Admin Token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODE0NjUwNjIsImV4cCI6MTc4MTU1MTQ2MiwiZGF0YSI6eyJpZCI6MSwiZW1haWwiOiJzdXBlcmFkbWluQHBvcy5jb20ifX0.UzazCfvoagQbqAd6Wqj6evofDjE8SYGiX-w_-emOjgA
+[14-Jun-2026 15:34:44 America/La_Paz] Session Admin ID: 1
+[14-Jun-2026 15:38:08 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[14-Jun-2026 15:38:54 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[14-Jun-2026 15:39:15 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[14-Jun-2026 15:43:07 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[14-Jun-2026 16:52:04 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/04_lab.php:383
+[14-Jun-2026 16:52:09 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/04_lab.php:383
+[15-Jun-2026 17:54:11 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[15-Jun-2026 17:54:52 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/04_lab.php:383
+[15-Jun-2026 17:54:52 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/04_lab.php:383
+[15-Jun-2026 17:55:11 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/04_lab.php:383
+[15-Jun-2026 17:57:26 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/04_lab.php:383
+[15-Jun-2026 17:58:43 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 17:59:11 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 18:11:38 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 18:11:38 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 18:11:50 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 18:11:59 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 21:28:13 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 21:28:13 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 21:28:23 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 21:28:35 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[15-Jun-2026 21:52:46 America/La_Paz] [getWastePackaged] SQLSTATE[42S22]: Column not found: 1054 Unknown column 'r.title_product' in 'SELECT'
+[16-Jun-2026 11:58:10 America/La_Paz] recipes_production error: SQLSTATE[22007]: Invalid datetime format: 1366 Incorrect integer value: 'ls_1' for column `u228744577_pos`.`production_material_costs`.`id_raw_material_mat_cost` at row 1
+[16-Jun-2026 11:58:32 America/La_Paz] recipes_production error: SQLSTATE[22007]: Invalid datetime format: 1366 Incorrect integer value: 'ls_1' for column `u228744577_pos`.`production_material_costs`.`id_raw_material_mat_cost` at row 1
+[16-Jun-2026 12:02:49 America/La_Paz] EXCEPTION in pos.ajax.php: There is no active transaction at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/02_recipes_production.php:383
+[16-Jun-2026 13:07:47 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/04_lab.php:568
+[16-Jun-2026 13:08:35 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 13:08:36 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 16:23:02 America/La_Paz] updateLabSupplyStock error: There is no active transaction
+[16-Jun-2026 16:23:08 America/La_Paz] updateLabSupplyStock error: There is no active transaction
+[16-Jun-2026 16:23:12 America/La_Paz] updateLabSupplyStock error: There is no active transaction
+[16-Jun-2026 16:23:13 America/La_Paz] updateLabSupplyStock error: There is no active transaction
+[16-Jun-2026 16:23:13 America/La_Paz] updateLabSupplyStock error: There is no active transaction
+[16-Jun-2026 16:23:13 America/La_Paz] updateLabSupplyStock error: There is no active transaction
+[16-Jun-2026 16:40:20 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'charge_to_client_expense' in 'INSERT INTO' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/06_commerce.php:24
+[16-Jun-2026 16:40:25 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'charge_to_client_expense' in 'INSERT INTO' at /Users/andresfernandez/dev/Unitech2.0/api.pos/ajax/handlers/06_commerce.php:24
+[16-Jun-2026 16:42:45 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[16-Jun-2026 17:43:28 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[16-Jun-2026 19:49:55 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [1049] Unknown database 'u228744577_pos' at D:\Unitech2.0\api.pos\ajax\lib\LocalConnection.php:13
+[16-Jun-2026 19:50:25 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [1049] Unknown database 'u228744577_pos' at D:\Unitech2.0\api.pos\ajax\lib\LocalConnection.php:13
+[16-Jun-2026 19:50:29 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [1049] Unknown database 'u228744577_pos' at D:\Unitech2.0\api.pos\ajax\lib\LocalConnection.php:13
+[16-Jun-2026 19:50:30 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [1049] Unknown database 'u228744577_pos' at D:\Unitech2.0\api.pos\ajax\lib\LocalConnection.php:13
+[16-Jun-2026 19:50:30 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [1049] Unknown database 'u228744577_pos' at D:\Unitech2.0\api.pos\ajax\lib\LocalConnection.php:13
+[16-Jun-2026 20:02:41 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'ci.price_ci' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:271
+[16-Jun-2026 20:06:00 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 20:06:00 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 20:23:54 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'st.unit_cost_transfer' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:94
+[16-Jun-2026 20:23:55 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'st.unit_cost_transfer' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:94
+[16-Jun-2026 20:24:21 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'st.unit_cost_transfer' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:94
+[16-Jun-2026 20:24:22 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'st.unit_cost_transfer' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:94
+[16-Jun-2026 20:24:28 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'ci.price_ci' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:271
+[16-Jun-2026 20:24:41 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:573
+[16-Jun-2026 20:25:19 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'st.unit_cost_transfer' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:94
+[16-Jun-2026 20:25:19 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'st.unit_cost_transfer' in 'SELECT' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:94
+[16-Jun-2026 20:25:22 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:573
+[16-Jun-2026 20:30:41 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 20:30:41 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 20:30:53 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 20:31:39 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 20:31:39 America/La_Paz] [PRODUCT_PRICES] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.product_prices' doesn't exist
+[16-Jun-2026 20:31:43 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:561
+[16-Jun-2026 20:32:14 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:561
+[16-Jun-2026 20:32:22 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:561
+[16-Jun-2026 20:34:45 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:559
+[16-Jun-2026 20:35:03 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:559
+[16-Jun-2026 20:35:12 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\04_lab.php:559
+[16-Jun-2026 20:43:45 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:50
+[16-Jun-2026 20:44:50 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:50
+[16-Jun-2026 20:45:47 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:50
+[16-Jun-2026 20:46:26 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:50
+[16-Jun-2026 21:27:05 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_combo_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:50
+[16-Jun-2026 21:27:25 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_combo_product' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:50
+[16-Jun-2026 22:13:00 America/La_Paz] warehouse error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_request_transfer' in 'INSERT INTO'
+[16-Jun-2026 22:13:05 America/La_Paz] warehouse error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_request_transfer' in 'INSERT INTO'
+[16-Jun-2026 22:19:02 America/La_Paz] [STOCK_MOVEMENT] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.stock_movements' doesn't exist
+[16-Jun-2026 22:19:13 America/La_Paz] [STOCK_MOVEMENT] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.stock_movements' doesn't exist

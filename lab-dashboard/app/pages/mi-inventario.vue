@@ -8,10 +8,14 @@ const toast = useToast()
 const hasSubWarehouse = ref(false)
 const inventory = ref<any[]>([])
 const movements = ref<any[]>([])
+const pendingInbound = ref<any[]>([])
 const offices = ref<any[]>([])
 
 const loadingInventory = ref(true)
 const loadingMovements = ref(true)
+const loadingInbound = ref(true)
+const receivingTransferId = ref<number | null>(null)
+const canDispatchFromInventory = computed(() => ['despachador', 'admin', 'superadmin'].includes(String(auth.role || '')))
 
 // Assignment modal state
 const assignModalOpen = ref(false)
@@ -38,7 +42,7 @@ async function fetchOffices() {
 
 const officeOptions = computed(() => {
   return offices.value
-    .filter((o: any) => String(o.id_office) !== String(auth.officeId))
+    .filter((o: any) => String(o.id_office) !== String(auth.effectiveOfficeId) && o.type_office !== 'central')
     .map((o: any) => ({
       value: String(o.id_office),
       label: decodeURIComponent(o.title_office || '').replace(/\+/g, ' ')
@@ -75,7 +79,7 @@ async function confirmAssignment() {
       body: new URLSearchParams({
         transferStockBetweenOffices: 'true',
         id_product: String(selectedProduct.value.id_product),
-        id_office_source: String(auth.officeId),
+        id_office_source: String(auth.effectiveOfficeId),
         id_office_dest: String(selectedOfficeId.value),
         qty: String(assignQty.value),
         notes: assignNotes.value || `Asignación manual de stock desde Almacén`,
@@ -85,7 +89,7 @@ async function confirmAssignment() {
     })
 
     if (response.trim() === 'ok') {
-      toast.add({ title: 'Inventario asignado correctamente.', color: 'success' })
+      toast.add({ title: 'Reposición enviada.', description: 'Quedó pendiente de confirmación en la sucursal destino.', color: 'success' })
       assignModalOpen.value = false
       await fetchInventory()
     } else {
@@ -106,7 +110,7 @@ async function checkHasSubWarehouse() {
   }
   
   try {
-    const data = await $fetch<any>(`/api/sub_warehouses?linkTo=id_office_sub_warehouse&equalTo=${auth.officeId}`, {
+    const data = await $fetch<any>(`/api/sub_warehouses?linkTo=id_office_sub_warehouse&equalTo=${auth.effectiveOfficeId}`, {
       headers: apiHeaders
     })
     hasSubWarehouse.value = data.status === 200 && data.results && data.results.length > 0
@@ -123,7 +127,7 @@ async function fetchInventory() {
       body: new URLSearchParams({
         getSubWarehouseStock: 'true',
         id_admin: String(auth.user?.id_admin || 1),
-        id_office: String(auth.officeId ?? 3),
+        id_office: String(auth.effectiveOfficeId ?? 3),
         role: auth.role || 'cajero'
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -147,7 +151,7 @@ async function fetchMovements() {
       body: new URLSearchParams({
         getMyWarehouseMovements: 'true',
         id_admin: String(auth.user?.id_admin || 1),
-        id_office: String(auth.officeId ?? 3)
+        id_office: String(auth.effectiveOfficeId ?? 3)
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -161,14 +165,92 @@ async function fetchMovements() {
   }
 }
 
+async function fetchPendingInbound() {
+  loadingInbound.value = true
+  try {
+    const response = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        getPendingInboundTransfers: 'true',
+        id_office: String(auth.effectiveOfficeId ?? 3)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    pendingInbound.value = data.status === 200 && data.results ? data.results : []
+  } catch (e) {
+    console.error('Error fetching inbound transfers:', e)
+    pendingInbound.value = []
+  } finally {
+    loadingInbound.value = false
+  }
+}
+
+async function confirmInboundTransfer(row: any) {
+  receivingTransferId.value = Number(row.id_transfer)
+  try {
+    const response = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        confirmInboundTransfer: 'true',
+        id_transfer: String(row.id_transfer),
+        id_office: String(auth.effectiveOfficeId ?? 3),
+        id_admin: String(auth.user?.id_admin || 1)
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    if (data.status === 200) {
+      toast.add({ title: 'Ingreso confirmado.', color: 'success' })
+      await fetchPendingInbound()
+      await fetchInventory()
+      await fetchMovements()
+    } else {
+      toast.add({ title: data.message || 'No se pudo confirmar el ingreso.', color: 'error' })
+    }
+  } catch (e: any) {
+    toast.add({ title: 'Error al confirmar ingreso.', description: e?.data?.message || e?.message, color: 'error' })
+  } finally {
+    receivingTransferId.value = null
+  }
+}
+
+async function rejectInboundTransfer(row: any) {
+  receivingTransferId.value = Number(row.id_transfer)
+  try {
+    const response = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        rejectInboundTransfer: 'true',
+        id_transfer: String(row.id_transfer),
+        id_office: String(auth.effectiveOfficeId ?? 3),
+        id_admin: String(auth.user?.id_admin || 1),
+        reason: 'Rechazado por la sucursal'
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof response === 'string' ? JSON.parse(response) : response
+    if (data.status === 200) {
+      toast.add({ title: 'Ingreso rechazado.', color: 'warning' })
+      await fetchPendingInbound()
+      await fetchInventory()
+    } else {
+      toast.add({ title: data.message || 'No se pudo rechazar el ingreso.', color: 'error' })
+    }
+  } catch (e: any) {
+    toast.add({ title: 'Error al rechazar ingreso.', description: e?.data?.message || e?.message, color: 'error' })
+  } finally {
+    receivingTransferId.value = null
+  }
+}
+
 watch(() => auth.user, async (newVal) => {
   if (newVal) {
     await checkHasSubWarehouse()
+    await fetchPendingInbound()
     await fetchInventory()
     await fetchMovements()
-    if (auth.role === 'despachador') {
-      await fetchOffices()
-    }
+    await fetchOffices()
   }
 }, { immediate: true })
 
@@ -194,13 +276,15 @@ function formatText(t: string | undefined): string {
 }
 
 function getTypeColor(type: string): string {
-  if (type === 'despacho') return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-  if (type === 'venta') return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-  return 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+  if (type === 'despacho') return 'bg-green-100 text-green-700'
+  if (type === 'despacho_pendiente') return 'bg-amber-100 text-amber-700'
+  if (type === 'venta') return 'bg-red-100 text-red-700'
+  return 'bg-amber-100 text-amber-700'
 }
 
 function getTypeLabel(type: string): string {
   if (type === 'despacho') return 'Recibido'
+  if (type === 'despacho_pendiente') return 'En tránsito'
   if (type === 'venta') return 'Venta'
   return 'Devolución'
 }
@@ -219,16 +303,73 @@ function getTypeLabel(type: string): string {
           {{ !hasSubWarehouse ? 'Consulta de stock general de sucursal' : 'Tus productos asignados' }}
         </p>
       </div>
-      <UButton
-        v-if="hasSubWarehouse"
-        to="/solicitar-inventario"
-        icon="i-lucide-plus-circle"
-        color="primary"
-        class="bg-green-600 hover:bg-green-700"
-      >
-        Solicitar Inventario
-      </UButton>
     </div>
+
+    <UCard>
+      <template #header>
+        <h3 class="font-semibold text-lg flex items-center gap-2">
+          <UIcon name="i-lucide-inbox" class="w-5 h-5 text-gray-500" />
+          Ingresos Pendientes
+        </h3>
+      </template>
+
+      <div v-if="loadingInbound" class="py-6 flex justify-center">
+        <UIcon name="i-lucide-loader-2" class="w-7 h-7 animate-spin text-green-600" />
+      </div>
+
+      <div v-else-if="pendingInbound.length === 0" class="py-8 text-center text-gray-500">
+        No hay reposiciones pendientes de recepción.
+      </div>
+
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead class="text-xs uppercase text-slate-500 border-b border-slate-200">
+            <tr>
+              <th class="py-3 pr-4">Producto</th>
+              <th class="py-3 px-4">Origen</th>
+              <th class="py-3 px-4 text-right">Cantidad</th>
+              <th class="py-3 px-4 text-right">Precio POS</th>
+              <th class="py-3 pl-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr v-for="row in pendingInbound" :key="row.id_transfer">
+              <td class="py-3 pr-4">
+                <div class="font-semibold text-slate-800">{{ formatText(row.title_product) }}</div>
+                <div class="text-xs text-slate-400">{{ row.sku_product || '-' }}</div>
+              </td>
+              <td class="py-3 px-4 text-slate-600">{{ formatText(row.origin_office_name) || '-' }}</td>
+              <td class="py-3 px-4 text-right font-mono font-bold">{{ row.qty_transfer }} {{ row.unit_product || '' }}</td>
+              <td class="py-3 px-4 text-right font-mono">Bs {{ parseFloat(row.unit_price_transfer || 0).toFixed(2) }}</td>
+              <td class="py-3 pl-4">
+                <div class="flex justify-end gap-2">
+                  <UButton
+                    size="xs"
+                    color="success"
+                    variant="soft"
+                    icon="i-lucide-check"
+                    :loading="receivingTransferId === Number(row.id_transfer)"
+                    @click="confirmInboundTransfer(row)"
+                  >
+                    Confirmar
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-x"
+                    :disabled="receivingTransferId === Number(row.id_transfer)"
+                    @click="rejectInboundTransfer(row)"
+                  >
+                    Rechazar
+                  </UButton>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </UCard>
 
     <!-- Inventory Table -->
     <UCard>
@@ -246,9 +387,6 @@ function getTypeLabel(type: string): string {
       <div v-else-if="inventory.length === 0" class="py-12 text-center flex flex-col items-center">
         <UIcon name="i-lucide-box-select" class="w-12 h-12 text-gray-300 mb-3" />
         <p class="text-gray-500 font-medium">No tienes productos asignados.</p>
-        <UButton v-if="hasSubWarehouse" to="/solicitar-inventario" color="neutral" variant="soft" class="mt-4">
-          Ir a solicitar inventario
-        </UButton>
       </div>
 
       <UTable v-else :columns="invColumns" :data="inventory">
@@ -265,12 +403,12 @@ function getTypeLabel(type: string): string {
           <div class="flex items-center gap-4 justify-between">
             <span :class="[
               'font-bold px-2 py-1 rounded text-sm',
-              parseFloat(row.original.stock) > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+              parseFloat(row.original.stock) > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
             ]">
               {{ row.original.stock }}
             </span>
             <UButton
-              v-if="auth.role === 'despachador' && parseFloat(row.original.stock) > 0"
+              v-if="canDispatchFromInventory && parseFloat(row.original.stock) > 0"
               size="xs"
               color="primary"
               variant="soft"
@@ -327,7 +465,7 @@ function getTypeLabel(type: string): string {
         <div v-if="selectedProduct" class="space-y-4 p-1">
           <div>
             <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Producto</span>
-            <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-sm font-semibold border border-slate-200 dark:border-slate-800">
+            <div class="p-3 bg-slate-50 rounded-lg text-sm font-semibold border border-slate-200">
               {{ formatText(selectedProduct.title_product) }} ({{ selectedProduct.unit_product || 'Unidad' }})
             </div>
           </div>
@@ -335,7 +473,7 @@ function getTypeLabel(type: string): string {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Stock Disponible</span>
-              <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-sm font-bold text-teal-600 border border-slate-200 dark:border-slate-800">
+              <div class="p-3 bg-slate-50 rounded-lg text-sm font-bold text-teal-600 border border-slate-200">
                 {{ selectedProduct.stock }}
               </div>
             </div>

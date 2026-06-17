@@ -127,8 +127,13 @@ if(isset($_POST["idOrderDelete"])){
 
 	$ajax = new PosController();
 	$ajax -> idOrderDelete = $_POST["idOrderDelete"];
-	$ajax -> token = $_POST["token"];
-	$ajax -> deleteOrder();
+	$ajax -> token = $_POST["token"] ?? null;
+
+	if (empty($ajax->idOrderDelete)) {
+		echo "error|ID de orden vacío";
+	} else {
+		$ajax -> deleteOrder();
+	}
 
 }
 
@@ -178,7 +183,7 @@ if(isset($_POST["approveRawMaterialEntry"])){
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error|" . $e->getMessage();
+		error_log("pos_sales error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }

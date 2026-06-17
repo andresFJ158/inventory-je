@@ -3,10 +3,10 @@ if(isset($_POST["editRawMaterial"])){
 	$db = LocalConnection::connect();
 	try {
 		$id_raw_material = intval($_POST['id_raw_material']);
-		$name = trim(htmlspecialchars($_POST['name_raw_material']));
+		$name = trim($_POST['name_raw_material']);
 		$measure_type = $_POST['measure_type'];
-		$unit = trim(htmlspecialchars($_POST['unit_raw_material']));
-		$desc = trim(htmlspecialchars($_POST['description_raw_material']));
+		$unit = trim($_POST['unit_raw_material']);
+		$desc = trim($_POST['description_raw_material']);
 		
 		// Validar duplicado de nombre (excluyendo el actual) en la misma sucursal y misma categoria de insumo
 		$stmtGetOffice = $db->prepare("SELECT id_office_raw_material, is_insumo FROM raw_materials WHERE id_raw_material = :id LIMIT 1");
@@ -22,17 +22,22 @@ if(isset($_POST["editRawMaterial"])){
 			exit;
 		}
 
-		$stmt = $db->prepare("UPDATE raw_materials SET name_raw_material = :name, measure_type = :measure, unit_raw_material = :unit, description_raw_material = :desc WHERE id_raw_material = :id");
+		$no_stock = intval($_POST['no_stock_raw_material'] ?? 0);
+		$price    = floatval($_POST['price_raw_material'] ?? 0);
+
+		$stmt = $db->prepare("UPDATE raw_materials SET name_raw_material = :name, measure_type = :measure, unit_raw_material = :unit, description_raw_material = :desc, no_stock_raw_material = :no_stock, price_raw_material = :price WHERE id_raw_material = :id");
 		$stmt->execute([
-			':name' => $name,
-			':measure' => $measure_type,
-			':unit' => $unit,
-			':desc' => $desc,
-			':id' => $id_raw_material
+			':name'     => $name,
+			':measure'  => $measure_type,
+			':unit'     => $unit,
+			':desc'     => $desc,
+			':no_stock' => $no_stock,
+			':price'    => $price,
+			':id'       => $id_raw_material
 		]);
 		echo "ok";
 	} catch (Exception $e) {
-		echo "error|" . $e->getMessage();
+		error_log("lab error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
@@ -56,19 +61,19 @@ if(isset($_POST["deleteRawMaterial"])){
 		}
 
 		if (floatval($mat['stock_raw_material']) > 0) {
-			echo "error|No se puede eliminar la materia prima porque a�n tiene stock disponible (" . $mat['stock_raw_material'] . ").";
+			echo "error|No se puede eliminar la materia prima porque aún tiene stock disponible (" . $mat['stock_raw_material'] . ").";
 			exit;
 		}
 
-		// 2. Verificar si est� en recetas
+		// 2. Verificar si está en recetas
 		$stmtRecipe = $db->prepare("SELECT COUNT(*) FROM recipe_ingredients WHERE id_raw_material_ingredient = :id");
 		$stmtRecipe->execute([':id' => $id_raw_material]);
 		if (intval($stmtRecipe->fetchColumn()) > 0) {
-			echo "error|No se puede eliminar la materia prima porque est� asociada a una o m�s recetas.";
+			echo "error|No se puede eliminar la materia prima porque está asociada a una o más recetas.";
 			exit;
 		}
 
-		// 3. Verificar si est� en historial de producciones
+		// 3. Verificar si está en historial de producciones
 		$stmtProd = $db->prepare("SELECT COUNT(*) FROM production_material_costs WHERE id_raw_material_mat_cost = :id");
 		$stmtProd->execute([':id' => $id_raw_material]);
 		if (intval($stmtProd->fetchColumn()) > 0) {
@@ -89,7 +94,7 @@ if(isset($_POST["deleteRawMaterial"])){
 		$stmtDel->execute([':id' => $id_raw_material]);
 		echo "ok";
 	} catch (Exception $e) {
-		echo "error|" . $e->getMessage();
+		error_log("lab error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
@@ -102,7 +107,16 @@ if(isset($_POST["getLabMaterials"])){
 	$id_office = intval($_POST["id_office"]);
 	$is_insumo = isset($_POST["is_insumo"]) ? intval($_POST["is_insumo"]) : null;
 
-	if ($is_insumo !== null) {
+	if ($id_office === 0) {
+		// Admin global: devolver todos sin filtrar por office
+		if ($is_insumo !== null) {
+			$stmt = $db->prepare("SELECT * FROM raw_materials WHERE is_insumo = :is_insumo AND status_raw_material = 1 ORDER BY name_raw_material ASC");
+			$stmt->execute([':is_insumo' => $is_insumo]);
+		} else {
+			$stmt = $db->prepare("SELECT * FROM raw_materials WHERE status_raw_material = 1 ORDER BY name_raw_material ASC");
+			$stmt->execute();
+		}
+	} elseif ($is_insumo !== null) {
 		$stmt = $db->prepare("SELECT * FROM raw_materials WHERE id_office_raw_material = :office AND is_insumo = :is_insumo AND status_raw_material = 1 ORDER BY name_raw_material ASC");
 		$stmt->execute([':office' => $id_office, ':is_insumo' => $is_insumo]);
 	} else {
@@ -122,10 +136,10 @@ if(isset($_POST["getLabMaterials"])){
 if(isset($_POST["saveLabMaterial"])){
 	$db = LocalConnection::connect();
 	try {
-		$name = trim(htmlspecialchars($_POST['name_raw_material']));
+		$name = trim($_POST['name_raw_material']);
 		$measure_type = $_POST['measure_type'];
-		$unit = trim(htmlspecialchars($_POST['unit_raw_material']));
-		$desc = trim(htmlspecialchars($_POST['description_raw_material']));
+		$unit = trim($_POST['unit_raw_material']);
+		$desc = trim($_POST['description_raw_material']);
 		$id_office = intval($_POST['id_office_raw_material']);
 		$id_admin = isset($_POST['id_admin_raw_material']) ? intval($_POST['id_admin_raw_material']) : 1;
 		$is_insumo = isset($_POST['is_insumo']) ? intval($_POST['is_insumo']) : 0;
@@ -150,7 +164,7 @@ if(isset($_POST["saveLabMaterial"])){
 		]);
 		echo "ok";
 	} catch (Exception $e) {
-		echo "error|" . $e->getMessage();
+		error_log("lab error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
@@ -163,8 +177,8 @@ if(isset($_POST["saveLabEntry"])){
 	try {
 		$id_raw_material = intval($_POST['id_raw_material_entry']);
 		$qty = floatval($_POST['qty_entry']);
-		$lot_number = trim(htmlspecialchars($_POST['lot_number_entry']));
-		$supplier = trim(htmlspecialchars($_POST['supplier_entry']));
+		$lot_number = trim($_POST['lot_number_entry']);
+		$supplier = trim($_POST['supplier_entry']);
 		$date = $_POST['date_entry'];
 		$id_admin = intval($_POST['id_admin_entry']);
 
@@ -179,7 +193,7 @@ if(isset($_POST["saveLabEntry"])){
 		]);
 		echo json_encode(["status" => 200, "results" => "ok"]);
 	} catch (Exception $e) {
-		echo json_encode(["status" => 500, "message" => $e->getMessage()]);
+		error_log("lab error: " . $e->getMessage()); echo json_encode(["status" => 500, "message" => "Error interno al procesar la operación."]);
 	}
 	exit;
 }
@@ -194,8 +208,8 @@ if(isset($_POST["saveLabAdjustment"])){
 		
 		$id_raw_material = intval($_POST['id_raw_material']);
 		$qty = floatval($_POST['qty']);
-		$concept = trim(htmlspecialchars($_POST['concept']));
-		$notes = trim(htmlspecialchars($_POST['notes']));
+		$concept = trim($_POST['concept']);
+		$notes = trim($_POST['notes']);
 		$id_admin = intval($_POST['id_admin']);
 		
 		// Check current stock
@@ -233,7 +247,7 @@ if(isset($_POST["saveLabAdjustment"])){
 		echo json_encode(["status" => 200, "results" => "ok"]);
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo json_encode(["status" => 500, "message" => $e->getMessage()]);
+		error_log("lab error: " . $e->getMessage()); echo json_encode(["status" => 500, "message" => "Error interno al procesar la operación."]);
 	}
 	exit;
 }
@@ -244,18 +258,85 @@ if(isset($_POST["saveLabAdjustment"])){
 if(isset($_POST["getLabEntries"])){
 	$db = LocalConnection::connect();
 	$id_office = intval($_POST["id_office"]);
-	$stmt = $db->prepare("
-		SELECT rme.*, rm.name_raw_material, rm.unit_raw_material, rm.is_insumo 
-		FROM raw_material_entries rme 
-		JOIN raw_materials rm ON rme.id_raw_material_entry = rm.id_raw_material 
-		WHERE rm.id_office_raw_material = :office 
-		ORDER BY rme.id_entry DESC
+
+	// Asegurar que la tabla de movimientos de lab_supplies existe
+	$db->exec("
+		CREATE TABLE IF NOT EXISTS lab_supply_entries (
+		  id_ls_entry        INT AUTO_INCREMENT PRIMARY KEY,
+		  id_supply_entry    INT NOT NULL,
+		  qty_entry          DOUBLE NOT NULL,
+		  type_entry         VARCHAR(20) DEFAULT 'ingreso',
+		  concept_entry      TEXT NULL,
+		  lot_number_entry   TEXT NULL,
+		  supplier_entry     TEXT NULL,
+		  notes_entry        TEXT NULL,
+		  status_entry       VARCHAR(30) DEFAULT 'aprobado',
+		  id_admin_entry     INT DEFAULT 0,
+		  date_entry         DATE NULL,
+		  date_created_entry TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)
 	");
-	$stmt->execute([':office' => $id_office]);
-	echo json_encode([
-		'status' => 200,
-		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
-	]);
+
+	// raw_materials (MP e insumos con flag is_insumo)
+	$stmtRaw = $db->prepare("
+		SELECT
+			CONCAT('rme_', rme.id_entry) AS id_entry,
+			rme.id_entry AS id_entry_raw,
+			rme.qty_entry,
+			rme.lot_number_entry,
+			rme.supplier_entry,
+			rme.notes_entry,
+			rme.status_entry,
+			rme.type_entry,
+			rme.concept_entry,
+			rme.date_entry,
+			rme.date_created_entry,
+			rme.id_raw_material_entry,
+			rme.unit_price_entry,
+			rm.name_raw_material,
+			rm.unit_raw_material,
+			rm.is_insumo
+		FROM raw_material_entries rme
+		JOIN raw_materials rm ON rme.id_raw_material_entry = rm.id_raw_material
+		WHERE rm.id_office_raw_material = :office
+	");
+	$stmtRaw->execute([':office' => $id_office]);
+	$fromRaw = $stmtRaw->fetchAll(PDO::FETCH_ASSOC);
+
+	// lab_supplies (insumos)
+	$stmtLs = $db->prepare("
+		SELECT
+			CONCAT('ls_', lse.id_ls_entry) AS id_entry,
+			lse.qty_entry,
+			lse.lot_number_entry,
+			lse.supplier_entry,
+			lse.notes_entry,
+			lse.status_entry,
+			lse.type_entry,
+			lse.concept_entry,
+			lse.date_entry,
+			lse.date_created_entry,
+			CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
+			0 AS unit_price_entry,
+			ls.name_supply AS name_raw_material,
+			ls.unit_supply AS unit_raw_material,
+			1 AS is_insumo
+		FROM lab_supply_entries lse
+		JOIN lab_supplies ls ON lse.id_supply_entry = ls.id_supply
+		WHERE ls.id_office_supply = :office
+	");
+	$stmtLs->execute([':office' => $id_office]);
+	$fromLs = $stmtLs->fetchAll(PDO::FETCH_ASSOC);
+
+	// Unificar y ordenar por fecha descendente
+	$all = array_merge($fromRaw, $fromLs);
+	usort($all, function($a, $b) {
+		$da = $a['date_created_entry'] ?? $a['date_entry'] ?? '';
+		$db2 = $b['date_created_entry'] ?? $b['date_entry'] ?? '';
+		return strcmp($db2, $da);
+	});
+
+	echo json_encode(['status' => 200, 'results' => $all]);
 	exit;
 }
 
@@ -277,7 +358,7 @@ if(isset($_POST["getLabRecipes"])){
 	$recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 	foreach ($recipes as &$recipe) {
-		// Ingredientes con precio de �ltima entrada aprobada
+		// Ingredientes con precio de última entrada aprobada
 		$stmtIng = $db->prepare("
 			SELECT ri.*, rm.name_raw_material, rm.unit_raw_material,
 			       COALESCE((
@@ -295,7 +376,7 @@ if(isset($_POST["getLabRecipes"])){
 		$ingredients = $stmtIng->fetchAll(PDO::FETCH_ASSOC);
 		$recipe['ingredients'] = $ingredients;
 
-		// Calcular costo estimado por unidad de producci�n basado en ingredientes
+		// Calcular costo estimado por unidad de producción basado en ingredientes
 		$batch_size = floatval($recipe['batch_size_recipe']) ?: 1;
 		$estimated_cost_batch = 0;
 		foreach ($ingredients as $ing) {
@@ -308,7 +389,7 @@ if(isset($_POST["getLabRecipes"])){
 		$recipe['cost_real'] = floatval($recipe['rte_product']);
 		$recipe['has_real_cost'] = floatval($recipe['rte_product']) > 0;
 
-		// Calcular m�tricas de merma hist�ricas
+		// Calcular métricas de merma hist�ricas
 		$stmtMetrics = $db->prepare("
 			SELECT 
 				AVG(yield_variance_pct) as avg_variance,
@@ -324,7 +405,7 @@ if(isset($_POST["getLabRecipes"])){
 		$recipe['worst_variance'] = $metrics && $metrics['worst_variance'] !== null ? floatval($metrics['worst_variance']) : 0;
 		$recipe['best_variance'] = $metrics && $metrics['best_variance'] !== null ? floatval($metrics['best_variance']) : 0;
 
-		// Obtener �ltimos 5 registros de merma
+		// Obtener últimos 5 registros de merma
 		$stmtHistory = $db->prepare("
 			SELECT yield_variance_pct 
 			FROM productions 
@@ -369,22 +450,29 @@ if(isset($_POST["getLabProductions"])){
 // GET WASTE PACKAGED
 //=====================================
 if(isset($_POST["getWastePackaged"])){
-	$db = LocalConnection::connect();
-	$id_office = intval($_POST["id_office"]);
-	$stmt = $db->prepare("
-		SELECT w.*, p.title_product, p.unit_product, prod.id_recipe_production, r.title_product AS recipe_name, prod.pkg_name_production
-		FROM waste_packaged w
-		JOIN products p ON w.id_product_waste = p.id_product
-		JOIN productions prod ON w.id_production_waste = prod.id_production
-		LEFT JOIN recipes r ON prod.id_recipe_production = r.id_recipe
-		WHERE w.id_office_waste = :office 
-		ORDER BY w.id_waste DESC
-	");
-	$stmt->execute([':office' => $id_office]);
-	echo json_encode([
-		'status' => 200,
-		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
-	]);
+	try {
+		$db = LocalConnection::connect();
+		$id_office = intval($_POST["id_office"]);
+		$stmt = $db->prepare("
+			SELECT w.*, p.title_product, p.unit_product, prod.id_recipe_production, rp.title_product AS recipe_name,
+			       IFNULL(prod.pkg_name_production, '') AS pkg_name_production
+			FROM waste_packaged w
+			JOIN products p ON w.id_product_waste = p.id_product
+			JOIN productions prod ON w.id_production_waste = prod.id_production
+			LEFT JOIN recipes r ON prod.id_recipe_production = r.id_recipe
+			LEFT JOIN products rp ON r.id_product_recipe = rp.id_product
+			WHERE w.id_office_waste = :office
+			ORDER BY w.id_waste DESC
+		");
+		$stmt->execute([':office' => $id_office]);
+		echo json_encode([
+			'status' => 200,
+			'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+		]);
+	} catch (Throwable $e) {
+		error_log('[getWastePackaged] ' . $e->getMessage());
+		echo json_encode(['status' => 500, 'results' => []]);
+	}
 	exit;
 }
 
@@ -400,13 +488,13 @@ if(isset($_POST["finishLabProduction"])){
 		$stmt->execute([':id' => $id_production]);
 		echo "ok";
 	} catch (Exception $e) {
-		echo "error|" . $e->getMessage();
+		error_log("lab error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
 
 //=====================================
-// CANCEL LAB PRODUCTION (solo si est� en estado 'pendiente')
+// CANCEL LAB PRODUCTION (solo si está en estado 'pendiente')
 //=====================================
 if(isset($_POST["cancelProduction"])){
 	$db = LocalConnection::connect();
@@ -431,7 +519,7 @@ if(isset($_POST["cancelProduction"])){
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		echo "error|" . $e->getMessage();
+		error_log("lab error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
@@ -446,15 +534,30 @@ if(isset($_POST["getLabWarehouse"])){
 		SELECT 
 			p.id_product AS id_warehouse, 
 			p.title_product AS name_product, 
-			COALESCE((SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = p.id_product AND id_office_inventory = :office LIMIT 1), 0) AS qty_warehouse, 
+			COALESCE((SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = p.id_product AND id_office_inventory = :office_stock LIMIT 1), 0) AS qty_warehouse, 
 			p.rte_product AS cost_warehouse,
-			(SELECT cost_purchase FROM purchases WHERE id_product_purchase = p.id_product ORDER BY id_purchase DESC LIMIT 1) AS sale_price_warehouse,
-			(SELECT COUNT(*) FROM purchases WHERE id_product_purchase = p.id_product) AS price_defined_warehouse
+			p.price_product AS sale_price_warehouse,
+			(p.price_product > 0) AS price_defined_warehouse
 		FROM products p
-		WHERE p.is_compound_product = 1 AND p.id_office_product = :office
+		WHERE p.status_product = 1
+		  AND COALESCE(p.is_compound_product, 0) = 0
+		  AND (
+		  	COALESCE(p.is_manufactured_product, 0) = 1
+		  	OR COALESCE(p.source_type_product, '') = 'laboratorio'
+		  	OR EXISTS (SELECT 1 FROM productions pr WHERE pr.id_packaged_product = p.id_product)
+		  )
+		  AND EXISTS (
+		  	SELECT 1
+		  	FROM product_inventory pi
+		  	WHERE pi.id_product_inventory = p.id_product
+		  	  AND pi.id_office_inventory = :office_exists
+		  )
 		ORDER BY p.id_product DESC
 	");
-	$stmt->execute([':office' => $id_office]);
+	$stmt->execute([
+		':office_stock' => $id_office,
+		':office_exists' => $id_office
+	]);
 	echo json_encode([
 		'status' => 200,
 		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
@@ -472,23 +575,25 @@ if(isset($_POST["saveLabProductPrice"])){
 		$price = floatval($_POST['price']);
 		$id_office = intval($_POST['id_office']);
 
-		// Check if a purchase record already exists for this product
-		$stmtCheck = $db->prepare("SELECT id_purchase FROM purchases WHERE id_product_purchase = :id_prod ORDER BY id_purchase DESC LIMIT 1");
-		$stmtCheck->execute([':id_prod' => $id_product]);
-		$id_purchase = $stmtCheck->fetchColumn();
+		$stmtCost = $db->prepare("SELECT COALESCE(rte_product, 0) FROM products WHERE id_product = :id LIMIT 1");
+		$stmtCost->execute([':id' => $id_product]);
+		$cost = (float)($stmtCost->fetchColumn() ?: 0);
 
-		if ($id_purchase) {
-			// Update existing selling price
-			$stmt = $db->prepare("UPDATE purchases SET cost_purchase = :price, date_updated_purchase = CURRENT_TIMESTAMP() WHERE id_purchase = :id_purch");
-			$stmt->execute([':price' => $price, ':id_purch' => $id_purchase]);
-		} else {
-			// Insert new selling price
-			$stmt = $db->prepare("INSERT INTO purchases (id_product_purchase, cost_purchase, id_office_purchase, qty_purchase, date_created_purchase) VALUES (:id_prod, :price, :office, 0, CURDATE())");
-			$stmt->execute([':id_prod' => $id_product, ':price' => $price, ':office' => $id_office]);
-		}
+		$stmt = $db->prepare("
+			INSERT INTO product_prices
+				(id_product_price, id_office_price, price_sale, price_wholesale, wholesale_qty, cost_reference, source_price, status_price, id_admin_price, date_created_price)
+			VALUES
+				(:id_prod, 0, :price, 0, 0, :cost, 'laboratorio', 1, :admin, NOW())
+		");
+		$stmt->execute([
+			':id_prod' => $id_product,
+			':price' => $price,
+			':cost' => $cost,
+			':admin' => intval($_POST['id_admin'] ?? 0)
+		]);
 		echo "ok";
 	} catch (Exception $e) {
-		echo "error|" . $e->getMessage();
+		error_log("lab error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;
 }
@@ -602,3 +707,137 @@ if(isset($_POST["getLabDashboardMetrics"])){
 //=====================================
 // GET LOGGED USER
 //=====================================
+
+//=====================================
+// UPDATE LAB SUPPLY STOCK (Ingreso)
+//=====================================
+if(isset($_POST['updateLabSupplyStock'])) {
+	$db = LocalConnection::connect();
+	try {
+		$id_supply   = intval($_POST['id_supply']);
+		$qty         = floatval($_POST['qty']);
+		$lot_number  = trim($_POST['lot_number'] ?? '');
+		$supplier    = trim($_POST['supplier'] ?? '');
+		$id_admin    = intval($_POST['id_admin'] ?? 0);
+
+		if ($id_supply <= 0 || $qty <= 0) {
+			echo json_encode(['status' => 400, 'message' => 'Datos inválidos']);
+			exit;
+		}
+
+		// DDL fuera de la transacción: CREATE TABLE causa commit implícito en MySQL
+		$db->exec("
+			CREATE TABLE IF NOT EXISTS lab_supply_entries (
+			  id_ls_entry        INT AUTO_INCREMENT PRIMARY KEY,
+			  id_supply_entry    INT NOT NULL,
+			  qty_entry          DOUBLE NOT NULL,
+			  type_entry         VARCHAR(20) DEFAULT 'ingreso',
+			  concept_entry      TEXT NULL,
+			  lot_number_entry   TEXT NULL,
+			  supplier_entry     TEXT NULL,
+			  notes_entry        TEXT NULL,
+			  status_entry       VARCHAR(30) DEFAULT 'aprobado',
+			  id_admin_entry     INT DEFAULT 0,
+			  date_entry         DATE NULL,
+			  date_created_entry TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		");
+
+		$db->beginTransaction();
+
+		// Actualizar stock
+		$stmt = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply + :qty WHERE id_supply = :id");
+		$stmt->execute([':qty' => $qty, ':id' => $id_supply]);
+
+		// Registrar movimiento
+		$stmtLog = $db->prepare("
+			INSERT INTO lab_supply_entries (id_supply_entry, qty_entry, type_entry, status_entry, lot_number_entry, supplier_entry, id_admin_entry, date_entry)
+			VALUES (:id, :qty, 'ingreso', 'aprobado', :lot, :sup, :admin, CURDATE())
+		");
+		$stmtLog->execute([':id' => $id_supply, ':qty' => $qty, ':lot' => $lot_number, ':sup' => $supplier, ':admin' => $id_admin]);
+
+		$stmtGet = $db->prepare("SELECT stock_supply FROM lab_supplies WHERE id_supply = :id");
+		$stmtGet->execute([':id' => $id_supply]);
+		$newStock = floatval($stmtGet->fetchColumn());
+
+		$db->commit();
+		echo json_encode(['status' => 200, 'stock_supply' => $newStock]);
+	} catch (Exception $e) {
+		if ($db->inTransaction()) $db->rollBack();
+		error_log('updateLabSupplyStock error: ' . $e->getMessage());
+		echo json_encode(['status' => 500, 'message' => 'Error interno al actualizar stock.']);
+	}
+	exit;
+}
+
+//=====================================
+// ADJUST LAB SUPPLY STOCK (Egreso / Baja)
+//=====================================
+if(isset($_POST['adjustLabSupplyStock'])) {
+	$db = LocalConnection::connect();
+	try {
+		$id_supply = intval($_POST['id_supply']);
+		$qty       = floatval($_POST['qty']);
+		$concept   = trim($_POST['concept'] ?? 'ajuste');
+		$notes     = trim($_POST['notes'] ?? '');
+		$id_admin  = intval($_POST['id_admin'] ?? 0);
+
+		if ($id_supply <= 0 || $qty <= 0) {
+			echo json_encode(['status' => 400, 'message' => 'Datos inválidos']);
+			exit;
+		}
+
+		// DDL fuera de la transacción: CREATE TABLE causa commit implícito en MySQL
+		$db->exec("
+			CREATE TABLE IF NOT EXISTS lab_supply_entries (
+			  id_ls_entry        INT AUTO_INCREMENT PRIMARY KEY,
+			  id_supply_entry    INT NOT NULL,
+			  qty_entry          DOUBLE NOT NULL,
+			  type_entry         VARCHAR(20) DEFAULT 'ingreso',
+			  concept_entry      TEXT NULL,
+			  lot_number_entry   TEXT NULL,
+			  supplier_entry     TEXT NULL,
+			  notes_entry        TEXT NULL,
+			  status_entry       VARCHAR(30) DEFAULT 'aprobado',
+			  id_admin_entry     INT DEFAULT 0,
+			  date_entry         DATE NULL,
+			  date_created_entry TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		");
+
+		$db->beginTransaction();
+
+		// Verificar stock suficiente
+		$stmtCheck = $db->prepare("SELECT stock_supply FROM lab_supplies WHERE id_supply = :id LIMIT 1 FOR UPDATE");
+		$stmtCheck->execute([':id' => $id_supply]);
+		$currentStock = floatval($stmtCheck->fetchColumn());
+
+		if ($currentStock < $qty) {
+			$db->rollBack();
+			echo json_encode(['status' => 409, 'message' => 'Stock insuficiente. Stock actual: ' . $currentStock]);
+			exit;
+		}
+
+		$stmt = $db->prepare("UPDATE lab_supplies SET stock_supply = GREATEST(0, stock_supply - :qty) WHERE id_supply = :id");
+		$stmt->execute([':qty' => $qty, ':id' => $id_supply]);
+
+		// Registrar movimiento
+		$stmtLog = $db->prepare("
+			INSERT INTO lab_supply_entries (id_supply_entry, qty_entry, type_entry, concept_entry, notes_entry, status_entry, id_admin_entry, date_entry)
+			VALUES (:id, :qty, 'egreso', :concept, :notes, 'aprobado', :admin, CURDATE())
+		");
+		$stmtLog->execute([':id' => $id_supply, ':qty' => $qty, ':concept' => $concept, ':notes' => $notes, ':admin' => $id_admin]);
+
+		$stmtGet = $db->prepare("SELECT stock_supply FROM lab_supplies WHERE id_supply = :id");
+		$stmtGet->execute([':id' => $id_supply]);
+		$newStock = floatval($stmtGet->fetchColumn());
+
+		$db->commit();
+		echo json_encode(['status' => 200, 'stock_supply' => $newStock]);
+	} catch (Exception $e) {
+		if ($db->inTransaction()) $db->rollBack();
+		error_log('adjustLabSupplyStock error: ' . $e->getMessage());
+		echo json_encode(['status' => 500, 'message' => 'Error interno al ajustar stock.']);
+	}
+	exit;
+}

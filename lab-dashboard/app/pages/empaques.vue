@@ -7,6 +7,17 @@ const auth = useAuthStore()
 const toast = useToast()
 const ajaxBase = '/ajax/pos.ajax.php'
 
+const confirmDialog = ref({ open: false, title: '', message: '' })
+const confirmResolve = ref<((v: boolean) => void) | null>(null)
+function confirmAction(title: string, message: string): Promise<boolean> {
+  return new Promise(resolve => {
+    confirmDialog.value = { open: true, title, message }
+    confirmResolve.value = resolve
+  })
+}
+function onConfirmOk() { confirmResolve.value?.(true); confirmDialog.value.open = false }
+function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.open = false }
+
 const packagings = ref<any[]>([])
 const loading = ref(true)
 const search = ref('')
@@ -104,7 +115,7 @@ async function savePackaging() {
 }
 
 async function deletePackaging(p: any) {
-  if (!confirm(`¿Desactivar empaque "${decode(p.name_packaging)}"?`)) return
+  if (!await confirmAction('Desactivar empaque', `¿Desactivar empaque "${decode(p.name_packaging)}"?`)) return
   await $fetch<any>(ajaxBase, {
     method: 'POST',
     body: new URLSearchParams({ deletePackaging: 'ok', id_packaging: String(p.id_packaging) }).toString(),
@@ -120,13 +131,13 @@ onMounted(fetchPackagings)
 <template>
   <div class="space-y-4">
     <!-- Header + filtros -->
-    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm animate-fade-in">
+    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-white border border-slate-200 rounded-xl p-4 shadow-sm animate-fade-in">
       <div>
         <h1 class="text-xl font-bold flex items-center gap-2">
           <UIcon name="i-lucide-package-open" class="text-blue-500 w-5 h-5" />
           Catálogo de Empaques y Envases
         </h1>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+        <p class="text-xs text-slate-500 mt-0.5">
           Predefine bolsas, cajas y otros materiales de embalaje con sus respectivos precios unitarios para cargarlos ágilmente a los gastos de despacho.
         </p>
       </div>
@@ -138,19 +149,19 @@ onMounted(fetchPackagings)
 
     <!-- KPIs rápidos -->
     <div class="grid grid-cols-3 gap-3">
-      <div class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center">
-        <p class="text-2xl font-black text-slate-800 dark:text-white">{{ packagings.length }}</p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Empaques Definidos</p>
+      <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+        <p class="text-2xl font-black text-slate-800">{{ packagings.length }}</p>
+        <p class="text-xs text-slate-500 mt-0.5 font-medium">Empaques Definidos</p>
       </div>
-      <div class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
         <p class="text-2xl font-black text-blue-600">
           Bs.{{ packagings.length > 0 ? (packagings.reduce((a, b) => a + parseFloat(b.price_packaging), 0) / packagings.length).toFixed(2) : '0.00' }}
         </p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Precio Promedio</p>
+        <p class="text-xs text-slate-500 mt-0.5 font-medium">Precio Promedio</p>
       </div>
-      <div class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-center">
+      <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
         <p class="text-2xl font-black text-emerald-600">{{ packagings.filter(p => parseFloat(p.price_packaging) === 0).length }}</p>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Empaques Gratuitos (Bs.0)</p>
+        <p class="text-xs text-slate-500 mt-0.5 font-medium">Empaques Gratuitos (Bs.0)</p>
       </div>
     </div>
 
@@ -159,9 +170,9 @@ onMounted(fetchPackagings)
       <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-blue-500" />
     </div>
 
-    <div v-else-if="filtered.length === 0" class="text-center py-16 bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl">
-      <UIcon name="i-lucide-box" class="w-12 h-12 mx-auto text-slate-300 dark:text-slate-700 mb-3 animate-pulse" />
-      <p class="text-slate-500 dark:text-slate-400 font-semibold">No hay empaques o envases registrados</p>
+    <div v-else-if="filtered.length === 0" class="text-center py-16 bg-white border border-slate-200 rounded-2xl">
+      <UIcon name="i-lucide-box" class="w-12 h-12 mx-auto text-slate-300 mb-3 animate-pulse" />
+      <p class="text-slate-500 font-semibold">No hay empaques o envases registrados</p>
       <UButton color="primary" icon="i-lucide-plus" class="mt-4 bg-blue-600 text-white" @click="openCreate">Agregar primer empaque</UButton>
     </div>
 
@@ -169,32 +180,32 @@ onMounted(fetchPackagings)
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <div
         v-for="p in filtered" :key="p.id_packaging"
-        class="bg-white dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-400/40 dark:hover:border-blue-500/40 transition-all group flex flex-col justify-between"
+        class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-400/40 transition-all group flex flex-col justify-between"
       >
         <div>
           <div class="flex items-start justify-between gap-2 mb-3">
             <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center shrink-0">
+              <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                 <UIcon name="i-lucide-package-open" class="w-5 h-5 text-blue-500" />
               </div>
               <div class="min-w-0">
-                <h3 class="font-bold text-slate-800 dark:text-white truncate text-sm capitalize">{{ decode(p.name_packaging) }}</h3>
-                <span class="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full font-semibold uppercase">
+                <h3 class="font-bold text-slate-800 truncate text-sm capitalize">{{ decode(p.name_packaging) }}</h3>
+                <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold uppercase">
                   {{ p.unit_packaging || 'unidades' }}
                 </span>
               </div>
             </div>
           </div>
 
-          <div class="mt-2 bg-slate-50 dark:bg-slate-900/60 rounded-lg p-2.5 flex justify-between items-center border border-slate-100 dark:border-slate-800/40">
+          <div class="mt-2 bg-slate-50 rounded-lg p-2.5 flex justify-between items-center border border-slate-100">
             <span class="text-xs text-slate-500">Precio Unitario:</span>
-            <span class="font-mono font-bold text-blue-600 dark:text-blue-400 text-sm">Bs.{{ parseFloat(p.price_packaging).toFixed(2) }}</span>
+            <span class="font-mono font-bold text-blue-600 text-sm">Bs.{{ parseFloat(p.price_packaging).toFixed(2) }}</span>
           </div>
         </div>
 
-        <div class="flex gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-edit" class="flex-1 justify-center hover:bg-slate-100 dark:hover:bg-slate-800" @click="openEdit(p)">Editar</UButton>
-          <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash" class="hover:bg-red-50 dark:hover:bg-red-950/20" @click="deletePackaging(p)" />
+        <div class="flex gap-2 mt-4 pt-3 border-t border-slate-100">
+          <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-edit" class="flex-1 justify-center hover:bg-slate-100" @click="openEdit(p)">Editar</UButton>
+          <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash" class="hover:bg-red-50" @click="deletePackaging(p)" />
         </div>
       </div>
     </div>
@@ -214,10 +225,10 @@ onMounted(fetchPackagings)
           </UFormField>
           <div class="flex items-center gap-3 pt-2">
             <USwitch :model-value="form.status_packaging === 1" @update:model-value="(v: boolean) => form.status_packaging = v ? 1 : 0" />
-            <span class="text-sm text-slate-600 dark:text-slate-400 font-medium">{{ form.status_packaging ? 'Activo' : 'Inactivo' }}</span>
+            <span class="text-sm text-slate-600 font-medium">{{ form.status_packaging ? 'Activo' : 'Inactivo' }}</span>
           </div>
 
-          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-blue-700 dark:text-blue-300">
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
             <UIcon name="i-lucide-info" class="w-3.5 h-3.5 inline mr-1 text-blue-500" />
             Al predefinir estos empaques, los despachadores y administradores podrán agregarlos a los gastos de cualquier orden con solo seleccionarlos del catálogo e ingresar la cantidad utilizada.
           </div>
@@ -230,5 +241,18 @@ onMounted(fetchPackagings)
         </div>
       </template>
     </USlideover>
+
+    <UModal v-model:open="confirmDialog.open" :ui="{ width: 'max-w-sm' }">
+      <template #content>
+        <div class="p-6 space-y-4">
+          <h3 class="text-base font-semibold text-slate-800">{{ confirmDialog.title }}</h3>
+          <p class="text-sm text-slate-600">{{ confirmDialog.message }}</p>
+          <div class="flex justify-end gap-2 pt-2">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="onConfirmCancel" />
+            <UButton label="Confirmar" color="error" @click="onConfirmOk" />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

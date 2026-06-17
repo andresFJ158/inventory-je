@@ -63,6 +63,46 @@ if(isset($_GET["id"]) && isset($_GET["nameId"])){
 		$validate = Connection::tokenValidate($_GET["token"],$tableToken,$suffix);
 
 		if($validate == "ok"){
+
+			// Identificar al actor para la bitácora de auditoría
+			require_once "models/audit.model.php";
+			AuditLogger::setActorFromToken($tableToken, $suffix, $_GET["token"]);
+
+			if($table === "cashs"){
+				require_once "models/get.model.php";
+				$userCheck = GetModel::getDataFilter($tableToken, "rol_admin", "token_".$suffix, $_GET["token"], null,null,null,null);
+				if(empty($userCheck) || ($userCheck[0]->rol_admin !== 'superadmin' && $userCheck[0]->rol_admin !== 'admin')){
+					http_response_code(403);
+					echo json_encode(['status' => 403, 'results' => "Error: User role not authorized to edit cash registers"]);
+					return;
+				}
+			}
+
+			if ($table === "purchases") {
+				require_once __DIR__ . "/purchase.guard.php";
+				$actor = purchase_guard_actor($tableToken, $suffix, $_GET["token"]);
+				$guard = purchase_guard_validate($data, $actor['role'], (int)$_GET["id"]);
+				if (!$guard['ok']) {
+					http_response_code($guard['status']);
+					echo json_encode(['status' => $guard['status'], 'results' => $guard['message']]);
+					return;
+				}
+			}
+
+			// Prevent unauthorized reassignment of id_admin_client on clients
+			if ($table === 'clients' && array_key_exists('id_admin_client', $data)) {
+				require_once "models/get.model.php";
+				$adminRows = GetModel::getDataFilter($tableToken, "rol_admin,permissions_admin", "token_".$suffix, $_GET["token"], null, null, null, null);
+				$adminRow  = !empty($adminRows) ? $adminRows[0] : null;
+				$role      = $adminRow->rol_admin ?? '';
+				$perms     = json_decode(urldecode($adminRow->permissions_admin ?? '{}'), true);
+				$canManage = in_array($role, ['superadmin', 'admin'])
+					|| ($role === 'vendedor' && ($perms['gestionar_clientes'] ?? '') === 'on');
+				if (!$canManage) {
+					unset($data['id_admin_client']);
+				}
+			}
+
 			$response = new PutController();
 			$response -> putData($table,$data,$_GET["id"],$_GET["nameId"]);
 			return;

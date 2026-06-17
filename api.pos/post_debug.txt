@@ -1,0 +1,18 @@
+2026-06-16 22:07:54
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=2&id_office_purchase=0&id_product_purchase=30&cost_purchase=40&utility_purchase=100%25&qty_purchase=50&invest_purchase=2000
+POST ARRAY: {"id_supplier_purchase":"2","id_office_purchase":"0","id_product_purchase":"30","cost_purchase":"40","utility_purchase":"100%","qty_purchase":"50","invest_purchase":"2000"}
+---
+2026-06-16 22:07:56
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=2&id_office_purchase=0&id_product_purchase=30&cost_purchase=40&utility_purchase=100%25&qty_purchase=50&invest_purchase=2000
+POST ARRAY: {"id_supplier_purchase":"2","id_office_purchase":"0","id_product_purchase":"30","cost_purchase":"40","utility_purchase":"100%","qty_purchase":"50","invest_purchase":"2000"}
+---
+2026-06-16 22:11:08
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_office_purchase=2&id_product_purchase=30&cost_purchase=40&utility_purchase=100%25&qty_purchase=50&invest_purchase=2000
+POST ARRAY: {"id_supplier_purchase":"1","id_office_purchase":"2","id_product_purchase":"30","cost_purchase":"40","utility_purchase":"100%","qty_purchase":"50","invest_purchase":"2000"}
+---
