@@ -298,7 +298,7 @@ function getProductDiscountedPrice(prod: any) {
 // Fetch clients
 async function fetchClients() {
   try {
-    const data = await $fetch<any>('/api/clients', {
+    const data = await $fetch<any>(`/api/clients?token=${auth.token}`, {
       headers: apiHeaders
     })
     if (data.status === 200 && data.results) {
@@ -835,8 +835,14 @@ const totalDiscount = computed(() => {
   }, 0)
 })
 
+const totalOrderExpensesClient = computed(() => {
+  return orderExpenses.value
+    .filter(exp => exp.charge_to_client_expense == 1)
+    .reduce((acc, exp) => acc + parseFloat(exp.amount_expense), 0)
+})
+
 const total = computed(() => {
-  return subtotal.value - totalDiscount.value
+  return subtotal.value - totalDiscount.value + totalOrderExpensesClient.value
 })
 
 // Sync order totals to the backend when cart or client changes
@@ -1399,19 +1405,23 @@ function printReceipt() {
         </div>
 
         <!-- Cart Footer Totals and Checkout -->
-        <div class="p-4 border-t border-slate-200 bg-white space-y-3">
-          <div class="space-y-1.5">
-            <div class="flex justify-between text-xs text-slate-500">
+        <div class="p-4 border-t border-slate-200 bg-white space-y-4">
+          <div class="space-y-3">
+            <div class="flex justify-between text-sm font-bold text-slate-600">
               <span>Subtotal:</span>
-              <span class="font-mono">Bs. {{ subtotal.toFixed(2) }}</span>
+              <span class="font-mono text-slate-800">Bs. {{ subtotal.toFixed(2) }}</span>
             </div>
-            <div v-if="totalDiscount > 0" class="flex justify-between text-xs text-rose-500">
+            <div v-if="totalDiscount > 0" class="flex justify-between text-sm font-bold text-rose-500">
               <span>Descuento:</span>
               <span class="font-mono">-Bs. {{ totalDiscount.toFixed(2) }}</span>
             </div>
-            <div class="flex justify-between font-extrabold text-slate-800 text-sm pt-1 border-t border-slate-200">
-              <span>Total:</span>
-              <span class="pos-price font-mono text-base">Bs. {{ total.toFixed(2) }}</span>
+            <div v-if="totalOrderExpensesClient > 0" class="flex justify-between text-sm font-bold text-amber-600">
+              <span>Gastos (Al cliente):</span>
+              <span class="font-mono">+Bs. {{ totalOrderExpensesClient.toFixed(2) }}</span>
+            </div>
+            <div class="flex justify-between font-black text-slate-900 text-lg pt-3 border-t-2 border-slate-200">
+              <span>TOTAL:</span>
+              <span class="pos-price font-mono text-2xl tracking-tight text-emerald-600">Bs. {{ total.toFixed(2) }}</span>
             </div>
           </div>
 
@@ -1652,7 +1662,18 @@ function printReceipt() {
                 :class="expenseModel.description === cat
  ? 'bg-amber-500 border-amber-500 text-white'
  : 'bg-white border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-600'"
-                @click="expenseModel.description = expenseModel.description === cat ? '' : cat"
+                @click="() => {
+                  if (expenseModel.description === cat) {
+                    expenseModel.description = ''
+                    expenseModel.amount = 0
+                  } else {
+                    expenseModel.description = cat
+                    if (cat === 'Pasajes') expenseModel.amount = 10
+                    else if (cat === 'Almuerzo') expenseModel.amount = 20
+                    else if (cat === 'Limpieza') expenseModel.amount = 15
+                    else if (cat === 'Delivery') expenseModel.amount = 15
+                  }
+                }"
               >
                 {{ cat }}
               </button>
@@ -1861,6 +1882,32 @@ function printReceipt() {
 
           <div class="border-t border-slate-200 pt-3 space-y-3">
             <p class="text-xs font-semibold text-slate-500 uppercase">Nuevo gasto</p>
+            
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <button
+                v-for="cat in ['Pasajes', 'Delivery', 'Empaque', 'Otro']"
+                :key="cat"
+                type="button"
+                class="px-2 py-1 text-[10px] font-medium rounded-full border transition-all"
+                :class="orderExpenseModel.concept === cat
+ ? 'bg-amber-500 border-amber-500 text-white'
+ : 'bg-white border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-600'"
+                @click="() => {
+                  if (orderExpenseModel.concept === cat) {
+                    orderExpenseModel.concept = ''
+                    orderExpenseModel.amount = 0
+                  } else {
+                    orderExpenseModel.concept = cat
+                    if (cat === 'Pasajes') orderExpenseModel.amount = 10
+                    else if (cat === 'Delivery') orderExpenseModel.amount = 15
+                    else if (cat === 'Empaque') orderExpenseModel.amount = 5
+                  }
+                }"
+              >
+                {{ cat }}
+              </button>
+            </div>
+
             <UFormField label="Concepto *">
               <UInput v-model="orderExpenseModel.concept" placeholder="Ej: Delivery, Empaque..." class="w-full" />
             </UFormField>

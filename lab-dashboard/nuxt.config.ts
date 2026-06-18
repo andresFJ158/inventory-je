@@ -1,5 +1,10 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  devServer: {
+    host: '::',
+    port: 3000
+  },
+
   app: {
     head: {
       title: 'J.E Bolivia ERP',
@@ -42,7 +47,8 @@ export default defineNuxtConfig({
   colorMode: {
     preference: 'light',
     fallback: 'light',
-    classSuffix: ''
+    classSuffix: '',
+    storageKey: 'je-erp-color-mode'
   },
 
   compatibilityDate: '2025-01-15',

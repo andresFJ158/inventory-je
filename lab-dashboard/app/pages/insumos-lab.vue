@@ -51,7 +51,7 @@ const fetchSuppliers = async () => {
 const fetchInsumosLab = async () => {
   loading.value = true
   try {
-    const res = await $fetch<any>('/api/lab_supplies', {
+    const res = await $fetch<any>(`/api/lab_supplies?linkTo=id_office_supply&equalTo=${auth.effectiveOfficeId || auth.officeId || 6}`, {
       headers: { 'Authorization': API_KEY }
     })
     if (res.status === 200) {

@@ -40,9 +40,7 @@ if (isset($_POST["getPurchasableProducts"])) {
 		       p.unit_product
 		FROM products p
 		WHERE p.status_product = 1
-		  AND COALESCE(p.is_manufactured_product, 0) = 0
-		  AND COALESCE(p.is_combo_product, 0) = 0
-		  AND COALESCE(NULLIF(p.source_type_product, ''), 'externo') <> 'laboratorio'
+		  AND COALESCE(p.is_compound_product, 0) = 0
 		  AND NOT EXISTS (SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product)
 		  AND NOT EXISTS (SELECT 1 FROM productions pr WHERE pr.id_packaged_product = p.id_product)
 		ORDER BY p.title_product ASC
@@ -598,8 +596,7 @@ if(isset($_POST["submitQualityCheck"]) && $_POST["submitQualityCheck"] == "ok") 
 			$stmtStock = $db->prepare("
 				UPDATE products
 				SET rte_product = :rte,
-					is_manufactured_product = 1,
-					source_type_product = 'laboratorio',
+					is_compound_product = 1,
 					origin_office_product = CASE WHEN COALESCE(origin_office_product, 0) = 0 THEN :office ELSE origin_office_product END
 				WHERE id_product = :id_product
 			");

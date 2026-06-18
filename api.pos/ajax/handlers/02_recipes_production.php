@@ -30,8 +30,7 @@ if(isset($_POST["saveRecipe"])){
 				exit;
 			}
 			$id_product = $existing_product_id;
-			// Marcar el producto como fabricado por laboratorio
-			$stmtUpdate = $db->prepare("UPDATE products SET is_manufactured_product = 1, source_type_product = 'laboratorio', origin_office_product = :office WHERE id_product = :id");
+			$stmtUpdate = $db->prepare("UPDATE products SET is_compound_product = 1, origin_office_product = :office WHERE id_product = :id");
 			$stmtUpdate->execute([':office' => $id_office, ':id' => $id_product]);
 		} else {
 			// Catálogo global: un producto no debe duplicarse por sucursal.
@@ -43,12 +42,11 @@ if(isset($_POST["saveRecipe"])){
 				exit;
 			}
 
-			// 1. Crear producto fabricado por laboratorio en catálogo global.
 			$stmtProd = $db->prepare("
 				INSERT INTO products
-					(title_product, unit_product, id_office_product, origin_office_product, is_compound_product, is_manufactured_product, is_combo_product, source_type_product, status_product, stock_product, rte_product)
+					(title_product, unit_product, id_office_product, origin_office_product, is_compound_product, status_product, stock_product, rte_product)
 				VALUES
-					(:name, :unit, 0, :office, 1, 1, 0, 'laboratorio', 1, '0', '0')
+					(:name, :unit, 0, :office, 1, 1, '0', '0')
 			");
 			$stmtProd->execute([
 				':name' => $name_product,
@@ -341,9 +339,7 @@ if(isset($_POST["completeProduction"])){
 				$stmtUpdProd = $db->prepare("
 					UPDATE products
 					SET unit_product = :unit,
-						is_manufactured_product = 1,
-						is_combo_product = 0,
-						source_type_product = 'laboratorio',
+						is_compound_product = 1,
 						origin_office_product = CASE WHEN COALESCE(origin_office_product, 0) = 0 THEN :office ELSE origin_office_product END
 					WHERE id_product = :id
 				");
@@ -353,9 +349,9 @@ if(isset($_POST["completeProduction"])){
 				// Insertar nuevo producto final global con stock 0 temporalmente.
 				$stmtInsProd = $db->prepare("
 					INSERT INTO products
-						(title_product, unit_product, stock_product, rte_product, is_compound_product, is_manufactured_product, is_combo_product, source_type_product, id_office_product, origin_office_product, status_product)
+						(title_product, unit_product, stock_product, rte_product, is_compound_product, id_office_product, origin_office_product, status_product)
 					VALUES
-						(:name, :unit, 0, 0, 1, 1, 0, 'laboratorio', 0, :office, 1)
+						(:name, :unit, 0, 0, 1, 0, :office, 1)
 				");
 				$stmtInsProd->execute([
 					':name' => $pkg_final_name,
@@ -751,10 +747,9 @@ if(isset($_POST["getProductionLots"]) && $_POST["getProductionLots"] == "ok") {
 if(isset($_POST["getProductsWithoutRecipe"]) && $_POST["getProductsWithoutRecipe"] == "ok") {
 	$db = LocalConnection::connect();
 	$stmt = $db->prepare("
-		SELECT id_product, title_product, unit_product, source_type_product
+		SELECT id_product, title_product, unit_product
 		FROM products
 		WHERE status_product = 1
-		  AND is_combo_product = 0
 		  AND id_product NOT IN (SELECT id_product_recipe FROM recipes)
 		ORDER BY title_product ASC
 	");

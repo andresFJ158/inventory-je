@@ -541,11 +541,6 @@ if(isset($_POST["getLabWarehouse"])){
 		FROM products p
 		WHERE p.status_product = 1
 		  AND COALESCE(p.is_compound_product, 0) = 0
-		  AND (
-		  	COALESCE(p.is_manufactured_product, 0) = 1
-		  	OR COALESCE(p.source_type_product, '') = 'laboratorio'
-		  	OR EXISTS (SELECT 1 FROM productions pr WHERE pr.id_packaged_product = p.id_product)
-		  )
 		  AND EXISTS (
 		  	SELECT 1
 		  	FROM product_inventory pi

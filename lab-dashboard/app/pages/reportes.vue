@@ -35,23 +35,19 @@ const startDate = ref(firstDayLastMonth.toISOString().split('T')[0] || '')
 const endDate = ref(lastDayLastMonth.toISOString().split('T')[0] || '')
 
 // Tabs
-const items = [{
-  label: 'Órdenes',
-  icon: 'i-lucide-file-text',
-  slot: 'ordenes'
-}, {
-  label: 'Ventas (Productos)',
-  icon: 'i-lucide-box',
-  slot: 'ventas'
-}, {
-  label: 'Laboratorio (Producción)',
-  icon: 'i-lucide-flask-conical',
-  slot: 'laboratorio'
-}, {
-  label: 'Vendedores / Comisiones',
-  icon: 'i-lucide-users',
-  slot: 'vendedores'
-}]
+const items = computed(() => {
+  const tabs = [
+    { label: 'Órdenes', icon: 'i-lucide-file-text', slot: 'ordenes' },
+    { label: 'Ventas (Productos)', icon: 'i-lucide-box', slot: 'ventas' }
+  ]
+  if (auth.role === 'superadmin' || auth.role === 'admin' || auth.role === 'lab_admin') {
+    tabs.push({ label: 'Laboratorio (Producción)', icon: 'i-lucide-flask-conical', slot: 'laboratorio' })
+  }
+  if (auth.role === 'superadmin' || auth.role === 'admin' || auth.role === 'despachador') {
+    tabs.push({ label: 'Vendedores / Comisiones', icon: 'i-lucide-users', slot: 'vendedores' })
+  }
+  return tabs
+})
 
 async function fetchOffices() {
   try {
@@ -156,11 +152,19 @@ async function fetchReportData() {
     ])
 
     if (ordersData && ordersData.status === 200 && ordersData.results) {
-      orders.value = ordersData.results
+      let fOrders = ordersData.results
+      if (auth.role === 'vendedor' || auth.role === 'cajero') {
+         fOrders = fOrders.filter((o: any) => String(o.id_admin_order) === String(auth.user?.id_admin))
+      }
+      orders.value = fOrders
     }
     
     if (salesData && salesData.status === 200 && salesData.results) {
-      sales.value = salesData.results
+      let fSales = salesData.results
+      if (auth.role === 'vendedor' || auth.role === 'cajero') {
+         fSales = fSales.filter((s: any) => String(s.id_admin_sale) === String(auth.user?.id_admin))
+      }
+      sales.value = fSales
     }
 
     if (prodsData && prodsData.status === 200 && prodsData.results) {

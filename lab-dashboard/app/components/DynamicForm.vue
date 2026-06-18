@@ -85,6 +85,11 @@ async function loadFormMetadata() {
           continue
         }
 
+        // Custom skips for 'compras' (purchases)
+        if (props.moduleName === 'compras' && ['price_purchase', 'utility_purchase'].includes(col.title_column)) {
+          continue
+        }
+
         const colName = col.title_column
         const val = initial[colName]
 
@@ -224,14 +229,20 @@ async function loadRelationOptions(matrixTable: string) {
   loadedRelations.add(matrixTable)
   try {
     const data = props.moduleName === 'compras' && matrixTable === 'products'
-      ? await $fetch<any>('/api/purchasable-products', {
+      ? await $fetch<any>(`/api/purchasable-products?token=${auth.token}`, {
           headers: apiHeaders
         })
-      : await $fetch<any>(`/api/${matrixTable}`, {
+      : await $fetch<any>(`/api/${matrixTable}?token=${auth.token}`, {
           headers: apiHeaders
         })
     if (data.status === 200 && data.results) {
-      const mapped = data.results
+      let rawResults = data.results
+      // Client-side filtering for suppliers when making a product purchase
+      if (props.moduleName === 'compras' && matrixTable === 'suppliers') {
+        rawResults = rawResults.filter((r: any) => r.type_supplier !== 'materias_primas')
+      }
+
+      const mapped = rawResults
         .filter((r: any) => {
           const firstKey = Object.keys(r)[0]
           return firstKey ? r[firstKey] && String(r[firstKey]).trim() !== '' : false
@@ -397,11 +408,11 @@ async function handleSubmit() {
       if (config.title_module === 'products' && auth.role === 'lab_admin') {
         body.set('id_office_product', '0')
         body.set('initial_stock_product', '0')
-        body.set('is_combo_product', '0')
-        body.set('is_manufactured_product', '0')
-        body.set('source_type_product', 'externo')
+        body.set('is_compound_product', '0')
         body.set('origin_office_product', String(auth.officeId || 0))
       }
+      
+      // (No forzamos id_office_purchase = 0, el usuario debe seleccionarlo)
     }
 
     let url = `/api/${config.title_module}`
@@ -550,7 +561,7 @@ watch(() => props.initialData, () => {
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'id_office_purchase' && auth.role === 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'utility_purchase') && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client')">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'utility_purchase') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'price_purchase') && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client')">
 
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
               {{ col.alias_column || col.title_column }}
@@ -593,7 +604,7 @@ watch(() => props.initialData, () => {
                 data-format-numeric="true"
                 inputmode="decimal"
                 placeholder="0,00"
-                :disabled="moduleConfig?.title_module === 'purchases' && col.title_column === 'invest_purchase'"
+                :disabled="(moduleConfig?.title_module === 'purchases' && col.title_column === 'invest_purchase') || (moduleConfig?.title_module === 'products' && col.title_column === 'stock_product' && isEdit)"
               />
             </div>
 
@@ -642,6 +653,7 @@ watch(() => props.initialData, () => {
               <UInput
                 v-model="formModel[col.title_column]"
                 class="w-full"
+                :disabled="moduleConfig?.title_module === 'products' && col.title_column === 'stock_product' && isEdit"
               />
             </div>
 

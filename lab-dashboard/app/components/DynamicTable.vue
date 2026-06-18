@@ -130,7 +130,7 @@ async function fetchRows() {
 
     // Apply office/warehouse filter if needed
     const hasOfficeCol = columns.value.some(c => c.title_column === `id_office_${config.suffix_module}`)
-    if (hasOfficeCol && config.title_module !== 'clients') {
+    if (hasOfficeCol && config.title_module !== 'clients' && config.title_module !== 'products') {
       let equalToVal: any = auth.officeId
       let shouldFilter = auth.officeId && auth.officeId > 0
 
@@ -179,7 +179,30 @@ async function fetchRows() {
     })
 
     if (data.status === 200) {
-      rows.value = data.results || []
+      let fetchedRows = data.results || []
+
+      // Aplicar filtros adicionales de privacidad por rol
+      if (config.title_module === 'orders') {
+        if (auth.role === 'vendedor') {
+           // Solo ver sus propias órdenes
+           fetchedRows = fetchedRows.filter((r: any) => String(r.id_admin_order) === String(auth.user?.id_admin))
+        } else if (auth.role === 'despachador') {
+           // Solo ver órdenes de vendedores que pertenecen al mismo almacén del despachador
+           const admins = relationsCache.value['admins'] || []
+           const allowedAdmins = admins.filter((a: any) => String(a.id_warehouse_admin) === String(auth.warehouseId)).map((a: any) => String(a.id_admin))
+           fetchedRows = fetchedRows.filter((r: any) => allowedAdmins.includes(String(r.id_admin_order)))
+        }
+      } else if (config.title_module === 'clients') {
+        if (auth.role === 'vendedor') {
+           // Solo ver sus propios clientes
+           fetchedRows = fetchedRows.filter((r: any) => String(r.id_admin_client) === String(auth.user?.id_admin))
+        } else if (auth.role === 'cajero') {
+           // Solo ver clientes globales (sin vendedor asignado)
+           fetchedRows = fetchedRows.filter((r: any) => !r.id_admin_client || String(r.id_admin_client) === '0')
+        }
+      }
+
+      rows.value = fetchedRows
       totalItems.value = rows.value.length
     } else {
       rows.value = []
@@ -415,6 +438,15 @@ function openReceipt(id: string | number) {
   isReceiptModalOpen.value = true
 }
 
+// Order Details Modal Logic
+const isOrderDetailsModalOpen = ref(false)
+const selectedOrderIdForDetails = ref<number | string | null>(null)
+
+function openOrderDetails(row: any) {
+  selectedOrderIdForDetails.value = row[`id_${moduleConfig.value?.suffix_module}`]
+  isOrderDetailsModalOpen.value = true
+}
+
 // Cash Details Logic
 const isCashDetailsModalOpen = ref(false)
 const selectedCash = ref<any>(null)
@@ -642,6 +674,16 @@ async function openBranchesModal(row: any) {
                     @click="openReceipt(row[`id_${moduleConfig.suffix_module}`])"
                     title="Imprimir Comprobante"
                   />
+                  <!-- Custom View Order Details Action -->
+                  <UButton
+                    v-if="moduleConfig?.title_module === 'orders'"
+                    icon="i-lucide-eye"
+                    color="info"
+                    variant="soft"
+                    size="xs"
+                    @click="openOrderDetails(row)"
+                    title="Ver Detalles"
+                  />
                   <!-- Custom View Cash Details Action -->
                   <UButton
                     v-if="moduleConfig?.title_module === 'cashs'"
@@ -760,5 +802,13 @@ async function openBranchesModal(row: any) {
         </UCard>
       </template>
     </UModal>
+    <!-- Order Details Modal -->
+    <OrderDetailsModal
+      v-model:isOpen="isOrderDetailsModalOpen"
+      :order-id="selectedOrderIdForDetails"
+      @close="selectedOrderIdForDetails = null"
+      @updated="fetchRows"
+    />
+
   </div>
 </template>

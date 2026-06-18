@@ -340,7 +340,7 @@ class PosController{
 
 		$stmtComboCount = $db->prepare("SELECT COUNT(*) FROM combo_items WHERE id_combo_ci = :id");
 		$stmtComboCount->execute([':id' => $this->idProduct]);
-		$isCombo = intval($product->is_combo_product ?? 0) === 1 || intval($stmtComboCount->fetchColumn()) > 0;
+		$isCombo = intval($stmtComboCount->fetchColumn()) > 0;
 		$comboPrice = null;
 
 		if ($isCombo) {

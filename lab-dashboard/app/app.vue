@@ -278,17 +278,17 @@ const sidebarItems = computed(() => {
     if (hasPerm('qrs')) items.push({ label: 'Códigos QR', to: '/qrs', icon: 'i-lucide-qr-code' })
     if (hasPerm('admins')) items.push({ label: 'Administradores', to: '/admins', icon: 'i-lucide-user-cog' })
     if (hasPerm('clientes')) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
-    if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-tags' })
+    if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-grid-2x2' })
     if (hasPerm('productos')) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
-    if (role === 'superadmin' || role === 'admin' || hasPerm('productos')) {
+    if (role === 'superadmin' || role === 'admin' || role === 'lab_admin') {
       items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
     }
-    if (hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
+    if (role !== 'vendedor' && hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
     if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
-    if (hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
+    if (role !== 'cajero' && role !== 'vendedor' && hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
     if (hasPerm('caja')) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })
     if (hasPerm('gastos')) items.push({ label: 'Gastos', to: '/gastos', icon: 'i-lucide-receipt' })
-    if (hasPerm('proveedores')) items.push({ label: 'Proveedores', to: '/proveedores', icon: 'i-lucide-truck' })
+    if (role !== 'despachador' && hasPerm('proveedores')) items.push({ label: 'Proveedores', to: '/proveedores', icon: 'i-lucide-truck' })
     if (hasPerm('almacenes')) items.push({ label: 'Almacenes', to: '/almacenes', icon: 'i-lucide-warehouse' })
     
     // Vistas de Almacén/Distribución

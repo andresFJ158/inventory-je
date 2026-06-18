@@ -60,7 +60,7 @@ function openAssignModal(product: any) {
 async function confirmAssignment() {
   if (!selectedProduct.value) return
   if (!selectedOfficeId.value) {
-    toast.add({ title: 'Por favor selecciona una sucursal de destino.', color: 'error' })
+    toast.add({ title: 'Por favor selecciona un almacén de destino.', color: 'error' })
     return
   }
   if (!assignQty.value || assignQty.value <= 0) {
@@ -492,7 +492,7 @@ function getTypeLabel(type: string): string {
           </div>
 
           <div>
-            <UFormField label="Sucursal de Destino" required>
+            <UFormField label="Almacén de Destino" required>
               <USelectMenu
                 v-model="selectedOfficeId"
                 :items="officeOptions"

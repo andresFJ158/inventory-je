@@ -902,6 +902,17 @@ function updateCashTotals($db, $idCash) {
     $stmtEf->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
     $sales_efectivo = floatval($stmtEf->fetchColumn() ?: 0);
 
+    // 4. Obtener gastos ligados a las ordenes que asume la empresa (charge_to_client_expense = 0)
+    $stmtOE = $db->prepare("
+        SELECT SUM(oe.amount_expense) 
+        FROM order_expenses oe
+        JOIN orders o ON oe.id_order_expense = o.id_order
+        WHERE o.id_office_order = :o AND o.date_order >= :start AND o.date_order <= :end
+          AND oe.charge_to_client_expense = 0
+    ");
+    $stmtOE->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
+    $order_expenses = floatval($stmtOE->fetchColumn() ?: 0);
+
     $stmtQr = $db->prepare("SELECT SUM(total_order) FROM orders WHERE id_office_order = :o AND status_order IN ('Completada', 'Venta Confirmada') AND method_order = 'QR' AND date_order >= :start AND date_order <= :end");
     $stmtQr->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
     $sales_qr = floatval($stmtQr->fetchColumn() ?: 0);
@@ -911,12 +922,12 @@ function updateCashTotals($db, $idCash) {
 
     $money_cash = $sales + $incomes;
     $start_cash = floatval($cash['start_cash']);
-    $end_cash = $start_cash + $money_cash - $bills;
+    $end_cash = $start_cash + $money_cash - $bills - $order_expenses;
     $diff_cash = $end_cash; // Expected final cash
     
     $stmtU = $db->prepare("UPDATE cashs SET bills_cash = :b, money_cash = :m, end_cash = :e, diff_cash = :d WHERE id_cash = :id");
     $stmtU->execute([
-        ':b' => $bills,
+        ':b' => $bills + $order_expenses,
         ':m' => $money_cash,
         ':e' => $end_cash,
         ':d' => $diff_cash,

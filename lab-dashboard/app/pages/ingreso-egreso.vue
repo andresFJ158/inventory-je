@@ -24,7 +24,9 @@ function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.
 
 const entries = ref<any[]>([])
 const loading = ref(true)
-const apiBase = '/ajax/pos.ajax.php'
+const config = useRuntimeConfig()
+const apiBase = config.public.ajaxBase
+const API_KEY = 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
 
 // Catálogo de materiales/insumos cargado desde el backend
 const materials = ref<any[]>([])
@@ -150,7 +152,7 @@ async function fetchMaterials() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId || auth.officeId || 6)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -161,7 +163,8 @@ async function fetchMaterials() {
     let fromLabSupplies: any[] = []
     try {
       const res2 = await $fetch<any>('/api/lab_supplies', {
-        headers: { Authorization: auth.token || '' }
+        headers: { Authorization: API_KEY },
+        params: { linkTo: 'id_office_supply', equalTo: String(auth.effectiveOfficeId || auth.officeId || 6) }
       })
       if (res2.status === 200) {
         fromLabSupplies = res2.results
@@ -196,7 +199,7 @@ async function fetchEntries() {
       method: 'POST',
       body: new URLSearchParams({
         getLabEntries: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId || auth.officeId || 6)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })

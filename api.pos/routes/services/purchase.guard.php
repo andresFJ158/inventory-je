@@ -32,35 +32,32 @@ function purchase_guard_number($value): float {
 }
 
 function purchase_guard_purchasable_product(PDO $db, int $productId): array {
-	$stmt = $db->prepare("
-		SELECT p.id_product,
-		       p.title_product,
-		       COALESCE(p.is_manufactured_product, 0) AS is_manufactured_product,
-		       COALESCE(p.is_combo_product, 0) AS is_combo_product,
-		       COALESCE(p.source_type_product, 'externo') AS source_type_product,
-		       EXISTS(SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product) AS has_recipe,
-		       EXISTS(SELECT 1 FROM productions pr WHERE pr.id_packaged_product = p.id_product) AS has_production
-		FROM products p
-		WHERE p.id_product = :product
-		LIMIT 1
-	");
-	$stmt->execute([':product' => $productId]);
-	$product = $stmt->fetch(PDO::FETCH_ASSOC);
-	if (!$product) {
-		return ['ok' => false, 'message' => 'El producto seleccionado no existe.'];
-	}
+	try {
+		$stmt = $db->prepare("
+			SELECT p.id_product,
+			       p.title_product,
+			       COALESCE(p.is_compound_product, 0) AS is_compound_product,
+			       EXISTS(SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product) AS has_recipe,
+			       EXISTS(SELECT 1 FROM combo_items c WHERE c.id_combo_item = p.id_product) AS is_combo
+			FROM products p
+			WHERE p.id_product = :id
+		");
+		$stmt->execute(['id' => $productId]);
+		$product = $stmt->fetch(PDO::FETCH_ASSOC);
 
-	$isLabMade = (int)$product['is_manufactured_product'] === 1
-		|| (int)$product['is_combo_product'] === 1
-		|| $product['source_type_product'] === 'laboratorio'
-		|| (int)$product['has_recipe'] === 1
-		|| (int)$product['has_production'] === 1;
+		if (!$product) {
+			return ['ok' => false, 'message' => 'El producto seleccionado no existe.'];
+		}
 
-	if ($isLabMade) {
-		return [
-			'ok' => false,
-			'message' => 'Este producto tiene receta, producción o combo asignado. Debe reponerse desde producción, no por compras.'
-		];
+		$isLabMade = (int)$product['is_compound_product'] === 1
+			|| (int)$product['has_recipe'] === 1
+			|| (int)$product['is_combo'] === 1;
+
+		if ($isLabMade) {
+			return ['ok' => false, 'status' => 422, 'message' => 'Solo se pueden registrar compras directas para productos externos. Para productos fabricados o combos, utiliza Producción o configuración de combos.'];
+		}
+	} catch (Exception $e) {
+		return ['ok' => false, 'message' => 'Error al validar el producto.'];
 	}
 
 	return ['ok' => true, 'message' => 'ok'];

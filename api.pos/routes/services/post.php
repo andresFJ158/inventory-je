@@ -3,6 +3,11 @@
 require_once "models/connection.php";
 require_once "controllers/post.controller.php";
 
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+header('Content-Type: application/json; charset=utf-8');
+
 if(isset($_POST)){
 
 	$rawInput = file_get_contents('php://input');
@@ -103,6 +108,7 @@ if(isset($_POST)){
 					$guard = purchase_guard_validate($_POST, $actor['role']);
 					if (!$guard['ok']) {
 						http_response_code($guard['status']);
+						header('Content-Type: application/json; charset=utf-8');
 						echo json_encode(['status' => $guard['status'], 'results' => $guard['message']]);
 						return;
 					}
