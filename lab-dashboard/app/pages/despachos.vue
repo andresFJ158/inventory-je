@@ -22,6 +22,12 @@ function onDispatchQtyInput(e: Event) {
 
 // State
 const pendingRequests = ref<any[]>([])
+const searchVendedor = ref('')
+const filteredPendingRequests = computed(() => {
+  if (!searchVendedor.value) return pendingRequests.value
+  const q = searchVendedor.value.toLowerCase()
+  return pendingRequests.value.filter(req => req.name_admin && req.name_admin.toLowerCase().includes(q))
+})
 const historyRequests = ref<any[]>([])
 const loadingPending = ref(true)
 const loadingHistory = ref(true)
@@ -505,14 +511,23 @@ watch(activeTab, (newTab) => {
     <UTabs :items="tabsItems" v-model="activeTab" class="w-full">
       <template #content="{ index }">
         <!-- TAB 0: Pending Requests -->
-        <div v-if="index === 0" class="mt-4">
+        <div v-if="index === 0" class="mt-4 space-y-4">
+          <div class="flex justify-end">
+            <UInput
+              v-model="searchVendedor"
+              icon="i-lucide-search"
+              placeholder="Filtrar por vendedor..."
+              class="w-full md:w-64"
+            />
+          </div>
+
           <div v-if="loadingPending" class="flex justify-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="pendingRequests.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
+          <div v-else-if="filteredPendingRequests.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
             <UIcon name="i-lucide-check-circle" class="w-10 h-10 mx-auto mb-2 text-slate-700" />
-            No hay solicitudes de despacho pendientes.
+            No hay solicitudes de despacho pendientes con los filtros actuales.
           </div>
 
           <div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -529,7 +544,7 @@ watch(activeTab, (newTab) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="req in pendingRequests" :key="req.id_request" class="border-b border-slate-100 hover:bg-slate-50">
+                <tr v-for="req in filteredPendingRequests" :key="req.id_request" class="border-b border-slate-100 hover:bg-slate-50">
                   <td class="p-4 font-mono text-xs">{{ req.date_created_request }}</td>
                   <td class="p-4 font-semibold text-slate-800">{{ req.name_admin }}</td>
                   <td class="p-4">{{ decodeURIComponent(req.title_product || '').replace(/\+/g, ' ') }}</td>

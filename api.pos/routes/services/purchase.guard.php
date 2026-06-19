@@ -36,9 +36,8 @@ function purchase_guard_purchasable_product(PDO $db, int $productId): array {
 		$stmt = $db->prepare("
 			SELECT p.id_product,
 			       p.title_product,
-			       COALESCE(p.is_compound_product, 0) AS is_compound_product,
-			       EXISTS(SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product) AS has_recipe,
-			       EXISTS(SELECT 1 FROM combo_items c WHERE c.id_combo_item = p.id_product) AS is_combo
+			       COALESCE(p.is_combo_product, 0) AS is_combo_product,
+			       EXISTS(SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product) AS has_recipe
 			FROM products p
 			WHERE p.id_product = :id
 		");
@@ -49,9 +48,8 @@ function purchase_guard_purchasable_product(PDO $db, int $productId): array {
 			return ['ok' => false, 'message' => 'El producto seleccionado no existe.'];
 		}
 
-		$isLabMade = (int)$product['is_compound_product'] === 1
-			|| (int)$product['has_recipe'] === 1
-			|| (int)$product['is_combo'] === 1;
+		$isLabMade = (int)$product['has_recipe'] === 1
+			|| (int)$product['is_combo_product'] === 1;
 
 		if ($isLabMade) {
 			return ['ok' => false, 'status' => 422, 'message' => 'Solo se pueden registrar compras directas para productos externos. Para productos fabricados o combos, utiliza Producción o configuración de combos.'];

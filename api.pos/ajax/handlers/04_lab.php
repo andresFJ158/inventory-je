@@ -740,14 +740,11 @@ if(isset($_POST['updateLabSupplyStock'])) {
 
 		$db->beginTransaction();
 
-		// Actualizar stock
-		$stmt = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply + :qty WHERE id_supply = :id");
-		$stmt->execute([':qty' => $qty, ':id' => $id_supply]);
-
-		// Registrar movimiento
+		// No actualizar stock hasta que se apruebe
+		// Registrar movimiento como pendiente
 		$stmtLog = $db->prepare("
 			INSERT INTO lab_supply_entries (id_supply_entry, qty_entry, type_entry, status_entry, lot_number_entry, supplier_entry, id_admin_entry, date_entry)
-			VALUES (:id, :qty, 'ingreso', 'aprobado', :lot, :sup, :admin, CURDATE())
+			VALUES (:id, :qty, 'ingreso', 'pendiente', :lot, :sup, :admin, CURDATE())
 		");
 		$stmtLog->execute([':id' => $id_supply, ':qty' => $qty, ':lot' => $lot_number, ':sup' => $supplier, ':admin' => $id_admin]);
 

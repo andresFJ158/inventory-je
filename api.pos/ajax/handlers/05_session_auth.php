@@ -3,6 +3,21 @@ if(isset($_POST["getLoggedUser"])){
 	pos_has_session(); // This will validate the token if cookie is missing and set $_SESSION['admin']
 	if (isset($_SESSION["admin"])) {
 		$db = LocalConnection::connect();
+		
+		// Refresh session data from DB to instantly reflect permission/office changes
+		$stmtAdmin = $db->prepare("SELECT * FROM admins WHERE id_admin = :id AND status_admin = 1");
+		$stmtAdmin->execute([':id' => $_SESSION["admin"]->id_admin]);
+		$freshAdmin = $stmtAdmin->fetch(PDO::FETCH_OBJ);
+		if ($freshAdmin) {
+			$freshAdmin->token_admin = $_SESSION["admin"]->token_admin;
+			$freshAdmin->token_exp_admin = $_SESSION["admin"]->token_exp_admin;
+			$_SESSION["admin"] = $freshAdmin;
+		} else {
+			session_destroy();
+			echo json_encode(['status' => 401, 'message' => 'Cuenta desactivada o eliminada']);
+			exit;
+		}
+
 		$id_office = intval($_SESSION["admin"]->id_office_admin);
 		$warehouse_office_id = 0;
 

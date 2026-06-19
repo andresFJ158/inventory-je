@@ -288,6 +288,31 @@ if(isset($_POST["approveRawMaterialEntry"])){
 		$total = (float)$_POST['total'];
 		$id_admin = $_POST['id_admin'];
 
+		if (strpos($id_raw_material, 'ls_') === 0) {
+			$real_supply_id = intval(str_replace('ls_', '', $id_raw_material));
+			$real_entry_id = intval(str_replace('ls_', '', $id_entry));
+			
+			$stmtCheck = $db->prepare("SELECT status_entry FROM lab_supply_entries WHERE id_ls_entry = :id");
+			$stmtCheck->execute([':id' => $real_entry_id]);
+			if($stmtCheck->fetchColumn() === 'aprobado') {
+				echo "error|La entrada ya fue aprobada.";
+				$db->rollBack();
+				exit;
+			}
+
+			$stmtEntry = $db->prepare("UPDATE lab_supply_entries SET unit_price_entry = :price, total_cost_entry = :total, status_entry = 'aprobado', id_approved_by_entry = :admin, date_approved_entry = CURRENT_DATE() WHERE id_ls_entry = :id");
+			$stmtEntry->execute([':price' => $price, ':total' => $total, ':admin' => $id_admin, ':id' => $real_entry_id]);
+
+			$stmtStock = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply + :qty WHERE id_supply = :id_raw");
+			$stmtStock->execute([':qty' => $qty, ':id_raw' => $real_supply_id]);
+
+			if($db->inTransaction()) {
+				$db->commit();
+			}
+			echo "ok";
+			exit;
+		}
+
 		// Check status first to prevent double-approval
 		$stmtCheck = $db->prepare("SELECT status_entry FROM raw_material_entries WHERE id_entry = :id");
 		$stmtCheck->execute([':id' => $id_entry]);
@@ -308,7 +333,7 @@ if(isset($_POST["approveRawMaterialEntry"])){
 		$db->commit();
 		echo "ok";
 	} catch (Exception $e) {
-		$db->rollBack();
+		if($db->inTransaction()) $db->rollBack();
 		error_log("pos_sales error: " . $e->getMessage()); echo "error|Error al procesar la operación.";
 	}
 	exit;

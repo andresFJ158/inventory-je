@@ -718,10 +718,16 @@ if(isset($_POST["deleteRecipe"])){
         $stmtDelRec = $db->prepare("DELETE FROM recipes WHERE id_recipe = :id");
         $stmtDelRec->execute([':id' => $id_recipe]);
 
+		// Eliminamos solo la receta y sus ingredientes/mano de obra, pero MANTENEMOS el producto.
+		// Opcional: podemos actualizar el producto para indicar que ya no tiene receta,
+		// pero con la nueva lógica (has_recipe) es suficiente eliminar de la tabla recipes.
+		
+		/* 
 		if ($id_product) {
 			$stmtDelProduct = $db->prepare("DELETE FROM products WHERE id_product = :id");
 			$stmtDelProduct->execute([':id' => $id_product]);
 		}
+		*/
 
 		$db->commit();
 		echo "ok";

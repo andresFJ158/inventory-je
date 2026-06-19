@@ -256,7 +256,7 @@ async function fetchCategories() {
 async function fetchCatalog() {
   try {
     // 1. Fetch products
-    const prodData = await $fetch<any>('/api/products?linkTo=status_product&equalTo=1&orderBy=is_compound_product&orderMode=DESC', {
+    const prodData = await $fetch<any>('/api/products?linkTo=status_product&equalTo=1&orderBy=is_combo_product&orderMode=DESC', {
       headers: apiHeaders
     })
     if (prodData.status === 200) {
@@ -276,6 +276,27 @@ async function fetchCatalog() {
       inventory.value = inv
     }
 
+    // 3. Fetch combos data to inject their derived stock and prices
+    try {
+      const combosData = await $fetch<any>('/ajax/pos.ajax.php', {
+        method: 'POST',
+        body: new URLSearchParams({ getCombos: 'ok', id_office: String(officeId) }).toString(),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      })
+      const combosRes = typeof combosData === 'string' ? JSON.parse(combosData) : combosData
+      if (combosRes.status === 200 && combosRes.results) {
+        combosRes.results.forEach((c: any) => {
+          inventory.value[c.id_product] = parseFloat(c.stock_combo) || 0
+          // Update product object if it exists in the list
+          const prodObj = products.value.find(p => String(p.id_product) === String(c.id_product))
+          if (prodObj) {
+            prodObj.total_price = c.total_price || 0
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching combos:', err)
+    }
 
   } catch (e) {
     console.error('Error fetching catalog data:', e)
@@ -287,6 +308,9 @@ function getProductPriceMeta(productId: string | number) {
   const idStr = String(productId)
   const prod = products.value.find(p => String(p.id_product) === idStr)
   if (prod) {
+    if (String(prod.is_combo_product) === '1' && prod.total_price !== undefined) {
+      return { price: parseFloat(prod.total_price) || 0, wholesalePrice: 0, wholesaleQty: 0 }
+    }
     return {
       price: parseFloat(prod.price_product) || 0,
       wholesalePrice: parseFloat(prod.wholesale_price_product) || 0,
@@ -352,7 +376,7 @@ async function fetchCart() {
 // Sort once when products change; combos always first
 const sortedProducts = computed(() =>
   [...products.value].sort((a, b) =>
-    parseInt(b.is_compound_product ?? 0) - parseInt(a.is_compound_product ?? 0)
+    parseInt(b.is_combo_product ?? 0) - parseInt(a.is_combo_product ?? 0)
   )
 )
 

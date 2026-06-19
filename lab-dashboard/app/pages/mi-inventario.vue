@@ -15,7 +15,8 @@ const loadingInventory = ref(true)
 const loadingMovements = ref(true)
 const loadingInbound = ref(true)
 const receivingTransferId = ref<number | null>(null)
-const canDispatchFromInventory = computed(() => ['despachador', 'admin', 'superadmin'].includes(String(auth.role || '')))
+const canDispatchFromInventory = computed(() => ['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || '')))
+const canReceiveInbound = computed(() => ['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || '')))
 
 // Assignment modal state
 const assignModalOpen = ref(false)
@@ -313,7 +314,7 @@ function getTypeLabel(type: string): string {
       </div>
     </div>
 
-    <UCard>
+    <UCard v-if="canReceiveInbound">
       <template #header>
         <h3 class="font-semibold text-lg flex items-center gap-2">
           <UIcon name="i-lucide-inbox" class="w-5 h-5 text-gray-500" />

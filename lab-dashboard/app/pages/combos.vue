@@ -33,7 +33,9 @@ const emptyForm = () => ({
   title: '',
   sku: '',
   id_category: '0' as string | number,
-  discount: 0
+  discount: 0,
+  combo_price_mode: 'descuento' as 'descuento' | 'fijo',
+  price_product: 0
 })
 
 const form      = ref(emptyForm())
@@ -130,7 +132,9 @@ function openEdit(combo: any) {
     title:      decodeText(combo.title_product),
     sku:        combo.sku_product || '',
     id_category: combo.id_category_product ? String(combo.id_category_product) : '0',
-    discount:   parseFloat(combo.discount_product ?? 0)
+    discount:   parseFloat(combo.discount_product ?? 0),
+    combo_price_mode: combo.combo_price_mode === 'fijo' ? 'fijo' : 'descuento',
+    price_product: parseFloat(combo.price_product ?? 0)
   }
   formItems.value = (combo.items || []).map((i: any) => ({
     id_product: i.id_product_ci,
@@ -196,6 +200,8 @@ async function saveCombo() {
     sku:         form.value.sku.trim(),
     id_category: form.value.id_category ?? 0,
     discount:    form.value.discount,
+    combo_price_mode: form.value.combo_price_mode,
+    price_product: form.value.price_product,
     items:       itemsJson
   }
 
@@ -396,6 +402,7 @@ onMounted(fetchAll)
                 placeholder="Ej: Combo Desayuno"
                 autofocus
                 :color="formErrors.title ? 'error' : undefined"
+                @input="formErrors.title = ''"
               />
             </UFormField>
             <UFormField label="SKU / Código">
@@ -408,8 +415,20 @@ onMounted(fetchAll)
                 placeholder="Seleccionar..."
               />
             </UFormField>
-            <UFormField label="Descuento %">
+            
+            <UFormField label="Modo de precio">
+              <USelect
+                v-model="form.combo_price_mode"
+                :items="[{label: 'Porcentaje de descuento', value: 'descuento'}, {label: 'Precio Fijo', value: 'fijo'}]"
+              />
+            </UFormField>
+
+            <UFormField label="Descuento %" v-if="form.combo_price_mode === 'descuento'">
               <UInput v-model.number="form.discount" type="number" min="0" max="100" placeholder="0" />
+            </UFormField>
+
+            <UFormField label="Precio Fijo (Bs.)" v-if="form.combo_price_mode === 'fijo'">
+              <UInput v-model.number="form.price_product" type="number" min="0" placeholder="0.00" />
             </UFormField>
           </div>
 

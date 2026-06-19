@@ -281,9 +281,6 @@ const sidebarItems = computed(() => {
     if (hasPerm('clientes')) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
     if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-grid-2x2' })
     if (hasPerm('productos')) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
-    if (role === 'superadmin' || role === 'admin' || role === 'lab_admin') {
-      items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
-    }
     if (role !== 'vendedor' && hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
     if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
     if (role !== 'cajero' && role !== 'vendedor' && hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
@@ -343,6 +340,11 @@ const sidebarItems = computed(() => {
       items.push({ label: 'Control Calidad', to: '/calidad', icon: 'i-lucide-shield-check' })
     }
     items.push({ label: 'Inventario Final', to: '/inventario-final', icon: 'i-lucide-boxes' })
+  }
+
+  // Combos (Global visibility for lab roles and admins)
+  if (role === 'superadmin' || role === 'admin' || role === 'lab_admin' || role === 'despachador_laboratorio') {
+    items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
   }
 
   return items
