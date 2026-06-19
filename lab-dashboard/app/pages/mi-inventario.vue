@@ -104,11 +104,6 @@ async function confirmAssignment() {
 }
 
 async function checkHasSubWarehouse() {
-  if (auth.role === 'vendedor') {
-    hasSubWarehouse.value = true
-    return
-  }
-  
   try {
     const data = await $fetch<any>(`/api/sub_warehouses?linkTo=id_office_sub_warehouse&equalTo=${auth.effectiveOfficeId}`, {
       headers: apiHeaders
@@ -122,6 +117,19 @@ async function checkHasSubWarehouse() {
 async function fetchInventory() {
   loadingInventory.value = true
   try {
+    console.log('[DEBUG INVENTORY]', {
+      user: auth.user,
+      effectiveOfficeId: auth.effectiveOfficeId,
+      warehouseId: auth.warehouseId,
+      officeId: auth.officeId,
+      requestBody: {
+        getSubWarehouseStock: 'true',
+        id_admin: String(auth.user?.id_admin || 1),
+        id_office: String(auth.effectiveOfficeId ?? 3),
+        role: auth.role || 'cajero'
+      }
+    });
+    
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({

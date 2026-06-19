@@ -3,6 +3,7 @@ if (isset($_POST["getSubWarehouseStock"])) {
 	$id_admin = $_POST["id_admin"];
 	$id_office = $_POST["id_office"];
 	$role = $_POST["role"];
+	file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getSubWarehouseStock START - id_office: $id_office\n", FILE_APPEND);
 	$db = LocalConnection::connect();
 
 	// product_inventory es la fuente única de stock vendible confirmado.
@@ -20,6 +21,7 @@ if (isset($_POST["getSubWarehouseStock"])) {
 	");
 	$stmt->execute([':office' => $id_office]);
 	$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+	file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getSubWarehouseStock - id_admin: $id_admin, id_office: $id_office, role: $role, Results: " . count($results) . "\n", FILE_APPEND);
 	echo json_encode($results);
 	exit;
 }

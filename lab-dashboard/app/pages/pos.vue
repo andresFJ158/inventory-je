@@ -166,6 +166,21 @@ async function handleSaveOrderExpense() {
     toast.add({ title: 'Ingresa un concepto válido y monto mayor a 0.', color: 'error' })
     return
   }
+
+  // Client-side validation: total cannot be negative for company expenses
+  if (!orderExpenseModel.value.chargeToClient) {
+    const expenseTotal = parseFloat(String(orderExpenseModel.value.amount)) || 0
+    const currentMax = subtotal.value - totalDiscount.value + totalOrderExpensesClient.value - totalOrderExpensesCompany.value
+    if (expenseTotal > currentMax) {
+      toast.add({
+        title: 'Gasto excedido',
+        description: `El total de la orden no puede ser negativo. El saldo disponible es Bs. ${currentMax.toFixed(2)}.`,
+        color: 'error'
+      })
+      return
+    }
+  }
+
   savingOrderExpense.value = true
   try {
     const res = await $fetch<any>('/ajax/pos.ajax.php', {
@@ -186,7 +201,7 @@ async function handleSaveOrderExpense() {
       orderExpenseModel.value = { concept: '', amount: 0, chargeToClient: false }
       await fetchOrderExpenses()
     } else {
-      toast.add({ title: 'Error al registrar gasto.', color: 'error' })
+      toast.add({ title: data.message || 'Error al registrar gasto.', color: 'error' })
     }
   } catch {
     toast.add({ title: 'Error de conexión.', color: 'error' })
@@ -371,8 +386,17 @@ async function fetchPendingOrders() {
   try {
     const officeId = auth.officeId ?? 3
     const adminId = auth.user?.id_admin || 1
-    const url = `/api/orders?linkTo=id_office_order,id_admin_order,status_order&equalTo=${officeId},${adminId},Pendiente`
-    const data = await $fetch<any>(url, { headers: apiHeaders })
+    const res = await $fetch<any>('/ajax/pos.ajax.php', {
+      method: 'POST',
+      body: new URLSearchParams({
+        getPosPendingOrders: 'ok',
+        id_office: String(officeId),
+        id_admin: String(adminId),
+        token: auth.token || ''
+      }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
+    const data = typeof res === 'string' ? JSON.parse(res) : res
     if (data.status === 200 && data.results) {
       pendingOrders.value = data.results
     } else {
@@ -391,7 +415,7 @@ async function selectOrder(index: number) {
   if (order) {
     orderId.value = String(order.id_order)
     transactionOrder.value = order.transaction_order
-    selectedClient.value = order.id_client_order ? String(order.id_client_order) : ''
+    selectedClient.value = (order.id_client_order && String(order.id_client_order) !== '0') ? String(order.id_client_order) : ''
     await fetchCart()
   }
 }
@@ -838,16 +862,22 @@ const totalDiscount = computed(() => {
 const totalOrderExpensesClient = computed(() => {
   return orderExpenses.value
     .filter(exp => exp.charge_to_client_expense == 1)
-    .reduce((acc, exp) => acc + parseFloat(exp.amount_expense), 0)
+    .reduce((acc, exp) => acc + parseFloat(exp.amount_expense || 0), 0)
+})
+
+const totalOrderExpensesCompany = computed(() => {
+  return orderExpenses.value
+    .filter(exp => exp.charge_to_client_expense == 0)
+    .reduce((acc, exp) => acc + parseFloat(exp.amount_expense || 0), 0)
 })
 
 const total = computed(() => {
-  return subtotal.value - totalDiscount.value + totalOrderExpensesClient.value
+  return subtotal.value - totalDiscount.value + totalOrderExpensesClient.value - totalOrderExpensesCompany.value
 })
 
 // Sync order totals to the backend when cart or client changes
 watch([selectedClient, subtotal, totalDiscount, total], async ([newClientVal, newSub, newDisc, newTot]) => {
-  if (!orderId.value || !newClientVal) return
+  if (!orderId.value || !newClientVal || newClientVal === '0') return
   try {
     const currentPending = pendingOrders.value[activeOrderIndex.value]
     if (currentPending && String(currentPending.id_order) === orderId.value) {
@@ -894,7 +924,7 @@ function openPayment() {
     toast.add({ title: 'No hay productos en el carrito.', color: 'error' })
     return
   }
-  if (!selectedClient.value) {
+  if (!selectedClient.value || selectedClient.value === '0') {
     clientSelectError.value = true
     nextTick(() => clientSelectEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
     setTimeout(() => { clientSelectError.value = false }, 1500)
@@ -908,6 +938,28 @@ function openPayment() {
   fetchQRImage()
 }
 
+const qrFile = ref<File | null>(null)
+const qrFilePreview = ref<string | null>(null)
+
+function handleFileSelect(e: Event) {
+  const target = e.target as HTMLInputElement
+  if (target.files && target.files.length > 0) {
+    const file = target.files[0]
+    qrFile.value = file
+    
+    // Create preview if it's an image
+    if (file.type.startsWith('image/')) {
+      if (qrFilePreview.value) URL.revokeObjectURL(qrFilePreview.value)
+      qrFilePreview.value = URL.createObjectURL(file)
+    } else {
+      qrFilePreview.value = null
+    }
+  } else {
+    qrFile.value = null
+    qrFilePreview.value = null
+  }
+}
+
 // Return cash change calculation
 const cashChange = computed(() => {
   if (cashReceived.value === null) return 0
@@ -916,36 +968,37 @@ const cashChange = computed(() => {
 
 // Finalize Checkout
 async function handleCheckout() {
-  if (!selectedClient.value) {
-    toast.add({ title: 'Selecciona un cliente antes de generar el cobro.', color: 'error' })
+  if (!selectedClient.value || selectedClient.value === '0') {
+    toast.add({ title: 'Selecciona un cliente válido antes de generar el cobro.', color: 'error' })
     return
   }
-  if (payMethod.value === 'QR' && !transferId.value) {
-    toast.add({ title: 'Ingresa el ID o código de referencia del pago QR para confirmar.', color: 'error' })
-    return
-  }
+
   if (payMethod.value === 'efectivo' && (cashReceived.value || 0) < total.value) {
     toast.add({ title: 'El efectivo recibido es menor al total a pagar.', color: 'error' })
     return
   }
 
   try {
+    const formData = new FormData()
+    formData.append('payPosOrder', 'ok')
+    formData.append('idOrder', orderId.value!)
+    formData.append('method', payMethod.value)
+    formData.append('transfer', transferId.value)
+    formData.append('invoice', wantInvoice.value ? 'yes' : 'no')
+    formData.append('sellerId', String(auth.user?.id_admin || 1))
+    formData.append('subtotal', String(subtotal.value.toFixed(2)))
+    formData.append('discount', String(totalDiscount.value.toFixed(2)))
+    formData.append('tax', String(0))
+    formData.append('total', String(total.value.toFixed(2)))
+    formData.append('token', auth.token || '')
+    
+    if (payMethod.value === 'QR' && qrFile.value) {
+      formData.append('proof', qrFile.value)
+    }
+
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
-      body: new URLSearchParams({
-        payPosOrder: 'ok',
-        idOrder: orderId.value!,
-        method: payMethod.value,
-        transfer: transferId.value,
-        qrRefOrder: qrRefOrder.value,
-        invoice: wantInvoice.value ? 'yes' : 'no',
-        sellerId: String(auth.user?.id_admin || 1),
-        subtotal: String(subtotal.value.toFixed(2)),
-        discount: String(totalDiscount.value.toFixed(2)),
-        tax: String(0),
-        total: String(total.value.toFixed(2))
-      }).toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      body: formData
     })
 
     const data = typeof response === 'string' ? JSON.parse(response) : response
@@ -1425,15 +1478,17 @@ function printReceipt() {
             </div>
           </div>
 
-          <UButton
-            v-if="orderId"
-            color="primary"
-            block
-            icon="i-lucide-credit-card"
-            @click="openPayment"
-          >
-            Cobrar Orden
-          </UButton>
+          <!-- Status and Action Button -->
+          <div v-if="orderId">
+            <UButton
+              color="primary"
+              block
+              icon="i-lucide-credit-card"
+              @click="openPayment"
+            >
+              Cobrar Orden
+            </UButton>
+          </div>
         </div>
       </div>
     </div>
@@ -1550,20 +1605,24 @@ function printReceipt() {
             <div v-else class="text-center text-xs text-slate-400 my-4 italic">
               No hay código QR configurado para esta sucursal.
             </div>
-
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">ID / Código de Referencia *</label>
-            <UInput
-              v-model="transferId"
-              placeholder="Ingresa el número de referencia del pago"
-            />
           </div>
           
           <div v-if="payMethod === 'QR' && (auth.role === 'vendedor' || auth.user?.type_seller)">
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Link Imagen / QR de Confirmación</label>
-            <UInput
-              v-model="qrRefOrder"
-              placeholder="Ej: https://... / Comprobante"
+            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Imagen / Comprobante (Opcional)</label>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              class="block w-full text-sm text-slate-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-emerald-50 file:text-emerald-700
+                hover:file:bg-emerald-100"
+              @change="handleFileSelect"
             />
+            <div v-if="qrFilePreview" class="mt-4 flex justify-center">
+              <img :src="qrFilePreview" alt="Vista previa comprobante" class="max-h-48 rounded-lg shadow-md border border-slate-200" />
+            </div>
           </div>
 
           <!-- Credit message hint -->

@@ -92,7 +92,7 @@ const formModel = ref({
   surname_admin: '',
   email_admin: '',
   password_admin: '',
-  rol_admin: 'cajero',
+  rol_admin: '',
   id_office_admin: '',
   id_warehouse_admin: '',
   id_inventory_admin: '',
@@ -317,19 +317,17 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     permForm.value.gastos = true
     permForm.value.productos = true
     permForm.value.mi_inventario = true
-
+    permForm.value.qrs = true
     permForm.value.reportes = true
   } else if (newRole === 'vendedor') {
     permForm.value.pos = true
     permForm.value.ordenes = true
     permForm.value.caja = true
-    permForm.value.gastos = true
     permForm.value.mi_inventario = true
     permForm.value.qrs = true
 
     permForm.value.reportes = true
   } else if (newRole === 'despachador') {
-    permForm.value.productos = true
     permForm.value.compras = true
     permForm.value.almacen = true
     permForm.value.proveedores = true
@@ -365,7 +363,7 @@ function openCreate() {
     surname_admin: '',
     email_admin: '',
     password_admin: '',
-    rol_admin: 'cajero',
+    rol_admin: '',
     id_office_admin: '',
     id_warehouse_admin: '',
     id_inventory_admin: '',
@@ -377,10 +375,8 @@ function openCreate() {
     permForm.value[k] = false
   })
   
-  // Pre-load Cajero defaults
-  permForm.value.pos = true
-  permForm.value.caja = true
-  permForm.value.mi_inventario = true
+  // Pre-load QR default checked as requested
+  permForm.value.qrs = true
   
   isSlideoverOpen.value = true
   
@@ -726,6 +722,7 @@ onMounted(async () => {
           </UFormField>
           <UFormField label="Rol del Sistema">
             <select v-model="formModel.rol_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+              <option value="" disabled>Selecciona un rol...</option>
               <option value="superadmin">Super Administrador</option>
               <option value="admin">Administrador</option>
               <option value="cajero">Cajero / Caja</option>

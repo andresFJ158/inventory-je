@@ -363,10 +363,10 @@ async function confirmTransfer() {
 }
 
 const tabsItems = [
-  { label: 'Inventario Principal', icon: 'i-lucide-boxes' },
-  { label: 'Sub-Almacenes', icon: 'i-lucide-users' },
-  { label: 'Movimientos', icon: 'i-lucide-arrow-right-left' },
-  { label: 'Merma Envasada', icon: 'i-lucide-recycle' }
+  { label: 'Inventario Principal', icon: 'i-lucide-boxes', value: 0 },
+  { label: 'Sub-Almacenes', icon: 'i-lucide-users', value: 1 },
+  { label: 'Movimientos', icon: 'i-lucide-arrow-right-left', value: 2 },
+  { label: 'Merma Envasada', icon: 'i-lucide-recycle', value: 3 }
 ]
 
 function exportCSV() {

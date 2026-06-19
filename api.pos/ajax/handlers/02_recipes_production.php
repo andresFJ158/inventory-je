@@ -550,10 +550,13 @@ if(isset($_POST["getProductionDetails"])){
 	$production = $stmtProd->fetch(PDO::FETCH_ASSOC);
 
     // Insumos
-    $stmtMat = $db->prepare("SELECT pm.*, rm.name_raw_material, rm.unit_raw_material 
+    $stmtMat = $db->prepare("SELECT pm.*, 
+               COALESCE(rm.name_raw_material, ls.name_supply) AS name_raw_material, 
+               COALESCE(rm.unit_raw_material, ls.unit_supply) AS unit_raw_material 
         FROM production_material_costs pm 
-        JOIN raw_materials rm ON pm.id_raw_material_mat_cost = rm.id_raw_material 
-        WHERE id_production_mat_cost = :id");
+        LEFT JOIN raw_materials rm ON pm.id_raw_material_mat_cost = rm.id_raw_material 
+        LEFT JOIN lab_supplies ls ON pm.id_supply_mat_cost = ls.id_supply
+        WHERE pm.id_production_mat_cost = :id");
     $stmtMat->execute([':id' => $id_production]);
     $materials = $stmtMat->fetchAll(PDO::FETCH_ASSOC);
 

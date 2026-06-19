@@ -140,6 +140,132 @@ if(isset($_POST["idOrderDelete"])){
 /*=============================================
 Aprobar Entrada de Materia Prima
 =============================================*/
+if(isset($_POST["requestWarehouseApproval"])){
+	try {
+		$db = LocalConnection::connect();
+		$idOrder = $_POST["idOrder"];
+		
+		$stmtUpdate = $db->prepare("UPDATE orders SET status_order = 'Pendiente Aprobacion Almacen' WHERE id_order = :id");
+		$stmtUpdate->execute([':id' => $idOrder]);
+		
+		echo "ok";
+	} catch (Throwable $e) {
+		echo "error";
+	}
+	exit;
+}
+
+/*=============================================
+Ventas pendientes de aprobar (Almacén)
+=============================================*/
+if(isset($_POST["getPendingSalesToApprove"])){
+	try {
+		$db = LocalConnection::connect();
+		$id_office = intval($_POST["id_office"] ?? 0);
+		
+		$stmt = $db->prepare("
+			SELECT o.id_order, o.transaction_order, o.date_created_order, o.total_order, o.status_order,
+			       a.name_admin as vendedor_name,
+			       (SELECT SUM(qty_sale) FROM sales WHERE id_order_sale = o.id_order) as total_items,
+			       (
+			           SELECT JSON_ARRAYAGG(
+			               JSON_OBJECT(
+			                   'id_product', p.id_product,
+			                   'title_product', p.title_product,
+			                   'qty_sale', s.qty_sale,
+			                   'subtotal_sale', s.subtotal_sale
+			               )
+			           )
+			           FROM sales s
+			           JOIN products p ON p.id_product = s.id_product_sale
+			           WHERE s.id_order_sale = o.id_order
+			       ) as cart_items
+			FROM orders o
+			LEFT JOIN admins a ON a.id_admin = o.id_admin_order
+			WHERE o.status_order = 'Pendiente Aprobacion Almacen' 
+			  AND (
+			      o.id_office_order = :office 
+			      OR a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office)
+			  )
+			ORDER BY o.id_order ASC
+		");
+		$stmt->execute([':office' => $id_office]);
+		$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+		foreach($results as &$row) {
+			$row['cart_items'] = json_decode($row['cart_items'] ?? '[]');
+		}
+		echo json_encode(["status" => 200, "results" => $results]);
+	} catch (Throwable $e) {
+		echo json_encode(["status" => 500, "message" => $e->getMessage()]);
+	}
+	exit;
+}
+
+if(isset($_POST["approveSaleOrder"])){
+	try {
+		$db = LocalConnection::connect();
+		$id_order = intval($_POST["id_order"]);
+		
+		// Aprobar la venta significa que pasa a Pendiente de Pago
+		$stmtUpdate = $db->prepare("UPDATE orders SET status_order = 'Pendiente de Pago' WHERE id_order = :id");
+		$stmtUpdate->execute([':id' => $id_order]);
+		
+		echo "ok";
+	} catch (Throwable $e) {
+		echo "error";
+	}
+	exit;
+}
+
+if(isset($_POST["denySaleOrder"])){
+	try {
+		$db = LocalConnection::connect();
+		$id_order = intval($_POST["id_order"]);
+		
+		$db->beginTransaction();
+		
+		// Cancelar la orden
+		$stmtUpdate = $db->prepare("UPDATE orders SET status_order = 'Cancelada' WHERE id_order = :id");
+		$stmtUpdate->execute([':id' => $id_order]);
+		
+		// Eliminar las ventas pendientes para que no queden colgadas
+		$stmtSales = $db->prepare("DELETE FROM sales WHERE id_order_sale = :id AND status_sale = 'Pendiente'");
+		$stmtSales->execute([':id' => $id_order]);
+		
+		$db->commit();
+		echo "ok";
+	} catch (Throwable $e) {
+		if($db->inTransaction()) $db->rollBack();
+		echo "error";
+	}
+	exit;
+}
+
+if(isset($_POST["getPosPendingOrders"])){
+	try {
+		$db = LocalConnection::connect();
+		$id_office = intval($_POST["id_office"] ?? 0);
+		$id_admin = intval($_POST["id_admin"] ?? 0);
+		
+		$stmt = $db->prepare("
+			SELECT *
+			FROM orders
+			WHERE id_office_order = :office 
+			  AND id_admin_order = :admin
+			  AND status_order IN ('Pendiente', 'Pendiente de Pago')
+			ORDER BY id_order DESC
+		");
+		$stmt->execute([':office' => $id_office, ':admin' => $id_admin]);
+		echo json_encode(["status" => 200, "results" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+	} catch (Throwable $e) {
+		echo json_encode(["status" => 500, "message" => $e->getMessage()]);
+	}
+	exit;
+}
+
+/*=============================================
+Aprobar Entrada de Materia Prima
+=============================================*/
 if(isset($_POST["approveRawMaterialEntry"])){
 	$db = LocalConnection::connect();
 	$id_admin_req = intval($_POST['id_admin'] ?? 0);

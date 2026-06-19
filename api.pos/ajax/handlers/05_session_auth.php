@@ -1,6 +1,6 @@
 <?php
 if(isset($_POST["getLoggedUser"])){
-	if (session_status() === PHP_SESSION_NONE) { session_start(); }
+	pos_has_session(); // This will validate the token if cookie is missing and set $_SESSION['admin']
 	if (isset($_SESSION["admin"])) {
 		$db = LocalConnection::connect();
 		$id_office = intval($_SESSION["admin"]->id_office_admin);
@@ -41,6 +41,7 @@ if(isset($_POST["getLoggedUser"])){
 			'office' => $office,
 			'token' => $_SESSION["admin"]->token_admin
 		]);
+		file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getLoggedUser - User " . $_SESSION["admin"]->id_admin . ", id_warehouse_admin: " . (isset($_SESSION["admin"]->id_warehouse_admin) ? $_SESSION["admin"]->id_warehouse_admin : 'none') . ", calculated warehouse_office_id: " . $warehouse_office_id . "\n", FILE_APPEND);
 	} else {
 		echo json_encode([
 			'status' => 401,
@@ -60,6 +61,22 @@ if(isset($_POST["payPosOrder"])){
 	$_POST["methodPay"] = $_POST["method"];
 	$_POST["transferPay"] = $_POST["transfer"] ?? "";
 	$_POST["clientInvoice"] = $_POST["invoice"] ?? "no";
+	$_POST["qrRefOrder"] = $_POST["qrRefOrder"] ?? "";
+	
+	// Handle file upload for proof (QR)
+	if (isset($_FILES['proof']) && $_FILES['proof']['error'] === UPLOAD_ERR_OK) {
+		$file = $_FILES['proof'];
+		$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+		$allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'pdf' => 'application/pdf'];
+		if (isset($allowed[$ext])) {
+			$dir = __DIR__ . '/../../views/assets/files/comprobantes';
+			if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+			$fileName = 'comp_' . uniqid() . '_' . time() . '.' . $ext;
+			if (move_uploaded_file($file['tmp_name'], $dir . '/' . $fileName)) {
+				$_POST["qrRefOrder"] = 'views/assets/files/comprobantes/' . $fileName;
+			}
+		}
+	}
 	
 	pos_require_session();
 	

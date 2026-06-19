@@ -4,7 +4,7 @@ class SchemaMigrator {
 	public static function isApplied(PDO $link): bool {
 		try {
 			$link->query("SELECT 1 FROM schema_migrations LIMIT 1");
-			$row = $link->query("SELECT COUNT(*) FROM schema_migrations WHERE version >= 3")->fetchColumn();
+			$row = $link->query("SELECT COUNT(*) FROM schema_migrations WHERE version >= 4")->fetchColumn();
 			return (int)$row > 0;
 		} catch (Throwable $e) { return false; }
 	}
@@ -309,7 +309,8 @@ class SchemaMigrator {
 			"ALTER TABLE consignments ADD COLUMN reference_consignment VARCHAR(255) DEFAULT NULL",
 			"ALTER TABLE raw_materials ADD COLUMN is_insumo TINYINT(1) DEFAULT 0 AFTER status_raw_material",
 			"ALTER TABLE bills ADD COLUMN id_cash_bill INT(11) DEFAULT 0",
-			"ALTER TABLE orders ADD COLUMN invoice_order INT(11) DEFAULT 0"
+			"ALTER TABLE orders ADD COLUMN invoice_order INT(11) DEFAULT 0",
+			"ALTER TABLE production_material_costs ADD COLUMN id_supply_mat_cost INT(11) NULL DEFAULT 0"
 		);
 
 		foreach($alterQueries as $query){
@@ -486,6 +487,9 @@ class SchemaMigrator {
 
 		try {
 			$link->exec("INSERT INTO schema_migrations (version, name) VALUES (3, 'runtime_lab_admin_catalog_purchases')");
+		} catch (Throwable $e) {}
+		try {
+			$link->exec("INSERT INTO schema_migrations (version, name) VALUES (4, 'add_id_supply_mat_cost_to_production_material_costs')");
 		} catch (Throwable $e) {}
 	}
 

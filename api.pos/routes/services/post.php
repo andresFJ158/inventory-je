@@ -126,16 +126,17 @@ if(isset($_POST)){
 					$adminRow  = !empty($adminRows) ? $adminRows[0] : null;
 					$role      = $adminRow->rol_admin ?? '';
 					$perms     = json_decode(urldecode($adminRow->permissions_admin ?? '{}'), true);
-					$canManage = in_array($role, ['superadmin', 'admin'])
+					$canManage = in_array($role, ['superadmin', 'admin', 'cajero'])
 						|| ($role === 'vendedor' && ($perms['gestionar_clientes'] ?? '') === 'on');
 
-					if ($role === 'cajero') {
-						$_POST['id_admin_client'] = 0;
-					} elseif (!$canManage) {
+					if (!$canManage) {
 						http_response_code(403);
 						echo json_encode(['status' => 403, 'results' => 'Sin permiso para crear clientes']);
 						return;
 					}
+
+					// Store the creator's admin ID
+					$_POST['id_admin_client'] = $adminRow->id_admin;
 
 					$dni = trim($_POST['dni_client'] ?? '');
 					$nit = trim($_POST['nit_client'] ?? '');
@@ -148,6 +149,19 @@ if(isset($_POST)){
 							echo json_encode(['status' => 409, 'results' => 'El cliente ya existe con ese DNI o NIT']);
 							return;
 						}
+					}
+				}
+
+				// Override creator and register ID for bills
+				if ($table === 'bills') {
+					$adminRows = GetModel::getDataFilter($tableToken, "rol_admin,id_admin", "token_".$suffix, $_GET["token"], null, null, null, null);
+					$adminRow  = !empty($adminRows) ? $adminRows[0] : null;
+					$role      = $adminRow->rol_admin ?? '';
+
+					$_POST['id_admin_bill'] = $adminRow->id_admin;
+
+					if ($role === 'vendedor') {
+						$_POST['id_cash_bill'] = 0;
 					}
 				}
 

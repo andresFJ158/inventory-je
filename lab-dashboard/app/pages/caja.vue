@@ -186,6 +186,10 @@ function getOfficeName(id: any) {
 }
 
 onMounted(async () => {
+  if (auth.role === 'vendedor') {
+    navigateTo('/pos')
+    return
+  }
   todayStr.value = getLocalDate()
   await fetchOffices()
   await fetchCashStatus()

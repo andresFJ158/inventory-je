@@ -17,7 +17,8 @@ async function checkSession() {
     const response = await $fetch<any>(apiBase, {
       method: 'POST',
       body: new URLSearchParams({
-        getLoggedUser: 'ok'
+        getLoggedUser: 'ok',
+        token: auth.token || ''
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       credentials: 'include'
@@ -286,7 +287,7 @@ const sidebarItems = computed(() => {
     if (role !== 'vendedor' && hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
     if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
     if (role !== 'cajero' && role !== 'vendedor' && hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
-    if (hasPerm('caja')) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })
+    if (role !== 'vendedor' && hasPerm('caja')) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })
     if (hasPerm('gastos')) items.push({ label: 'Gastos', to: '/gastos', icon: 'i-lucide-receipt' })
     if (role !== 'despachador' && hasPerm('proveedores')) items.push({ label: 'Proveedores', to: '/proveedores', icon: 'i-lucide-truck' })
     if (hasPerm('almacenes')) items.push({ label: 'Almacenes', to: '/almacenes', icon: 'i-lucide-warehouse' })
@@ -297,6 +298,7 @@ const sidebarItems = computed(() => {
     }
     if (role === 'despachador' || role === 'superadmin' || role === 'admin' || hasPerm('despachos')) {
       items.push({ label: 'Centro Despachos', to: '/despachos', icon: 'i-lucide-truck' })
+      items.push({ label: 'Gastos Almacén', to: '/gastos-almacen', icon: 'i-lucide-receipt' })
     }
     if (hasPerm('mi_inventario') || role === 'cajero' || role === 'vendedor') {
       items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
@@ -308,6 +310,7 @@ const sidebarItems = computed(() => {
   if (role === 'despachador_laboratorio') {
     items.push({ label: 'Almacén Central Lab', to: '/almacen', icon: 'i-lucide-warehouse' })
     items.push({ label: 'Despacho Lab', to: '/despachos', icon: 'i-lucide-truck' })
+    items.push({ label: 'Gastos Almacén', to: '/gastos-almacen', icon: 'i-lucide-receipt' })
     items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
   }
 

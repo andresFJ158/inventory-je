@@ -17,15 +17,20 @@ export default defineEventHandler(async (event) => {
 
   try {
     if (method === 'GET' || method === 'HEAD') {
-      return await proxyRequest(event, target, { headers })
+      return await proxyRequest(event, target, {
+        headers,
+        fetchOptions: {
+          method
+        }
+      })
     }
+
+    const body = await readRawBody(event)
 
     // For POST/PUT/DELETE: use $fetch to ensure headers (especially Authorization) are sent correctly.
     // proxyRequest re-sends the original client request and may not properly merge custom headers.
     const contentType = getRequestHeader(event, 'content-type') || 'application/x-www-form-urlencoded'
     headers['Content-Type'] = contentType
-
-    const body = await readRawBody(event)
 
     const response = await $fetch.raw(target, {
       method: method as any,

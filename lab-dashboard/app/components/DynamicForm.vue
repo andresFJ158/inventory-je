@@ -604,7 +604,7 @@ watch(() => props.initialData, () => {
                 data-format-numeric="true"
                 inputmode="decimal"
                 placeholder="0,00"
-                :disabled="(moduleConfig?.title_module === 'purchases' && col.title_column === 'invest_purchase') || (moduleConfig?.title_module === 'products' && col.title_column === 'stock_product' && isEdit)"
+                :disabled="(moduleConfig?.title_module === 'purchases' && col.title_column === 'invest_purchase') || (moduleConfig?.title_module === 'products' && col.title_column === 'stock_product')"
               />
             </div>
 
@@ -653,7 +653,7 @@ watch(() => props.initialData, () => {
               <UInput
                 v-model="formModel[col.title_column]"
                 class="w-full"
-                :disabled="moduleConfig?.title_module === 'products' && col.title_column === 'stock_product' && isEdit"
+                :disabled="moduleConfig?.title_module === 'products' && col.title_column === 'stock_product'"
               />
             </div>
 

@@ -5,6 +5,8 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 ini_set('error_log', dirname(__DIR__) . '/php_error_log');
 
+file_put_contents(dirname(__DIR__) . '/debug_pos_ajax.txt', date('Y-m-d H:i:s') . " - Request: " . print_r($_POST, true) . "\n", FILE_APPEND);
+
 require_once dirname(__DIR__) . '/controllers/curl.controller.php';
 require_once dirname(__DIR__) . '/controllers/template.controller.php';
 

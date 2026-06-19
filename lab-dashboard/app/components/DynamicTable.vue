@@ -183,7 +183,7 @@ async function fetchRows() {
 
       // Aplicar filtros adicionales de privacidad por rol
       if (config.title_module === 'orders') {
-        if (auth.role === 'vendedor') {
+        if (auth.role === 'vendedor' || auth.role === 'cajero') {
            // Solo ver sus propias órdenes
            fetchedRows = fetchedRows.filter((r: any) => String(r.id_admin_order) === String(auth.user?.id_admin))
         } else if (auth.role === 'despachador') {

@@ -298,12 +298,13 @@ class PosController{
 	public function newClient(){
 
 		$db = LocalConnection::connect();
+		$idAdmin = function_exists('pos_current_admin_id') ? pos_current_admin_id() : 0;
 		$stmt = $db->prepare("
 			INSERT INTO clients
 				(name_client, surname_client, dni_client, email_client,
-				 phone_client, address_client, id_office_client, date_created_client)
+				 phone_client, address_client, id_office_client, id_admin_client, date_created_client)
 			VALUES
-				(:name, :surname, :dni, :email, :phone, :address, :office, CURDATE())
+				(:name, :surname, :dni, :email, :phone, :address, :office, :id_admin, CURDATE())
 		");
 		$ok = $stmt->execute([
 			':name'    => $this->name_client,
@@ -312,7 +313,8 @@ class PosController{
 			':email'   => $this->email_client,
 			':phone'   => $this->phone_client,
 			':address' => $this->address_client,
-			':office'  => intval($this->idOffice)
+			':office'  => intval($this->idOffice),
+			':id_admin' => $idAdmin
 		]);
 
 		echo $ok ? $db->lastInsertId() : "logout";

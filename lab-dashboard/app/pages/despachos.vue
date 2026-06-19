@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { getImageUrl } from '~/utils/image'
 
@@ -94,6 +94,7 @@ onMounted(() => {
   fetchPending()
   fetchHistory()
   fetchPendingOrders()
+  fetchExpenseTemplates()
 })
 
 // Action: Open Dispatch Dialog
@@ -187,9 +188,10 @@ async function confirmReject() {
 }
 
 const tabsItems = [
-  { label: 'Solicitudes Pendientes', icon: 'i-lucide-clock' },
-  { label: 'Historial', icon: 'i-lucide-history' },
-  { label: 'Órdenes por Despachar', icon: 'i-lucide-package-check' }
+  { label: 'Solicitudes Pendientes', icon: 'i-lucide-clock', value: 0 },
+  { label: 'Historial', icon: 'i-lucide-history', value: 1 },
+  { label: 'Órdenes por Despachar', icon: 'i-lucide-package-check', value: 2 },
+  { label: 'Órdenes Despachadas', icon: 'i-lucide-check-circle', value: 3 }
 ]
 
 // ─── ÓRDENES POR DESPACHAR ───────────────────────────────────────────────────
@@ -199,6 +201,11 @@ const expandedOrderId = ref<number | null>(null)
 const orderExpenses = ref<Record<number, any[]>>({})
 const loadingExpenses = ref<Record<number, boolean>>({})
 const dispatchingOrderId = ref<number | null>(null)
+
+// ─── ÓRDENES DESPACHADAS ─────────────────────────────────────────────────────
+const dispatchedOrders = ref<any[]>([])
+const loadingDispatched = ref(false)
+
 // Gastos: modal para añadir gasto al orden
 const isAddExpenseOpen = ref(false)
 const expenseOrderId = ref<number | null>(null)
@@ -206,11 +213,112 @@ const expenseConcept = ref('')
 const expenseAmount = ref('')
 const expenseChargeClient = ref(false)
 const savingExpense = ref(false)
-// Comprobante: modal para subir imagen
-const isProofOpen = ref(false)
-const proofOrderId = ref<number | null>(null)
-const proofFile = ref<File | null>(null)
-const uploadingProof = ref(false)
+const expenseQuantity = ref(1)
+
+const expenseTemplates = ref<any[]>([])
+const selectedTemplateId = ref('')
+
+const templateOptions = computed(() => {
+  return [
+    { label: 'Personalizado (Sin plantilla)', value: 'none' },
+    ...expenseTemplates.value.map(t => ({
+      label: `${t.concept_template} (Bs. ${Number(t.amount_template).toFixed(2)})`,
+      value: String(t.id_template)
+    }))
+  ]
+})
+
+const detailsOrderExpenses = computed(() => {
+  if (!selectedOrderDetails.value) return []
+  return orderExpenses.value[selectedOrderDetails.value.id_order] || []
+})
+
+const detailsClientExpensesTotal = computed(() => {
+  return detailsOrderExpenses.value
+    .filter((e: any) => parseInt(e.charge_to_client_expense) === 1)
+    .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+})
+
+const detailsCompanyExpensesTotal = computed(() => {
+  return detailsOrderExpenses.value
+    .filter((e: any) => parseInt(e.charge_to_client_expense) === 0)
+    .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+})
+
+async function fetchExpenseTemplates() {
+  try {
+    const res = await api.ajax({ getWarehouseExpenseTemplates: 'ok' })
+    if (res?.status === 200) {
+      expenseTemplates.value = res.results || []
+    }
+  } catch (error) {
+    console.error('Error fetching templates:', error)
+  }
+}
+
+watch(selectedTemplateId, (newVal) => {
+  if (!newVal || newVal === 'none') return
+  const found = expenseTemplates.value.find(t => String(t.id_template) === newVal)
+  if (found) {
+    expenseConcept.value = found.concept_template
+    expenseAmount.value = String(found.amount_template)
+    expenseChargeClient.value = parseInt(found.charge_to_client_template) === 1
+    expenseQuantity.value = 1
+  }
+})
+
+// Detalles de Orden
+const isOrderDetailsOpen = ref(false)
+const selectedOrderDetails = ref<any>(null)
+const orderItems = ref<any[]>([])
+const loadingOrderItems = ref(false)
+
+function decodeStr(val: any) {
+  if (!val) return ''
+  return decodeURIComponent(String(val)).replace(/\+/g, ' ')
+}
+
+async function openOrderDetails(order: any) {
+  selectedOrderDetails.value = order
+  isOrderDetailsOpen.value = true
+  loadingOrderItems.value = true
+  orderItems.value = []
+
+  // Fetch expenses
+  try {
+    const expData = await api.ajax({ getOrderExpenses: 'ok', id_order: String(order.id_order) })
+    orderExpenses.value[order.id_order] = expData.results || []
+  } catch (e) {
+    console.error('Error fetching order expenses for details:', e)
+    orderExpenses.value[order.id_order] = []
+  }
+
+  try {
+    const data = await api.rest<any>(`/api/relations?rel=sales,products&type=sale,product&linkTo=id_order_sale&equalTo=${order.id_order}`)
+    if (data && data.status === 200) {
+      orderItems.value = data.results || []
+    }
+  } catch (e) {
+    console.error('Error fetching order items:', e)
+  } finally {
+    loadingOrderItems.value = false
+  }
+}
+
+async function fetchDispatchedOrders() {
+  loadingDispatched.value = true
+  try {
+    const officeId = auth.officeId ?? 0
+    const warehouseId = auth.warehouseId ?? 0
+    const data = await api.ajax({ getDispatchedOrdersHistory: 'ok', id_office: String(officeId), id_warehouse: String(warehouseId) })
+    dispatchedOrders.value = data.results || []
+  } catch (e) {
+    console.error('Error fetching dispatched orders:', e)
+  } finally {
+    loadingDispatched.value = false
+  }
+}
+
 
 async function fetchPendingOrders() {
   loadingOrders.value = true
@@ -244,35 +352,95 @@ async function toggleOrderExpenses(orderId: number) {
   }
 }
 
-function openAddExpense(orderId: number) {
+async function openAddExpense(orderId: number) {
   expenseOrderId.value = orderId
   expenseConcept.value = ''
   expenseAmount.value = ''
   expenseChargeClient.value = false
+  expenseQuantity.value = 1
+  selectedTemplateId.value = 'none'
   isAddExpenseOpen.value = true
+
+  // Fetch existing expenses to make sure they are loaded for validation
+  if (!orderExpenses.value[orderId]) {
+    loadingExpenses.value[orderId] = true
+    try {
+      const data = await api.ajax({ getOrderExpenses: 'ok', id_order: String(orderId) })
+      orderExpenses.value[orderId] = data.results || []
+    } catch (e) {
+      console.error('Error fetching expenses:', e)
+    } finally {
+      loadingExpenses.value[orderId] = false
+    }
+  }
 }
 
 async function saveExpense() {
   if (!expenseOrderId.value || !expenseConcept.value.trim() || !expenseAmount.value) return
+  
+  const qty = Math.max(1, parseInt(String(expenseQuantity.value)) || 1)
+  const amountVal = parseFloat(expenseAmount.value) || 0
+  const expenseTotal = amountVal * qty
+  const orderId = expenseOrderId.value
+
+  // Client-side validation: total cannot be negative for company expenses
+  if (!expenseChargeClient.value) {
+    const order = pendingOrders.value.find((o: any) => o.id_order === orderId) || 
+                  dispatchedOrders.value.find((o: any) => o.id_order === orderId)
+    
+    if (order) {
+      const baseTotal = parseFloat(order.total_order) || 0
+      const existingExpenses = orderExpenses.value[orderId] || []
+      const existingClientTotal = existingExpenses
+        .filter((e: any) => parseInt(e.charge_to_client_expense) === 1)
+        .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+      const existingCompanyTotal = existingExpenses
+        .filter((e: any) => parseInt(e.charge_to_client_expense) === 0)
+        .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+      
+      const currentMax = baseTotal + existingClientTotal - existingCompanyTotal
+      if (expenseTotal > currentMax) {
+        toast.add({ 
+          title: 'Gasto excedido', 
+          description: `El total de la orden no puede ser negativo. El saldo disponible es Bs. ${currentMax.toFixed(2)}.`, 
+          color: 'error' 
+        })
+        return
+      }
+    }
+  }
+
   savingExpense.value = true
+  
+  let finalConcept = expenseConcept.value.trim()
+  if (qty > 1) {
+    finalConcept = `${finalConcept} x${qty}`
+  }
+  const totalAmount = String(expenseTotal.toFixed(2))
+
   try {
-    await api.ajax({
+    const res = await api.ajax({
       addOrderExpense: 'ok',
       id_order: String(expenseOrderId.value),
-      concept: expenseConcept.value.trim(),
-      amount: expenseAmount.value,
+      concept: finalConcept,
+      amount: totalAmount,
       charge_to_client: expenseChargeClient.value ? '1' : '0',
       id_admin: String(auth.user?.id_admin ?? 0)
     })
-    delete orderExpenses.value[expenseOrderId.value]
-    isAddExpenseOpen.value = false
-    toast.add({ title: 'Gasto registrado', color: 'success' })
-    if (expandedOrderId.value === expenseOrderId.value) {
-      const id = expenseOrderId.value
-      loadingExpenses.value[id] = true
-      const data = await api.ajax({ getOrderExpenses: 'ok', id_order: String(id) })
-      orderExpenses.value[id] = data.results || []
-      loadingExpenses.value[id] = false
+    
+    if (res.status === 200) {
+      delete orderExpenses.value[expenseOrderId.value]
+      isAddExpenseOpen.value = false
+      toast.add({ title: 'Gasto registrado', color: 'success' })
+      if (expandedOrderId.value === expenseOrderId.value) {
+        const id = expenseOrderId.value
+        loadingExpenses.value[id] = true
+        const data = await api.ajax({ getOrderExpenses: 'ok', id_order: String(id) })
+        orderExpenses.value[id] = data.results || []
+        loadingExpenses.value[id] = false
+      }
+    } else {
+      toast.add({ title: res.message || 'Error al guardar gasto', color: 'error' })
     }
   } catch (e) {
     toast.add({ title: 'Error al guardar gasto', color: 'error' })
@@ -281,42 +449,7 @@ async function saveExpense() {
   }
 }
 
-function openUploadProof(order: any) {
-  proofOrderId.value = order.id_order
-  proofFile.value = null
-  isProofOpen.value = true
-}
-
-async function uploadProof() {
-  if (!proofOrderId.value || !proofFile.value) return
-  uploadingProof.value = true
-  try {
-    const fd = new FormData()
-    fd.append('uploadSalePayment', 'ok')
-    fd.append('id_order', String(proofOrderId.value))
-    fd.append('method', 'transferencia')
-    fd.append('id_admin', String(auth.user?.id_admin ?? 0))
-    fd.append('proof', proofFile.value)
-    const data = await api.ajaxForm(fd)
-    if (data.status === 200) {
-      isProofOpen.value = false
-      toast.add({ title: 'Comprobante subido', color: 'success' })
-      await fetchPendingOrders()
-    } else {
-      toast.add({ title: data.message || 'Error al subir comprobante', color: 'error' })
-    }
-  } catch (e) {
-    toast.add({ title: 'Error al subir comprobante', color: 'error' })
-  } finally {
-    uploadingProof.value = false
-  }
-}
-
 async function dispatchOrder(order: any) {
-  if (!order.has_proof || order.has_proof == '0') {
-    toast.add({ title: 'Verifique el comprobante de pago antes de despachar', color: 'warning' })
-    return
-  }
   dispatchingOrderId.value = order.id_order
   try {
     const data = await api.ajax({ updateOrderStatus: 'ok', id_order: String(order.id_order), status: 'Despachado' })
@@ -332,6 +465,15 @@ async function dispatchOrder(order: any) {
     dispatchingOrderId.value = null
   }
 }
+
+
+watch(activeTab, (newTab) => {
+  const tabIdx = typeof newTab === 'number' ? newTab : parseInt(String(newTab), 10)
+  if (tabIdx === 0) fetchPending()
+  else if (tabIdx === 1) fetchHistory()
+  else if (tabIdx === 2) fetchPendingOrders()
+  else if (tabIdx === 3) fetchDispatchedOrders()
+})
 
 </script>
 
@@ -353,7 +495,7 @@ async function dispatchOrder(order: any) {
         color="neutral"
         variant="soft"
         size="xs"
-        @click="activeTab === 0 ? fetchPending() : activeTab === 1 ? fetchHistory() : fetchPendingOrders()"
+        @click="activeTab === 0 ? fetchPending() : activeTab === 1 ? fetchHistory() : activeTab === 2 ? fetchPendingOrders() : fetchDispatchedOrders()"
       >
         Refrescar
       </UButton>
@@ -500,19 +642,19 @@ async function dispatchOrder(order: any) {
               <div class="px-4 pb-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                 <div>
                   <span class="text-slate-500 block">Cliente</span>
-                  <span class="text-white font-medium">{{ order.name_client || 'Sin cliente' }}</span>
+                  <span class="text-slate-800 font-medium">{{ order.name_client || 'Sin cliente' }}</span>
                 </div>
                 <div>
                   <span class="text-slate-500 block">Vendedor</span>
-                  <span class="text-white font-medium">{{ order.vendedor_name || '-' }}</span>
+                  <span class="text-slate-800 font-medium">{{ order.vendedor_name || '-' }}</span>
                 </div>
                 <div>
                   <span class="text-slate-500 block">Método Pago</span>
-                  <span class="text-white font-medium capitalize">{{ order.method_order || '-' }}</span>
+                  <span class="text-slate-800 font-medium capitalize">{{ order.method_order || '-' }}</span>
                 </div>
                 <div>
                   <span class="text-slate-500 block">Total</span>
-                  <span class="text-emerald-400 font-bold font-mono">Bs. {{ Number(order.total_order || 0).toFixed(2) }}</span>
+                  <span class="text-emerald-500 font-bold font-mono">Bs. {{ (Number(order.total_order || 0) + Number(order.client_expenses_total || 0) - Number(order.company_expenses_total || 0)).toFixed(2) }}</span>
                 </div>
               </div>
 
@@ -526,18 +668,18 @@ async function dispatchOrder(order: any) {
                   {{ expandedOrderId === order.id_order ? 'Ocultar Gastos' : 'Ver Gastos' }}
                 </UButton>
                 <UButton
+                  size="xs" color="primary" variant="soft"
+                  icon="i-lucide-eye"
+                  @click="openOrderDetails(order)"
+                >
+                  Ver Detalles
+                </UButton>
+                <UButton
                   size="xs" color="info" variant="soft"
                   icon="i-lucide-plus"
                   @click="openAddExpense(order.id_order)"
                 >
                   Añadir Gasto
-                </UButton>
-                <UButton
-                  size="xs" color="neutral" variant="soft"
-                  icon="i-lucide-image-up"
-                  @click="openUploadProof(order)"
-                >
-                  {{ (order.has_proof == '1' || order.has_proof === 1) ? 'Reemplazar Comprobante' : 'Subir Comprobante' }}
                 </UButton>
                 <UButton
                   v-if="order.has_proof == '1' || order.has_proof === 1"
@@ -552,7 +694,6 @@ async function dispatchOrder(order: any) {
                   icon="i-lucide-truck"
                   class="ml-auto"
                   :loading="dispatchingOrderId === order.id_order"
-                  :disabled="!(order.has_proof == '1' || order.has_proof === 1)"
                   @click="dispatchOrder(order)"
                 >
                   Despachar
@@ -587,6 +728,106 @@ async function dispatchOrder(order: any) {
             </div>
           </template>
         </div>
+        
+        <!-- TAB 3: Órdenes Despachadas -->
+        <div v-if="index === 3" class="mt-4 space-y-3">
+          <div v-if="loadingDispatched" class="flex justify-center py-12">
+            <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
+          </div>
+
+          <div v-else-if="dispatchedOrders.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
+            <UIcon name="i-lucide-check-circle" class="w-10 h-10 mx-auto mb-2 text-slate-700" />
+            No hay historial de órdenes despachadas.
+          </div>
+
+          <template v-else>
+            <div v-for="order in dispatchedOrders" :key="order.id_order" class="bg-white border border-slate-200 rounded-xl overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
+              <!-- Order Header -->
+              <div class="p-4 flex flex-wrap gap-3 items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-mono text-slate-400">{{ order.transaction_order || '#' + order.id_order }}</span>
+                  <UBadge color="success" variant="subtle" size="xs">Despachado</UBadge>
+                  <UBadge v-if="order.has_proof == '1' || order.has_proof === 1" color="success" variant="subtle" size="xs" icon="i-lucide-check">Comprobante OK</UBadge>
+                  <UBadge v-else color="error" variant="subtle" size="xs" icon="i-lucide-alert-circle">Sin Comprobante</UBadge>
+                </div>
+                <div class="flex items-center gap-2 ml-auto">
+                  <span class="text-xs text-slate-400">{{ order.date_created_order?.split(' ')[0] }}</span>
+                </div>
+              </div>
+
+              <div class="px-4 pb-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <span class="text-slate-500 block">Cliente</span>
+                  <span class="text-slate-800 font-medium">{{ order.name_client || 'Sin cliente' }}</span>
+                </div>
+                <div>
+                  <span class="text-slate-500 block">Vendedor</span>
+                  <span class="text-slate-800 font-medium">{{ order.vendedor_name || '-' }}</span>
+                </div>
+                <div>
+                  <span class="text-slate-500 block">Método Pago</span>
+                  <span class="text-slate-800 font-medium capitalize">{{ order.method_order || '-' }}</span>
+                </div>
+                <div>
+                  <span class="text-slate-500 block">Total</span>
+                  <span class="text-emerald-500 font-bold font-mono">Bs. {{ (Number(order.total_order || 0) + Number(order.client_expenses_total || 0) - Number(order.company_expenses_total || 0)).toFixed(2) }}</span>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="px-4 pb-4 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                <UButton
+                  size="xs" color="neutral" variant="soft"
+                  icon="i-lucide-receipt"
+                  @click="toggleOrderExpenses(order.id_order)"
+                >
+                  {{ expandedOrderId === order.id_order ? 'Ocultar Gastos' : 'Ver Gastos' }}
+                </UButton>
+                <UButton
+                  size="xs" color="primary" variant="soft"
+                  icon="i-lucide-eye"
+                  @click="openOrderDetails(order)"
+                >
+                  Ver Detalles
+                </UButton>
+                <UButton
+                  v-if="order.has_proof == '1' || order.has_proof === 1"
+                  size="xs" color="neutral" variant="soft"
+                  icon="i-lucide-eye"
+                  :href="getImageUrl(order.proof_file)" target="_blank"
+                >
+                  Ver Comprobante
+                </UButton>
+              </div>
+
+              <!-- Gastos expandidos -->
+              <div v-if="expandedOrderId === order.id_order" class="border-t border-slate-200 px-4 py-3 bg-slate-50">
+                <div v-if="loadingExpenses[order.id_order]" class="text-xs text-slate-500 py-2">Cargando gastos...</div>
+                <div v-else-if="!orderExpenses[order.id_order]?.length" class="text-xs text-slate-500 py-2">Sin gastos registrados para esta orden.</div>
+                <table v-else class="w-full text-xs text-slate-700">
+                  <thead>
+                    <tr class="text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider">
+                      <th class="py-1 text-left">Concepto</th>
+                      <th class="py-1 text-center">Cobrar al Cliente</th>
+                      <th class="py-1 text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="exp in orderExpenses[order.id_order]" :key="exp.id_expense" class="border-b border-slate-100">
+                      <td class="py-1.5 font-semibold text-slate-800">{{ exp.concept_expense }}</td>
+                      <td class="py-1.5 text-center">
+                        <UBadge :color="exp.charge_to_client_expense == 1 ? 'success' : 'neutral'" variant="soft" size="xs">
+                          {{ exp.charge_to_client_expense == 1 ? 'Sí' : 'No' }}
+                        </UBadge>
+                      </td>
+                      <td class="py-1.5 text-right font-mono font-bold text-slate-800">Bs. {{ Number(exp.amount_expense).toFixed(2) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </template>
+        </div>
       </template>
     </UTabs>
 
@@ -594,12 +835,48 @@ async function dispatchOrder(order: any) {
     <UModal v-model:open="isAddExpenseOpen" title="Añadir Gasto a la Orden">
       <template #body>
         <div class="space-y-4">
+          <UFormField label="Plantilla de Gasto">
+            <USelect
+              v-model="selectedTemplateId"
+              :items="templateOptions"
+              class="w-full"
+              placeholder="Selecciona una plantilla..."
+            />
+          </UFormField>
           <UFormField label="Concepto">
-            <UInput v-model="expenseConcept" placeholder="Ej. Delivery, Empaque..." class="w-full" />
+            <UInput
+              v-model="expenseConcept"
+              placeholder="Ej. Delivery, Empaque..."
+              class="w-full"
+              @input="selectedTemplateId = 'none'"
+            />
           </UFormField>
-          <UFormField label="Monto (Bs.)">
-            <UInput v-model="expenseAmount" type="number" min="0" step="0.01" placeholder="0.00" class="w-full" />
-          </UFormField>
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="Monto Unitario (Bs.)">
+              <UInput
+                v-model="expenseAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                class="w-full"
+                @input="selectedTemplateId = 'none'"
+              />
+            </UFormField>
+            <UFormField label="Cantidad">
+              <UInput
+                v-model.number="expenseQuantity"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="1"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <div v-if="expenseAmount && expenseQuantity > 1" class="text-right text-xs font-semibold text-slate-500">
+            Monto Total: <span class="text-emerald-600 font-mono">Bs. {{ (parseFloat(expenseAmount) * expenseQuantity).toFixed(2) }}</span>
+          </div>
           <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
             <div>
               <span class="text-sm font-medium text-slate-700 block">Cobrar al cliente</span>
@@ -624,24 +901,7 @@ async function dispatchOrder(order: any) {
       </template>
     </UModal>
 
-    <!-- Modal: Subir Comprobante -->
-    <UModal v-model:open="isProofOpen" title="Subir Comprobante de Pago">
-      <template #body>
-        <div class="space-y-4">
-          <p class="text-sm text-slate-600">Sube la imagen del comprobante de pago (JPG, PNG, WEBP o PDF, máx. 5MB).</p>
-          <input
-            type="file"
-            accept="image/*,.pdf"
-            class="block w-full text-sm text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
-            @change="proofFile = ($event.target as HTMLInputElement).files?.[0] ?? null"
-          />
-          <div class="flex justify-end gap-3 pt-3 border-t border-slate-200">
-            <UButton color="neutral" variant="ghost" @click="isProofOpen = false">Cancelar</UButton>
-            <UButton color="primary" :loading="uploadingProof" :disabled="!proofFile" @click="uploadProof">Subir Comprobante</UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+
 
     <!-- Dispatch Quantity Modal -->
     <UModal v-model:open="isDispatchOpen" title="Enviar Despacho">
@@ -708,6 +968,222 @@ async function dispatchOrder(order: any) {
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
             <UButton color="neutral" variant="ghost" @click="isRejectOpen = false">Cancelar</UButton>
             <UButton color="error" :loading="processingAction" @click="confirmReject">Rechazar Solicitud</UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Modal: Detalles de la Orden -->
+    <UModal v-model:open="isOrderDetailsOpen" title="Detalles de la Orden" :ui="{ content: 'sm:max-w-2xl lg:max-w-3xl', body: 'max-h-[85vh] overflow-y-auto' }">
+      <template #body>
+        <div v-if="selectedOrderDetails" class="space-y-6">
+          <!-- Loading State for items -->
+          <div v-if="loadingOrderItems" class="flex flex-col items-center justify-center py-12">
+            <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-teal-500 mb-2" />
+            <p class="text-sm text-slate-500">Cargando productos de la orden...</p>
+          </div>
+
+          <div v-else class="space-y-6">
+            <!-- Dos Columnas: Cliente y Orden -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <!-- Información del Cliente -->
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200/60 space-y-3 shadow-sm hover:shadow-md transition-shadow">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 border-b border-slate-200/80 pb-1.5">
+                  <UIcon name="i-lucide-user" class="text-teal-500 w-4 h-4 animate-pulse" />
+                  Información del Cliente
+                </h3>
+                <div class="space-y-2 text-xs">
+                  <div>
+                    <span class="text-slate-400 block">Nombre Completo</span>
+                    <span class="text-slate-800 font-semibold text-sm">
+                      {{ decodeStr(selectedOrderDetails.name_client) }} {{ decodeStr(selectedOrderDetails.surname_client) }}
+                    </span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <span class="text-slate-400 block">Celular / Teléfono</span>
+                      <span class="text-slate-800 font-medium">{{ selectedOrderDetails.phone_client || 'No registrado' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">DNI / CI</span>
+                      <span class="text-slate-800 font-medium font-mono">{{ selectedOrderDetails.dni_client || '-' }}</span>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <span class="text-slate-400 block">NIT</span>
+                      <span class="text-slate-800 font-medium font-mono">{{ selectedOrderDetails.nit_client || '-' }}</span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Email</span>
+                      <span class="text-slate-800 font-medium truncate block" :title="selectedOrderDetails.email_client">
+                        {{ selectedOrderDetails.email_client || 'No registrado' }}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block">Dirección</span>
+                    <span class="text-slate-800 font-medium truncate block" :title="decodeStr(selectedOrderDetails.address_client)">
+                      {{ decodeStr(selectedOrderDetails.address_client) || 'No registrada' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Información de la Orden -->
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200/60 space-y-3 shadow-sm hover:shadow-md transition-shadow">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 border-b border-slate-200/80 pb-1.5">
+                  <UIcon name="i-lucide-file-text" class="text-emerald-500 w-4 h-4" />
+                  Información de la Orden
+                </h3>
+                <div class="space-y-2 text-xs">
+                  <div class="flex justify-between items-center">
+                    <div>
+                      <span class="text-slate-400 block">Transacción / ID</span>
+                      <span class="text-slate-800 font-semibold font-mono text-sm">
+                        {{ selectedOrderDetails.transaction_order || '#' + selectedOrderDetails.id_order }}
+                      </span>
+                    </div>
+                    <div>
+                      <UBadge :color="selectedOrderDetails.status_order === 'Despachado' ? 'success' : 'warning'" variant="subtle" size="xs">
+                        {{ selectedOrderDetails.status_order }}
+                      </UBadge>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <span class="text-slate-400 block">Fecha de Registro</span>
+                      <span class="text-slate-800 font-medium">{{ selectedOrderDetails.date_created_order }}</span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Vendedor</span>
+                      <span class="text-slate-800 font-medium">{{ decodeStr(selectedOrderDetails.vendedor_name) || '-' }}</span>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <span class="text-slate-400 block">Método de Pago / Factura</span>
+                      <span class="text-slate-800 font-medium capitalize flex items-center gap-1">
+                        {{ selectedOrderDetails.method_order || '-' }}
+                        <span v-if="selectedOrderDetails.invoice_order" class="text-xxs px-1 py-0.25 bg-blue-100 text-blue-600 rounded">Factura</span>
+                      </span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Total de la Venta</span>
+                      <span class="text-emerald-600 font-bold font-mono text-sm">Bs. {{ Number(selectedOrderDetails.total_order || 0).toFixed(2) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Tabla de Productos -->
+            <div class="space-y-2">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <UIcon name="i-lucide-shopping-bag" class="text-indigo-500 w-4 h-4" />
+                Productos en la Orden
+              </h3>
+              
+              <div class="border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm">
+                <table class="w-full text-left border-collapse text-xs text-slate-700">
+                  <thead>
+                    <tr class="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider">
+                      <th class="p-3">SKU</th>
+                      <th class="p-3">Producto</th>
+                      <th class="p-3 text-right">Cantidad</th>
+                      <th class="p-3 text-right">Precio Unitario</th>
+                      <th class="p-3 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in orderItems" :key="item.id_sale" class="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <td class="p-3 font-mono text-slate-400">{{ item.sku_product || '-' }}</td>
+                      <td class="p-3 font-semibold text-slate-800">{{ decodeStr(item.title_product) }}</td>
+                      <td class="p-3 text-right font-mono font-medium">
+                        <UBadge color="neutral" variant="soft" size="xs">{{ item.qty_sale }}</UBadge>
+                      </td>
+                      <td class="p-3 text-right font-mono text-slate-500">Bs. {{ Number(item.subtotal_sale / item.qty_sale).toFixed(2) }}</td>
+                      <td class="p-3 text-right font-mono font-bold text-slate-800">Bs. {{ Number(item.subtotal_sale).toFixed(2) }}</td>
+                    </tr>
+                    <tr v-if="orderItems.length === 0">
+                      <td colspan="5" class="p-8 text-center text-slate-400 italic">No se encontraron productos para esta orden.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Gastos de la Orden -->
+            <div v-if="detailsOrderExpenses.length > 0" class="space-y-2">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <UIcon name="i-lucide-receipt" class="text-amber-500 w-4 h-4" />
+                Gastos de la Orden
+              </h3>
+              <div class="border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm">
+                <table class="w-full text-left border-collapse text-xs text-slate-700">
+                  <thead>
+                    <tr class="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider">
+                      <th class="p-3">Concepto</th>
+                      <th class="p-3 text-center">Cobrar al Cliente</th>
+                      <th class="p-3 text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="exp in detailsOrderExpenses" :key="exp.id_expense" class="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <td class="p-3 font-semibold text-slate-800">{{ exp.concept_expense }}</td>
+                      <td class="p-3 text-center">
+                        <UBadge :color="exp.charge_to_client_expense == 1 ? 'success' : 'neutral'" variant="soft" size="xs">
+                          {{ exp.charge_to_client_expense == 1 ? 'Sí' : 'No' }}
+                        </UBadge>
+                      </td>
+                      <td class="p-3 text-right font-mono font-bold text-slate-800">Bs. {{ Number(exp.amount_expense).toFixed(2) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Desglose Financiero de la Orden -->
+            <div class="flex justify-end">
+              <div class="w-full md:w-64 bg-slate-50 p-4 rounded-xl border border-slate-200/60 space-y-1.5 text-xs font-mono shadow-sm">
+                <div class="flex justify-between text-slate-500">
+                  <span>Subtotal:</span>
+                  <span>Bs. {{ Number(selectedOrderDetails.subtotal_order || selectedOrderDetails.total_order || 0).toFixed(2) }}</span>
+                </div>
+                <div v-if="Number(selectedOrderDetails.discount_order) > 0" class="flex justify-between text-rose-500">
+                  <span>Descuento:</span>
+                  <span>- Bs. {{ Number(selectedOrderDetails.discount_order).toFixed(2) }}</span>
+                </div>
+                <div v-if="detailsClientExpensesTotal > 0" class="flex justify-between text-amber-600 font-bold">
+                  <span>Gastos Cliente:</span>
+                  <span>+ Bs. {{ detailsClientExpensesTotal.toFixed(2) }}</span>
+                </div>
+                <div v-if="detailsCompanyExpensesTotal > 0" class="flex justify-between text-rose-500 font-bold">
+                  <span>Gastos Almacén:</span>
+                  <span>- Bs. {{ detailsCompanyExpensesTotal.toFixed(2) }}</span>
+                </div>
+                <div class="border-t border-slate-200/80 pt-1.5 flex justify-between font-bold text-sm text-slate-850">
+                  <span>TOTAL:</span>
+                  <span class="text-emerald-600 font-bold">Bs. {{ (Number(selectedOrderDetails.total_order || 0) + detailsClientExpensesTotal - detailsCompanyExpensesTotal).toFixed(2) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botones de Acción en Footer -->
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <UButton color="neutral" variant="ghost" @click="isOrderDetailsOpen = false">Cerrar</UButton>
+              <UButton
+                v-if="selectedOrderDetails.status_order === 'Pendiente Despacho'"
+                color="success"
+                icon="i-lucide-truck"
+                :loading="dispatchingOrderId === selectedOrderDetails.id_order"
+                @click="dispatchOrder(selectedOrderDetails); isOrderDetailsOpen = false"
+              >
+                Despachar Orden
+              </UButton>
+            </div>
           </div>
         </div>
       </template>

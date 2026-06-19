@@ -11,6 +11,19 @@ const emit = defineEmits(['update:isOpen', 'close'])
 const loading = ref(false)
 const orderData = ref<any>(null)
 const productsData = ref<any[]>([])
+const orderExpenses = ref<any[]>([])
+
+const detailsClientExpensesTotal = computed(() => {
+  return orderExpenses.value
+    .filter((e: any) => parseInt(e.charge_to_client_expense) === 1)
+    .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+})
+
+const detailsCompanyExpensesTotal = computed(() => {
+  return orderExpenses.value
+    .filter((e: any) => parseInt(e.charge_to_client_expense) === 0)
+    .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+})
 
 const isOpenModel = computed({
   get: () => props.isOpen,
@@ -29,17 +42,38 @@ async function fetchOrderDetails(id: string | number) {
   try {
     const apiHeaders = { Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy' }
     
-    const [orderRes, salesRes] = await Promise.all([
-      $fetch<any>(`/api/relations?rel=orders,clients,admins,offices&type=order,client,admin,office&linkTo=id_order&equalTo=${id}`, { headers: apiHeaders }),
-      $fetch<any>(`/api/relations?rel=sales,products&type=sale,product&linkTo=id_order_sale&equalTo=${id}`, { headers: apiHeaders })
-    ])
+    let orderRes = await $fetch<any>(`/api/relations?rel=orders,clients,admins,offices&type=order,client,admin,office&linkTo=id_order&equalTo=${id}`, { headers: apiHeaders }).catch(() => null)
+    const salesRes = await $fetch<any>(`/api/relations?rel=sales,products&type=sale,product&linkTo=id_order_sale&equalTo=${id}`, { headers: apiHeaders }).catch(() => null)
     
+    if (!orderRes || !orderRes.results || orderRes.results.length === 0) {
+      // Fallback: order might not have a client (id_client_order = 0)
+      orderRes = await $fetch<any>(`/api/relations?rel=orders,admins,offices&type=order,admin,office&linkTo=id_order&equalTo=${id}`, { headers: apiHeaders }).catch(() => null)
+    }
+
     if (orderRes && orderRes.status === 200 && orderRes.results && orderRes.results.length > 0) {
       orderData.value = orderRes.results[0]
     }
     
     if (salesRes && salesRes.status === 200 && salesRes.results) {
       productsData.value = salesRes.results
+    }
+
+    // Fetch Expenses Info
+    try {
+      const expRes = await $fetch<any>('/ajax/pos.ajax.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ getOrderExpenses: 'ok', id_order: String(id) }).toString()
+      }).catch(() => null)
+      const parsedExp = typeof expRes === 'string' ? JSON.parse(expRes) : expRes
+      if (parsedExp && parsedExp.status === 200) {
+        orderExpenses.value = parsedExp.results || []
+      } else {
+        orderExpenses.value = []
+      }
+    } catch (e) {
+      console.error('Error fetching order expenses for receipt:', e)
+      orderExpenses.value = []
     }
   } catch (e) {
     console.error('Error fetching order receipt data:', e)
@@ -121,6 +155,15 @@ function formatCurrency(val: any) {
             </tbody>
           </table>
           
+          <hr class="border-dashed border-black" v-if="orderExpenses.length > 0">
+          <div v-if="orderExpenses.length > 0" class="space-y-1">
+            <div class="font-bold text-center">GASTOS DE LA ORDEN</div>
+            <div v-for="exp in orderExpenses" :key="exp.id_expense" class="flex justify-between">
+              <span>{{ exp.concept_expense }} (Cobrado: {{ exp.charge_to_client_expense == 1 ? 'Sí' : 'No' }}):</span>
+              <span>{{ formatCurrency(exp.amount_expense) }}</span>
+            </div>
+          </div>
+          
           <hr class="border-dashed border-black">
           <div class="flex justify-between">
             <span>Subtotal:</span>
@@ -128,11 +171,19 @@ function formatCurrency(val: any) {
           </div>
           <div v-if="parseFloat(orderData.discount_order) > 0" class="flex justify-between">
             <span>Descuento:</span>
-            <span>{{ formatCurrency(orderData.discount_order) }}</span>
+            <span>-{{ formatCurrency(orderData.discount_order) }}</span>
+          </div>
+          <div v-if="detailsClientExpensesTotal > 0" class="flex justify-between font-bold">
+            <span>Gastos Cliente:</span>
+            <span>+{{ formatCurrency(detailsClientExpensesTotal) }}</span>
+          </div>
+          <div v-if="detailsCompanyExpensesTotal > 0" class="flex justify-between font-bold">
+            <span>Gastos Almacén:</span>
+            <span>-{{ formatCurrency(detailsCompanyExpensesTotal) }}</span>
           </div>
           <div class="flex justify-between font-bold text-sm">
             <span>TOTAL:</span>
-            <span>{{ formatCurrency(orderData.total_order) }}</span>
+            <span>{{ formatCurrency(Number(orderData.total_order || 0) + detailsClientExpensesTotal - detailsCompanyExpensesTotal) }}</span>
           </div>
           <div class="flex justify-between text-capitalize">
             <span>Pago:</span>

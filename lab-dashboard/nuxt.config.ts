@@ -31,8 +31,8 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   routeRules: {
-    '/ajax/**': { proxy: 'http://localhost:8081/ajax/**' },
-    '/views/**': { proxy: 'http://localhost:8081/views/**' }
+    '/views/**': { proxy: 'http://localhost:8081/views/**' },
+    '/uploads/**': { proxy: 'http://localhost:8081/uploads/**' }
   },
 
   runtimeConfig: {

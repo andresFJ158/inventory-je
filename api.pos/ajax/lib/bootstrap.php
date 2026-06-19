@@ -174,6 +174,25 @@ function pos_get_product_price(PDO $db, int $productId, int $officeId = 0): arra
 		$price['costReference'] = (float)$row['cost_purchase'];
 		$price['source'] = 'purchases_legacy';
 	}
+
+	// Final fallback: products table (which the frontend catalog uses directly)
+	if ($price['price'] <= 0 || ($price['source'] === 'purchases_legacy' && (float)($row['price_purchase'] ?? 0) <= 0)) {
+		$stmtProd = $db->prepare("
+			SELECT price_product, wholesale_price_product, wholesale_qty_product
+			FROM products
+			WHERE id_product = :prod
+		");
+		$stmtProd->execute([':prod' => $productId]);
+		if ($prod = $stmtProd->fetch(PDO::FETCH_ASSOC)) {
+			$price['price'] = (float)$prod['price_product'];
+			$price['wholesalePrice'] = (float)$prod['wholesale_price_product'];
+			$price['wholesaleQty'] = (int)$prod['wholesale_qty_product'];
+			if ($price['source'] === 'none') {
+				$price['source'] = 'products_table';
+			}
+		}
+	}
+
 	return $price;
 }
 

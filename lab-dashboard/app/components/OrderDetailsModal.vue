@@ -15,6 +15,19 @@ const toast = useToast()
 const loading = ref(false)
 const orderData = ref<any>(null)
 const salesData = ref<any[]>([])
+const orderExpenses = ref<any[]>([])
+
+const detailsClientExpensesTotal = computed(() => {
+  return orderExpenses.value
+    .filter((e: any) => parseInt(e.charge_to_client_expense) === 1)
+    .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+})
+
+const detailsCompanyExpensesTotal = computed(() => {
+  return orderExpenses.value
+    .filter((e: any) => parseInt(e.charge_to_client_expense) === 0)
+    .reduce((sum: number, e: any) => sum + parseFloat(e.amount_expense || 0), 0)
+})
 
 const uploadingImage = ref(false)
 
@@ -43,6 +56,24 @@ async function fetchOrderDetails(id: string | number) {
       const salesRes = await $fetch<any>(`/api/relations?rel=sales,products&type=sale,product&linkTo=id_order_sale&equalTo=${id}`, { headers: apiHeaders })
       if (salesRes && salesRes.status === 200 && salesRes.results) {
         salesData.value = salesRes.results
+      }
+      
+      // Fetch Expenses Info
+      try {
+        const expRes = await $fetch<any>('/ajax/pos.ajax.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ getOrderExpenses: 'ok', id_order: String(id) }).toString()
+        })
+        const parsedExp = typeof expRes === 'string' ? JSON.parse(expRes) : expRes
+        if (parsedExp && parsedExp.status === 200) {
+          orderExpenses.value = parsedExp.results || []
+        } else {
+          orderExpenses.value = []
+        }
+      } catch (e) {
+        console.error('Error fetching order expenses:', e)
+        orderExpenses.value = []
       }
     }
   } catch (e) {
@@ -73,18 +104,26 @@ const requiresVoucher = computed(() => {
   return m.includes('qr') || m.includes('transferencia')
 })
 
-const hasVoucherImage = computed(() => {
+const hasVoucherFile = computed(() => {
   if (!orderData.value) return false
   const ref = orderData.value.qr_ref_order || orderData.value.transfer_order || ''
-  return ref.includes('/img/') || ref.match(/\.(jpeg|jpg|gif|png|webp)$/i) !== null
+  return ref.includes('/img/') || ref.includes('/comp_') || ref.match(/\.(jpeg|jpg|gif|png|webp|pdf)$/i) !== null
+})
+
+const isVoucherPdf = computed(() => {
+  if (!orderData.value) return false
+  const ref = orderData.value.qr_ref_order || orderData.value.transfer_order || ''
+  return ref.match(/\.pdf$/i) !== null
 })
 
 const voucherText = computed(() => {
   if (!orderData.value) return ''
   const ref = orderData.value.qr_ref_order || orderData.value.transfer_order || ''
-  if (!hasVoucherImage.value && ref) return ref
+  if (!hasVoucherFile.value && ref) return ref
   return ''
 })
+
+
 
 async function handleImageUpload(event: Event) {
   const fileInput = event.target as HTMLInputElement
@@ -127,13 +166,12 @@ async function updateOrderVoucher(imageUrl: string) {
     const field = orderData.value.method_order === 'QR' ? 'qr_ref_order' : 'transfer_order'
     
     const updateBody = new URLSearchParams()
-    updateBody.append('id_order', orderData.value.id_order)
     updateBody.append(field, imageUrl)
     // Send PUT request
     const putBody = new URLSearchParams()
     putBody.append('data', updateBody.toString())
 
-    const res = await $fetch<any>(`/api/orders?id=${orderData.value.id_order}&nameId=id_order`, {
+    const res = await $fetch<any>(`/api/orders?id=${orderData.value.id_order}&nameId=id_order&token=${auth.token}&table=admins&suffix=admin`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -155,10 +193,24 @@ async function updateOrderVoucher(imageUrl: string) {
   }
 }
 
-function getImageUrl(path: string) {
-  if (!path) return ''
-  if (path.startsWith('http')) return path
-  return `/${path.replace(/^\/+/, '')}` // prepend slash safely
+function getImageUrl(imgStr: string) {
+  if (!imgStr) return ''
+  const decoded = decodeURIComponent(imgStr).replace(/\+/g, ' ')
+  
+  const viewsIndex = decoded.indexOf('views/')
+  if (viewsIndex !== -1) {
+    return '/' + decoded.substring(viewsIndex)
+  }
+
+  const uploadsIndex = decoded.indexOf('uploads/')
+  if (uploadsIndex !== -1) {
+    return '/' + decoded.substring(uploadsIndex)
+  }
+
+  if (decoded.startsWith('http') || decoded.startsWith('/')) {
+    return decoded
+  }
+  return '/' + decoded
 }
 
 </script>
@@ -220,7 +272,7 @@ function getImageUrl(path: string) {
           <div v-for="sale in salesData" :key="sale.id_sale" class="flex justify-between items-center p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
             <div>
               <div class="font-medium text-slate-800 text-sm">{{ decodeStr(sale.title_product) }}</div>
-              <div class="text-xs text-slate-500 mt-0.5">Cant: <span class="font-semibold">{{ sale.qty_sale }}</span> × {{ formatCurrency(sale.price_sale) }}</div>
+              <div class="text-xs text-slate-500 mt-0.5">Cant: <span class="font-semibold">{{ sale.qty_sale }}</span> × {{ formatCurrency(parseFloat(sale.subtotal_sale) / parseInt(sale.qty_sale)) }}</div>
             </div>
             <div class="font-bold text-slate-800">
               {{ formatCurrency(sale.subtotal_sale) }}
@@ -228,8 +280,37 @@ function getImageUrl(path: string) {
           </div>
         </div>
 
+        <!-- Expenses Table -->
+        <div v-if="orderExpenses.length > 0" class="mb-6 space-y-2">
+          <h4 class="font-bold text-slate-700 uppercase border-b border-slate-200 pb-2 mb-3 text-sm flex items-center gap-2">
+            <UIcon name="i-lucide-receipt" class="text-amber-500 w-4 h-4" /> Gastos de la Orden
+          </h4>
+          <div class="border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-sm">
+            <table class="w-full text-left border-collapse text-xs text-slate-700">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider">
+                  <th class="p-3">Concepto</th>
+                  <th class="p-3 text-center">Cobrar al Cliente</th>
+                  <th class="p-3 text-right">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="exp in orderExpenses" :key="exp.id_expense" class="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                  <td class="p-3 font-semibold text-slate-800">{{ exp.concept_expense }}</td>
+                  <td class="p-3 text-center">
+                    <UBadge :color="exp.charge_to_client_expense == 1 ? 'success' : 'neutral'" variant="soft" size="xs">
+                      {{ exp.charge_to_client_expense == 1 ? 'Sí' : 'No' }}
+                    </UBadge>
+                  </td>
+                  <td class="p-3 text-right font-mono font-bold text-slate-800 font-mono">Bs. {{ Number(exp.amount_expense).toFixed(2) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Order Totals -->
-        <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-6">
+        <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-6 space-y-1.5">
           <div class="flex justify-between text-sm text-slate-600 mb-1">
             <span>Subtotal</span>
             <span>{{ formatCurrency(orderData.subtotal_order) }}</span>
@@ -238,9 +319,17 @@ function getImageUrl(path: string) {
             <span>Descuento</span>
             <span>- {{ formatCurrency(orderData.discount_order) }}</span>
           </div>
+          <div v-if="detailsClientExpensesTotal > 0" class="flex justify-between text-sm text-amber-600 font-bold">
+            <span>Gastos Cliente (Cobrado)</span>
+            <span>+ {{ formatCurrency(detailsClientExpensesTotal) }}</span>
+          </div>
+          <div v-if="detailsCompanyExpensesTotal > 0" class="flex justify-between text-sm text-rose-500 font-bold">
+            <span>Gastos Almacén (No Cobrado)</span>
+            <span>- {{ formatCurrency(detailsCompanyExpensesTotal) }}</span>
+          </div>
           <div class="flex justify-between text-lg font-bold text-emerald-800 mt-2 pt-2 border-t border-emerald-200/60">
             <span>Total</span>
-            <span>{{ formatCurrency(orderData.total_order) }}</span>
+            <span>{{ formatCurrency(Number(orderData.total_order || 0) + detailsClientExpensesTotal - detailsCompanyExpensesTotal) }}</span>
           </div>
         </div>
 
@@ -250,25 +339,33 @@ function getImageUrl(path: string) {
             <UIcon name="i-lucide-receipt" class="text-purple-500" /> Comprobante de Pago
           </h4>
 
-          <div v-if="hasVoucherImage" class="mt-4 border border-slate-200 rounded-lg p-2 bg-slate-50 w-max mx-auto">
+          <div v-if="hasVoucherFile" class="mt-4 border border-slate-200 rounded-lg p-2 bg-slate-50 w-max mx-auto">
             <a :href="getImageUrl(orderData.qr_ref_order || orderData.transfer_order)" target="_blank" class="block group relative">
-              <img :src="getImageUrl(orderData.qr_ref_order || orderData.transfer_order)" class="max-w-[200px] rounded object-cover shadow-sm transition-opacity group-hover:opacity-90" alt="Comprobante">
+              <template v-if="isVoucherPdf">
+                <div class="flex flex-col items-center p-4 bg-white border border-slate-200 rounded">
+                  <UIcon name="i-lucide-file-text" class="w-12 h-12 text-rose-500 mb-2" />
+                  <span class="text-xs font-semibold text-slate-700">Ver PDF</span>
+                </div>
+              </template>
+              <template v-else>
+                <img :src="getImageUrl(orderData.qr_ref_order || orderData.transfer_order)" class="max-w-[200px] rounded object-cover shadow-sm transition-opacity group-hover:opacity-90" alt="Comprobante">
+              </template>
               <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded">
                 <UIcon name="i-lucide-external-link" class="text-white w-6 h-6" />
               </div>
             </a>
-            <div class="text-center mt-2 text-xs text-slate-500">Clic para ampliar</div>
+            <div class="text-center mt-2 text-xs text-slate-500">Clic para ampliar/ver</div>
           </div>
           
           <div v-else-if="voucherText" class="p-3 bg-purple-50 text-purple-800 border border-purple-100 rounded-lg text-sm font-mono mb-4 text-center">
             Ref: {{ voucherText }}
           </div>
 
-          <div class="mt-4 border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors" v-if="!hasVoucherImage">
+          <div class="mt-4 border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors" v-if="!hasVoucherFile">
             <input
               type="file"
               id="voucher-upload"
-              accept="image/*"
+              accept="image/*,.pdf"
               class="hidden"
               @change="handleImageUpload"
               :disabled="uploadingImage"
@@ -276,16 +373,16 @@ function getImageUrl(path: string) {
             <label for="voucher-upload" class="cursor-pointer flex flex-col items-center">
               <UIcon v-if="uploadingImage" name="i-heroicons-arrow-path" class="animate-spin w-8 h-8 text-slate-400 mb-2" />
               <UIcon v-else name="i-lucide-upload-cloud" class="w-8 h-8 text-slate-400 mb-2" />
-              <span class="text-sm font-medium text-slate-700">{{ uploadingImage ? 'Subiendo imagen...' : 'Subir Imagen del Comprobante' }}</span>
-              <span class="text-xs text-slate-500 mt-1">Formatos soportados: JPG, PNG, WEBP</span>
+              <span class="text-sm font-medium text-slate-700">{{ uploadingImage ? 'Subiendo archivo...' : 'Subir Archivo del Comprobante' }}</span>
+              <span class="text-xs text-slate-500 mt-1">Formatos soportados: JPG, PNG, WEBP, PDF</span>
             </label>
           </div>
           
-          <div class="mt-4 text-center" v-if="hasVoucherImage">
+          <div class="mt-4 text-center" v-if="hasVoucherFile">
             <input
               type="file"
               id="voucher-reupload"
-              accept="image/*"
+              accept="image/*,.pdf"
               class="hidden"
               @change="handleImageUpload"
               :disabled="uploadingImage"

@@ -15,11 +15,11 @@ if (isset($_POST["uploadImage"]) && $_POST["uploadImage"] == "ok") {
     }
 
     $ext = strtolower(pathinfo($_FILES['imageFile']['name'], PATHINFO_EXTENSION));
-    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'];
     
     if (!in_array($ext, $allowed)) {
         http_response_code(400);
-        echo json_encode(["status" => 400, "results" => "Invalid file type."]);
+        echo json_encode(["status" => 400, "results" => "Invalid file type. Allowed: JPG, PNG, GIF, WEBP, PDF."]);
         exit;
     }
 

@@ -19,10 +19,51 @@ if (isset($_POST['updateOrderStatus'])) {
 //=====================================
 if (isset($_POST['addOrderExpense'])) {
     $db = LocalConnection::connect();
-    $db->exec("ALTER TABLE order_expenses ADD COLUMN IF NOT EXISTS charge_to_client_expense tinyint(1) NOT NULL DEFAULT 0");
+    try {
+        @$db->exec("ALTER TABLE order_expenses ADD COLUMN charge_to_client_expense tinyint(1) NOT NULL DEFAULT 0");
+    } catch (Throwable $e) {}
+    
+    $id_order = intval($_POST['id_order']);
     $chargeToClient = intval($_POST['charge_to_client'] ?? 0) ? 1 : 0;
+    $amount = floatval($_POST['amount'] ?? 0);
+    
+    // Check if adding this expense (if company expense) makes order total negative
+    if ($chargeToClient === 0) {
+        $stmtOrder = $db->prepare("SELECT subtotal_order, discount_order FROM orders WHERE id_order = :id");
+        $stmtOrder->execute([':id' => $id_order]);
+        $order = $stmtOrder->fetch(PDO::FETCH_ASSOC);
+        
+        if ($order) {
+            $subtotal = floatval($order['subtotal_order'] ?? 0);
+            $discount = floatval($order['discount_order'] ?? 0);
+            
+            $stmtExp = $db->prepare("SELECT amount_expense, charge_to_client_expense FROM order_expenses WHERE id_order_expense = :id");
+            $stmtExp->execute([':id' => $id_order]);
+            $expenses = $stmtExp->fetchAll(PDO::FETCH_ASSOC);
+            
+            $clientExpenses = 0;
+            $companyExpenses = 0;
+            foreach ($expenses as $exp) {
+                if (intval($exp['charge_to_client_expense']) === 1) {
+                    $clientExpenses += floatval($exp['amount_expense']);
+                } else {
+                    $companyExpenses += floatval($exp['amount_expense']);
+                }
+            }
+            
+            $potentialNewTotal = $subtotal - $discount + $clientExpenses - ($companyExpenses + $amount);
+            if ($potentialNewTotal < 0) {
+                echo json_encode([
+                    'status' => 400,
+                    'message' => 'El total de la orden no puede ser negativo. Los gastos de almacén no pueden superar el total.'
+                ]);
+                exit;
+            }
+        }
+    }
+    
     $stmt = $db->prepare("INSERT INTO order_expenses (id_order_expense, concept_expense, amount_expense, charge_to_client_expense, id_admin_expense, date_created_expense) VALUES (:ord, :con, :amt, :ctc, :adm, CURDATE())");
-    $stmt->execute([':ord' => intval($_POST['id_order']), ':con' => $_POST['concept'], ':amt' => floatval($_POST['amount']), ':ctc' => $chargeToClient, ':adm' => intval($_POST['id_admin'] ?? 0)]);
+    $stmt->execute([':ord' => $id_order, ':con' => $_POST['concept'], ':amt' => $amount, ':ctc' => $chargeToClient, ':adm' => intval($_POST['id_admin'] ?? 0)]);
     echo json_encode(['status' => 200, 'message' => 'Gasto registrado']);
     exit;
 }
@@ -38,6 +79,75 @@ if (isset($_POST['deleteOrderExpense'])) {
     $stmt = $db->prepare("DELETE FROM order_expenses WHERE id_expense=:id");
     $stmt->execute([':id' => intval($_POST['id_expense'])]);
     echo json_encode(['status' => 200, 'message' => 'Gasto eliminado']);
+    exit;
+}
+
+//=====================================
+// PLANTILLAS DE GASTOS DE ALMACÉN
+//=====================================
+if (isset($_POST['getWarehouseExpenseTemplates'])) {
+    $db = LocalConnection::connect();
+    try {
+        @$db->exec("CREATE TABLE IF NOT EXISTS `warehouse_expense_templates` (
+            `id_template` INT AUTO_INCREMENT PRIMARY KEY,
+            `concept_template` VARCHAR(255) NOT NULL,
+            `amount_template` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            `charge_to_client_template` TINYINT(1) NOT NULL DEFAULT 0,
+            `date_created_template` DATE NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+    } catch (Throwable $e) {}
+    
+    $stmt = $db->query("SELECT * FROM warehouse_expense_templates ORDER BY id_template DESC");
+    echo json_encode(['status' => 200, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    exit;
+}
+
+if (isset($_POST['saveWarehouseExpenseTemplate'])) {
+    pos_require_role(['admin', 'superadmin', 'cajero', 'despachador', 'despachador_laboratorio']);
+    $db = LocalConnection::connect();
+    try {
+        @$db->exec("CREATE TABLE IF NOT EXISTS `warehouse_expense_templates` (
+            `id_template` INT AUTO_INCREMENT PRIMARY KEY,
+            `concept_template` VARCHAR(255) NOT NULL,
+            `amount_template` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            `charge_to_client_template` TINYINT(1) NOT NULL DEFAULT 0,
+            `date_created_template` DATE NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+    } catch (Throwable $e) {}
+
+    $id = intval($_POST['id_template'] ?? 0);
+    $concept = $_POST['concept'] ?? '';
+    $amount = floatval($_POST['amount'] ?? 0);
+    $chargeToClient = intval($_POST['charge_to_client'] ?? 0) ? 1 : 0;
+
+    if (empty($concept)) {
+        echo json_encode(['status' => 400, 'message' => 'El concepto es requerido']);
+        exit;
+    }
+
+    if ($id > 0) {
+        $stmt = $db->prepare("UPDATE warehouse_expense_templates SET concept_template=:c, amount_template=:a, charge_to_client_template=:ctc WHERE id_template=:id");
+        $stmt->execute([':c' => $concept, ':a' => $amount, ':ctc' => $chargeToClient, ':id' => $id]);
+        echo json_encode(['status' => 200, 'message' => 'Plantilla de gasto actualizada']);
+    } else {
+        $stmt = $db->prepare("INSERT INTO warehouse_expense_templates (concept_template, amount_template, charge_to_client_template, date_created_template) VALUES (:c, :a, :ctc, CURDATE())");
+        $stmt->execute([':c' => $concept, ':a' => $amount, ':ctc' => $chargeToClient]);
+        echo json_encode(['status' => 200, 'message' => 'Plantilla de gasto creada', 'id_template' => $db->lastInsertId()]);
+    }
+    exit;
+}
+
+if (isset($_POST['deleteWarehouseExpenseTemplate'])) {
+    pos_require_role(['admin', 'superadmin', 'cajero', 'despachador', 'despachador_laboratorio']);
+    $db = LocalConnection::connect();
+    $id = intval($_POST['id_template'] ?? 0);
+    if ($id > 0) {
+        $stmt = $db->prepare("DELETE FROM warehouse_expense_templates WHERE id_template=:id");
+        $stmt->execute([':id' => $id]);
+        echo json_encode(['status' => 200, 'message' => 'Plantilla de gasto eliminada']);
+    } else {
+        echo json_encode(['status' => 400, 'message' => 'ID inválido']);
+    }
     exit;
 }
 
@@ -62,10 +172,12 @@ if (isset($_POST['getPendingDispatchOrders'])) {
 
     $stmt = $db->prepare("
         SELECT o.*,
-               c.name_client, c.phone_client,
-               a.name_admin AS vendedor_name,
-               COALESCE(sp.has_proof, 0) AS has_proof,
-               sp.proof_file
+               c.name_client, c.surname_client, c.phone_client, c.email_client, c.dni_client, c.nit_client, c.address_client,
+               CONCAT(a.name_admin, ' ', COALESCE(a.surname_admin, '')) AS vendedor_name,
+               COALESCE(sp.has_proof, CASE WHEN o.qr_ref_order != '' OR o.transfer_order != '' THEN 1 ELSE 0 END) AS has_proof,
+               COALESCE(sp.proof_file, NULLIF(o.qr_ref_order, ''), NULLIF(o.transfer_order, '')) AS proof_file,
+               COALESCE((SELECT SUM(amount_expense) FROM order_expenses WHERE id_order_expense = o.id_order AND charge_to_client_expense = 1), 0) AS client_expenses_total,
+               COALESCE((SELECT SUM(amount_expense) FROM order_expenses WHERE id_order_expense = o.id_order AND charge_to_client_expense = 0), 0) AS company_expenses_total
         FROM orders o
         LEFT JOIN clients c ON o.id_client_order = c.id_client
         LEFT JOIN admins a ON o.id_admin_order = a.id_admin
@@ -77,10 +189,63 @@ if (isset($_POST['getPendingDispatchOrders'])) {
             GROUP BY id_order_payment
         ) sp ON sp.id_order_payment = o.id_order
         WHERE o.status_order = 'Pendiente Despacho'
-          AND (:office = 0 OR o.id_office_order = :office2)
-        ORDER BY o.date_created_order DESC
+          AND (
+              :office = 0 
+              OR o.id_office_order = :office2
+              OR a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office3)
+          )
+        ORDER BY o.id_order DESC
     ");
-    $stmt->execute([':office' => $officeId, ':office2' => $officeId]);
+    $stmt->execute([':office' => $officeId, ':office2' => $officeId, ':office3' => $officeId]);
+    echo json_encode(['status' => 200, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    exit;
+}
+
+//=====================================
+// HISTORIAL DE ÓRDENES DESPACHADAS
+//=====================================
+if (isset($_POST['getDispatchedOrdersHistory'])) {
+    $db = LocalConnection::connect();
+    $officeId    = intval($_POST['id_office']    ?? 0);
+    $warehouseId = intval($_POST['id_warehouse'] ?? 0);
+
+    if ($warehouseId > 0) {
+        $stmtWH = $db->prepare("SELECT id_office_warehouse FROM warehouses WHERE id_warehouse = :wh LIMIT 1");
+        $stmtWH->execute([':wh' => $warehouseId]);
+        $parentOffice = intval($stmtWH->fetchColumn());
+        if ($parentOffice > 0) {
+            $officeId = $parentOffice;
+        }
+    }
+
+    $stmt = $db->prepare("
+        SELECT o.*,
+               c.name_client, c.surname_client, c.phone_client, c.email_client, c.dni_client, c.nit_client, c.address_client,
+               CONCAT(a.name_admin, ' ', COALESCE(a.surname_admin, '')) AS vendedor_name,
+               COALESCE(sp.has_proof, CASE WHEN o.qr_ref_order != '' OR o.transfer_order != '' THEN 1 ELSE 0 END) AS has_proof,
+               COALESCE(sp.proof_file, NULLIF(o.qr_ref_order, ''), NULLIF(o.transfer_order, '')) AS proof_file,
+               COALESCE((SELECT SUM(amount_expense) FROM order_expenses WHERE id_order_expense = o.id_order AND charge_to_client_expense = 1), 0) AS client_expenses_total,
+               COALESCE((SELECT SUM(amount_expense) FROM order_expenses WHERE id_order_expense = o.id_order AND charge_to_client_expense = 0), 0) AS company_expenses_total
+        FROM orders o
+        LEFT JOIN clients c ON o.id_client_order = c.id_client
+        LEFT JOIN admins a ON o.id_admin_order = a.id_admin
+        LEFT JOIN (
+            SELECT id_order_payment,
+                   MAX(CASE WHEN file_payment IS NOT NULL AND file_payment != '' THEN 1 ELSE 0 END) AS has_proof,
+                   MAX(file_payment) AS proof_file
+            FROM sale_payments
+            GROUP BY id_order_payment
+        ) sp ON sp.id_order_payment = o.id_order
+        WHERE o.status_order = 'Despachado'
+          AND (
+              :office = 0 
+              OR o.id_office_order = :office2
+              OR a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office3)
+          )
+        ORDER BY o.id_order DESC
+        LIMIT 100
+    ");
+    $stmt->execute([':office' => $officeId, ':office2' => $officeId, ':office3' => $officeId]);
     echo json_encode(['status' => 200, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     exit;
 }
@@ -158,9 +323,11 @@ function posStoreSalePaymentFile($file) {
     if (!isset($allowed[$ext])) {
         throw new Exception('Formato no permitido (use JPG, PNG, WEBP o PDF)');
     }
-    $mime = function_exists('mime_content_type') ? mime_content_type($file['tmp_name']) : $allowed[$ext];
-    if ($mime !== $allowed[$ext]) {
-        throw new Exception('El contenido del archivo no coincide con su extensi�n');
+    if ($ext === 'pdf') {
+        $content = file_get_contents($file['tmp_name'], false, null, 0, 4);
+        if ($content !== '%PDF') {
+            throw new Exception('El archivo no parece ser un PDF válido.');
+        }
     }
     $dir = __DIR__ . '/../views/assets/files/comprobantes';
     if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
@@ -902,17 +1069,6 @@ function updateCashTotals($db, $idCash) {
     $stmtEf->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
     $sales_efectivo = floatval($stmtEf->fetchColumn() ?: 0);
 
-    // 4. Obtener gastos ligados a las ordenes que asume la empresa (charge_to_client_expense = 0)
-    $stmtOE = $db->prepare("
-        SELECT SUM(oe.amount_expense) 
-        FROM order_expenses oe
-        JOIN orders o ON oe.id_order_expense = o.id_order
-        WHERE o.id_office_order = :o AND o.date_order >= :start AND o.date_order <= :end
-          AND oe.charge_to_client_expense = 0
-    ");
-    $stmtOE->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
-    $order_expenses = floatval($stmtOE->fetchColumn() ?: 0);
-
     $stmtQr = $db->prepare("SELECT SUM(total_order) FROM orders WHERE id_office_order = :o AND status_order IN ('Completada', 'Venta Confirmada') AND method_order = 'QR' AND date_order >= :start AND date_order <= :end");
     $stmtQr->execute([':o' => $officeId, ':start' => $startDate, ':end' => $endDate]);
     $sales_qr = floatval($stmtQr->fetchColumn() ?: 0);
@@ -922,15 +1078,17 @@ function updateCashTotals($db, $idCash) {
 
     $money_cash = $sales + $incomes;
     $start_cash = floatval($cash['start_cash']);
-    $end_cash = $start_cash + $money_cash - $bills - $order_expenses;
+    $end_cash = $start_cash + $money_cash - $bills;
     $diff_cash = $end_cash; // Expected final cash
     
-    $stmtU = $db->prepare("UPDATE cashs SET bills_cash = :b, money_cash = :m, end_cash = :e, diff_cash = :d WHERE id_cash = :id");
+    $stmtU = $db->prepare("UPDATE cashs SET bills_cash = :b, money_cash = :m, end_cash = :e, diff_cash = :d, cash_efectivo = :cef, cash_qr = :cqr WHERE id_cash = :id");
     $stmtU->execute([
-        ':b' => $bills + $order_expenses,
+        ':b' => $bills,
         ':m' => $money_cash,
         ':e' => $end_cash,
         ':d' => $diff_cash,
+        ':cef' => $cash_efectivo,
+        ':cqr' => $cash_qr,
         ':id' => $idCash
     ]);
     

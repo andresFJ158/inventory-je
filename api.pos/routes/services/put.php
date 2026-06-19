@@ -90,16 +90,80 @@ if(isset($_GET["id"]) && isset($_GET["nameId"])){
 			}
 
 			// Prevent unauthorized reassignment of id_admin_client on clients
-			if ($table === 'clients' && array_key_exists('id_admin_client', $data)) {
+			if ($table === 'clients') {
 				require_once "models/get.model.php";
-				$adminRows = GetModel::getDataFilter($tableToken, "rol_admin,permissions_admin", "token_".$suffix, $_GET["token"], null, null, null, null);
+				$adminRows = GetModel::getDataFilter($tableToken, "rol_admin,permissions_admin,id_admin", "token_".$suffix, $_GET["token"], null, null, null, null);
 				$adminRow  = !empty($adminRows) ? $adminRows[0] : null;
 				$role      = $adminRow->rol_admin ?? '';
+				$idAdmin   = intval($adminRow->id_admin ?? 0);
 				$perms     = json_decode(urldecode($adminRow->permissions_admin ?? '{}'), true);
-				$canManage = in_array($role, ['superadmin', 'admin'])
-					|| ($role === 'vendedor' && ($perms['gestionar_clientes'] ?? '') === 'on');
-				if (!$canManage) {
-					unset($data['id_admin_client']);
+				
+				if (array_key_exists('id_admin_client', $data)) {
+					$canManage = in_array($role, ['superadmin', 'admin'])
+						|| ($role === 'vendedor' && ($perms['gestionar_clientes'] ?? '') === 'on');
+					if (!$canManage) {
+						unset($data['id_admin_client']);
+					}
+				}
+
+				if ($role === 'vendedor' || $role === 'cajero') {
+					$db = Connection::connect();
+					$stmtC = $db->prepare("SELECT id_admin_client FROM clients WHERE id_client = :id LIMIT 1");
+					$stmtC->execute([':id' => intval($_GET["id"])]);
+					$clientOwner = intval($stmtC->fetchColumn());
+
+					if ($role === 'vendedor') {
+						if ($clientOwner !== $idAdmin) {
+							http_response_code(403);
+							echo json_encode(['status' => 403, 'results' => 'No tiene permiso para editar este cliente']);
+							return;
+						}
+					} else {
+						// Cajero: can only edit cashier clients or legacy ones (id_admin_client = 0)
+						$stmtRole = $db->prepare("SELECT rol_admin FROM admins WHERE id_admin = :id LIMIT 1");
+						$stmtRole->execute([':id' => $clientOwner]);
+						$ownerRole = $stmtRole->fetchColumn();
+
+						if ($clientOwner !== 0 && $ownerRole !== 'cajero') {
+							http_response_code(403);
+							echo json_encode(['status' => 403, 'results' => 'No tiene permiso para editar este cliente']);
+							return;
+						}
+					}
+				}
+			}
+
+			if ($table === 'bills') {
+				require_once "models/get.model.php";
+				$adminRows = GetModel::getDataFilter($tableToken, "rol_admin,id_admin", "token_".$suffix, $_GET["token"], null, null, null, null);
+				$adminRow  = !empty($adminRows) ? $adminRows[0] : null;
+				$role      = $adminRow->rol_admin ?? '';
+				$idAdmin   = intval($adminRow->id_admin ?? 0);
+
+				if ($role === 'vendedor' || $role === 'cajero') {
+					$db = Connection::connect();
+					$stmtB = $db->prepare("SELECT id_admin_bill FROM bills WHERE id_bill = :id LIMIT 1");
+					$stmtB->execute([':id' => intval($_GET["id"])]);
+					$billOwner = intval($stmtB->fetchColumn());
+
+					if ($role === 'vendedor') {
+						if ($billOwner !== $idAdmin) {
+							http_response_code(403);
+							echo json_encode(['status' => 403, 'results' => 'No tiene permiso para editar este gasto']);
+							return;
+						}
+						$data['id_cash_bill'] = 0;
+					} else {
+						$stmtRole = $db->prepare("SELECT rol_admin FROM admins WHERE id_admin = :id LIMIT 1");
+						$stmtRole->execute([':id' => $billOwner]);
+						$ownerRole = $stmtRole->fetchColumn();
+
+						if ($billOwner !== 0 && $ownerRole === 'vendedor') {
+							http_response_code(403);
+							echo json_encode(['status' => 403, 'results' => 'No tiene permiso para editar este gasto']);
+							return;
+						}
+					}
 				}
 			}
 
