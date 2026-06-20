@@ -19,7 +19,6 @@ function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.
 const suppliers = ref<any[]>([])
 const loading = ref(true)
 const search = ref('')
-const filterType = ref<'todos' | 'productos' | 'ambos'>('todos')
 
 const slideOpen = ref(false)
 const editing = ref<any>(null)
@@ -31,30 +30,16 @@ const form = ref({
   supplier_contact: '',
   email_supplier: '',
   ruc_supplier: '',
-  type_supplier: 'ambos' as 'productos' | 'ambos',
+  type_supplier: 'productos' as 'productos',
   status_supplier: 1
 })
 
-const typeOptions = [
-  { value: 'ambos', label: 'Productos y Ambos' },
-  { value: 'productos', label: 'Solo Productos POS' }
-]
 
-const typeColors: Record<string, any> = {
-  productos: 'info',
-  ambos: 'secondary'
-}
-
-const typeLabels: Record<string, string> = {
-  productos: 'POS',
-  ambos: 'Ambos'
-}
 
 function decode(s: string) { return s ? decodeURIComponent(s).replace(/\+/g, ' ') : '' }
 
 const filtered = computed(() => {
   let list = suppliers.value
-  if (filterType.value !== 'todos') list = list.filter(s => s.type_supplier === filterType.value || s.type_supplier === 'ambos')
   if (search.value) {
     const q = search.value.toLowerCase()
     list = list.filter(s => (s.supplier_name || '').toLowerCase().includes(q) || (s.supplier_contact || '').includes(q) || (s.ruc_supplier || '').includes(q))
@@ -76,7 +61,7 @@ async function fetchSuppliers() {
 
 function openCreate() {
   editing.value = null
-  form.value = { id_supplier: 0, supplier_name: '', supplier_contact: '', email_supplier: '', ruc_supplier: '', type_supplier: 'ambos' as 'productos' | 'ambos', status_supplier: 1 }
+  form.value = { id_supplier: 0, supplier_name: '', supplier_contact: '', email_supplier: '', ruc_supplier: '', type_supplier: 'productos', status_supplier: 1 }
   slideOpen.value = true
 }
 
@@ -88,7 +73,7 @@ function openEdit(s: any) {
     supplier_contact: s.supplier_contact || '',
     email_supplier: s.email_supplier || '',
     ruc_supplier: s.ruc_supplier || '',
-    type_supplier: (s.type_supplier === 'productos' ? 'productos' : 'ambos') as 'productos' | 'ambos',
+    type_supplier: 'productos',
     status_supplier: parseInt(s.status_supplier ?? 1)
   }
   slideOpen.value = true
@@ -123,13 +108,13 @@ async function saveSupplier() {
 }
 
 async function deleteSupplier(s: any) {
-  if (!await confirmAction('Desactivar proveedor', `¿Desactivar a "${decode(s.supplier_name)}"?`)) return
+  if (!await confirmAction('Eliminar proveedor', `¿Eliminar a "${decode(s.supplier_name)}"? Esta acción es irreversible.`)) return
   await $fetch<any>(ajaxBase, {
     method: 'POST',
     body: new URLSearchParams({ deleteSupplier: 'ok', id_supplier: String(s.id_supplier) }).toString(),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
   }).catch(() => null)
-  toast.add({ title: 'Proveedor desactivado', color: 'success' })
+  toast.add({ title: 'Proveedor eliminado', color: 'success' })
   await fetchSuppliers()
 }
 
@@ -148,28 +133,19 @@ onMounted(fetchSuppliers)
       </div>
       <div class="flex flex-wrap gap-2 w-full sm:w-auto">
         <UInput v-model="search" icon="i-lucide-search" placeholder="Buscar..." size="sm" class="flex-1 sm:w-52" />
-        <select v-model="filterType" class="text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
-          <option value="todos">Todos</option>
-          <option value="productos">Solo POS</option>
-          <option value="ambos">Ambos</option>
-        </select>
         <UButton color="primary" icon="i-lucide-plus" size="sm" @click="openCreate">Nuevo</UButton>
       </div>
     </div>
 
     <!-- KPIs rápidos -->
-    <div class="grid grid-cols-3 gap-3">
+    <div class="grid grid-cols-2 gap-3">
       <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
         <p class="text-2xl font-black text-slate-800">{{ suppliers.length }}</p>
         <p class="text-xs text-slate-500 mt-0.5">Total</p>
       </div>
       <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
-        <p class="text-2xl font-black text-blue-600">{{ suppliers.filter(s => s.type_supplier === 'productos').length }}</p>
-        <p class="text-xs text-slate-500 mt-0.5">Solo POS</p>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
-        <p class="text-2xl font-black text-secondary-600">{{ suppliers.filter(s => s.type_supplier === 'ambos').length }}</p>
-        <p class="text-xs text-slate-500 mt-0.5">Ambos tipos</p>
+        <p class="text-2xl font-black text-blue-600">{{ suppliers.filter(s => s.status_supplier == 1).length }}</p>
+        <p class="text-xs text-slate-500 mt-0.5">Activos</p>
       </div>
     </div>
 
@@ -200,8 +176,8 @@ onMounted(fetchSuppliers)
               <p v-if="s.ruc_supplier" class="text-xs text-slate-400 font-mono">RUC: {{ s.ruc_supplier }}</p>
             </div>
           </div>
-          <UBadge :color="typeColors[s.type_supplier] || 'neutral'" variant="subtle" size="xs" class="shrink-0">
-            {{ typeLabels[s.type_supplier] || s.type_supplier }}
+          <UBadge :color="s.status_supplier == 1 ? 'success' : 'neutral'" variant="subtle" size="xs" class="shrink-0">
+            {{ s.status_supplier == 1 ? 'Activo' : 'Inactivo' }}
           </UBadge>
         </div>
 
@@ -238,11 +214,6 @@ onMounted(fetchSuppliers)
           </UFormField>
           <UFormField label="Correo Electrónico">
             <UInput v-model="form.email_supplier" type="email" placeholder="proveedor@empresa.com" class="w-full" />
-          </UFormField>
-          <UFormField label="Tipo de Proveedor">
-            <select v-model="form.type_supplier" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
-              <option v-for="o in typeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-            </select>
           </UFormField>
           <div class="flex items-center gap-3 pt-2">
             <USwitch :model-value="form.status_supplier === 1" @update:model-value="(v: boolean) => form.status_supplier = v ? 1 : 0" />

@@ -63,17 +63,17 @@ function pos_refresh_product_stock(PDO $db, int $productId): void {
 }
 
 /** Inserta o actualiza stock de una ubicación y mantiene el total global. */
-function pos_adjust_product_inventory(PDO $db, int $productId, int $officeId, float $qtyDelta, string $movementType = 'ajuste', int $adminId = 0, ?int $transferId = null, string $notes = ''): void {
-	if ($productId <= 0 || $officeId <= 0 || abs($qtyDelta) <= 0) { return; }
+function pos_adjust_product_inventory(PDO $db, int $productId, int $officeId, float $qtyDelta, string $movementType = 'ajuste', int $adminId = 0, ?int $transferId = null, string $notes = '', int $warehouseId = 0): void {
+	if ($productId <= 0 || $officeId < 0 || abs($qtyDelta) <= 0) { return; }
 
 	if ($qtyDelta < 0) {
 		$stmt = $db->prepare("
 			SELECT COALESCE(stock_inventory, 0)
 			FROM product_inventory
-			WHERE id_product_inventory = :prod AND id_office_inventory = :office AND status_inventory = 1
+			WHERE id_product_inventory = :prod AND id_office_inventory = :office AND id_warehouse_inventory = :warehouse AND status_inventory = 1
 			LIMIT 1 FOR UPDATE
 		");
-		$stmt->execute([':prod' => $productId, ':office' => $officeId]);
+		$stmt->execute([':prod' => $productId, ':office' => $officeId, ':warehouse' => $warehouseId]);
 		$current = (float)($stmt->fetchColumn() ?: 0);
 		if ($current + $qtyDelta < -0.0001) {
 			throw new RuntimeException('Stock insuficiente en la ubicación de origen.');
@@ -81,8 +81,8 @@ function pos_adjust_product_inventory(PDO $db, int $productId, int $officeId, fl
 	}
 
 	$stmt = $db->prepare("
-		INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
-		VALUES (:prod, :office, :qty_insert, 1, CURDATE())
+		INSERT INTO product_inventory (id_product_inventory, id_office_inventory, id_warehouse_inventory, stock_inventory, status_inventory, date_created_inventory)
+		VALUES (:prod, :office, :warehouse, :qty_insert, 1, CURDATE())
 		ON DUPLICATE KEY UPDATE
 			stock_inventory = stock_inventory + :qty_update,
 			status_inventory = 1
@@ -90,25 +90,27 @@ function pos_adjust_product_inventory(PDO $db, int $productId, int $officeId, fl
 	$stmt->execute([
 		':prod' => $productId,
 		':office' => $officeId,
+		':warehouse' => $warehouseId,
 		':qty_insert' => $qtyDelta,
 		':qty_update' => $qtyDelta
 	]);
 	pos_refresh_product_stock($db, $productId);
-	pos_record_stock_movement($db, $productId, $officeId, $qtyDelta, $movementType, $adminId, $transferId, $notes);
+	pos_record_stock_movement($db, $productId, $officeId, $qtyDelta, $movementType, $adminId, $transferId, $notes, $warehouseId);
 }
 
 /** Crea un movimiento de stock si la tabla auditora existe. */
-function pos_record_stock_movement(PDO $db, int $productId, int $officeId, float $qty, string $type, int $adminId = 0, ?int $transferId = null, string $notes = ''): void {
+function pos_record_stock_movement(PDO $db, int $productId, int $officeId, float $qty, string $type, int $adminId = 0, ?int $transferId = null, string $notes = '', int $warehouseId = 0): void {
 	try {
 		$stmt = $db->prepare("
 			INSERT INTO stock_movements
-				(id_product_movement, id_office_movement, qty_movement, type_movement, id_admin_movement, id_transfer_movement, notes_movement, date_created_movement)
+				(id_product_movement, id_office_movement, id_warehouse_movement, qty_movement, type_movement, id_admin_movement, id_transfer_movement, notes_movement, date_created_movement)
 			VALUES
-				(:prod, :office, :qty, :type, :admin, :transfer, :notes, NOW())
+				(:prod, :office, :warehouse, :qty, :type, :admin, :transfer, :notes, NOW())
 		");
 		$stmt->execute([
 			':prod' => $productId,
 			':office' => $officeId,
+			':warehouse' => $warehouseId,
 			':qty' => $qty,
 			':type' => $type,
 			':admin' => $adminId,
@@ -213,22 +215,23 @@ function pos_ensure_office_subwarehouse(PDO $db, int $officeId): int {
 }
 
 /** Crea una reposición en tránsito: baja origen ahora y espera confirmación del destino. */
-function pos_create_stock_transfer(PDO $db, int $productId, int $sourceOfficeId, int $destOfficeId, float $qty, int $adminId, string $notes = '', ?int $requestId = null): int {
+function pos_create_stock_transfer(PDO $db, int $productId, int $sourceOfficeId, int $destOfficeId, float $qty, int $adminId, string $notes = '', ?int $requestId = null, int $sourceWarehouseId = 0, int $destWarehouseId = 0): int {
 	if ($productId <= 0 || $sourceOfficeId <= 0 || $destOfficeId <= 0 || $qty <= 0) {
 		throw new InvalidArgumentException('Datos de transferencia inválidos.');
 	}
 
 	$stmt = $db->prepare("
 		INSERT INTO stock_transfers
-			(id_origin_office, id_dest_office, id_product_transfer, qty_transfer, id_admin_transfer,
+			(id_origin_office, id_dest_office, id_dest_warehouse, id_product_transfer, qty_transfer, id_admin_transfer,
 			 notes_transfer, status_transfer, date_created_transfer)
 		VALUES
-			(:origin, :dest, :prod, :qty, :admin,
+			(:origin, :dest, :destWH, :prod, :qty, :admin,
 			 :notes, 'en_transito', CURDATE())
 	");
 	$stmt->execute([
 		':origin' => $sourceOfficeId,
 		':dest' => $destOfficeId,
+		':destWH' => $destWarehouseId,
 		':prod' => $productId,
 		':qty' => $qty,
 		':admin' => $adminId,
@@ -236,7 +239,7 @@ function pos_create_stock_transfer(PDO $db, int $productId, int $sourceOfficeId,
 	]);
 	$transferId = intval($db->lastInsertId());
 
-	pos_adjust_product_inventory($db, $productId, $sourceOfficeId, -$qty, 'transfer_salida', $adminId, $transferId, $notes);
+	pos_adjust_product_inventory($db, $productId, $sourceOfficeId, -$qty, 'transfer_salida', $adminId, $transferId, $notes, $sourceWarehouseId);
 
 	$subId = pos_ensure_office_subwarehouse($db, $destOfficeId);
 	if ($subId > 0) {
@@ -282,9 +285,10 @@ function pos_confirm_stock_transfer(PDO $db, int $transferId, int $destOfficeId,
 	$productId = intval($transfer['id_product_transfer']);
 	$qty = (float)$transfer['qty_transfer'];
 	$officeId = intval($transfer['id_dest_office']);
+	$destWarehouseId = intval($transfer['id_dest_warehouse']);
 	$notes = $transfer['notes_transfer'] ?: 'Recepción confirmada';
 
-	pos_adjust_product_inventory($db, $productId, $officeId, $qty, 'transfer_ingreso', $adminId, $transferId, $notes);
+	pos_adjust_product_inventory($db, $productId, $officeId, $qty, 'transfer_ingreso', $adminId, $transferId, $notes, $destWarehouseId);
 
 	$stmtUpd = $db->prepare("
 		UPDATE stock_transfers

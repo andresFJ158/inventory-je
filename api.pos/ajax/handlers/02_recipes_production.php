@@ -8,7 +8,7 @@ if(isset($_POST["saveRecipe"])){
 		$name_product = trim($_POST['name_product']);
 		$batch_size = (float)$_POST['batch_size'];
 		$unit_batch = trim($_POST['unit_batch']);
-		$id_office = (int)$_POST['id_office'];
+		$id_office = 0; // Recipes and production always belong to Lab (ID 0)
 		$id_admin = (int)$_POST['id_admin'];
 		$existing_product_id = isset($_POST['existing_product_id']) ? (int)$_POST['existing_product_id'] : 0;
 
@@ -128,7 +128,7 @@ if(isset($_POST["completeProduction"])){
 	$pkg_final_qty = (float)($_POST['pkg_final_qty'] ?? 0);
 	$pkg_final_name = trim($_POST['pkg_final_name'] ?? '');
     $pkg_envase_type = trim($_POST['pkg_envase_type'] ?? 'und');
-	$id_office = $_POST['id_office'] ?? 1; // Default or taken from session
+	$id_office = 0; // Lab production always dumps to Lab warehouse (ID 0)
 	
 	$real_bulk_qty = isset($_POST['real_bulk_qty']) && $_POST['real_bulk_qty'] !== '' 
 		? (float)$_POST['real_bulk_qty'] 

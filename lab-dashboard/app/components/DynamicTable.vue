@@ -251,11 +251,12 @@ const canEditOrDelete = computed(() => {
 const canCreateRecord = computed(() => {
   if (!moduleConfig.value) return false
   
+  const isSuperOrAdmin = auth.role === 'superadmin' || auth.role === 'admin'
+
   if (moduleConfig.value.title_module === 'products') {
-    return auth.role === 'lab_admin'
+    return auth.role === 'lab_admin' || isSuperOrAdmin
   }
   
-  const isSuperOrAdmin = auth.role === 'superadmin' || auth.role === 'admin'
   if (isSuperOrAdmin) return true
   if (auth.role === 'lab_admin' && ['purchases', 'suppliers', 'categories'].includes(moduleConfig.value.title_module)) {
     return true

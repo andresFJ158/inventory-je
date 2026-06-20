@@ -16,3 +16,229 @@ CONTENT_TYPE: application/x-www-form-urlencoded
 RAW INPUT: id_supplier_purchase=1&id_office_purchase=2&id_product_purchase=30&cost_purchase=40&utility_purchase=100%25&qty_purchase=50&invest_purchase=2000
 POST ARRAY: {"id_supplier_purchase":"1","id_office_purchase":"2","id_product_purchase":"30","cost_purchase":"40","utility_purchase":"100%","qty_purchase":"50","invest_purchase":"2000"}
 ---
+2026-06-17 11:43:17
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_supply=etiqueta&unit_supply=unidad&stock_supply=1&price_supply=1&id_supplier_supply=0&id_office_supply=7&status_supply=1
+POST ARRAY: {"name_supply":"etiqueta","unit_supply":"unidad","stock_supply":"1","price_supply":"1","id_supplier_supply":"0","id_office_supply":"7","status_supply":"1"}
+---
+2026-06-17 13:18:03
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_supply=aaaaaa&unit_supply=unidad&stock_supply=0&price_supply=11&id_supplier_supply=4&id_office_supply=3&status_supply=1
+POST ARRAY: {"name_supply":"aaaaaa","unit_supply":"unidad","stock_supply":"0","price_supply":"11","id_supplier_supply":"4","id_office_supply":"3","status_supply":"1"}
+---
+2026-06-17 13:53:45
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: dni_client=11111&name_client=nicolas&surname_client=guzman&email_client=nico%40gmail.com&address_client=adasdas&phone_client=12312312&id_office_client=3&id_admin_client=16
+POST ARRAY: {"dni_client":"11111","name_client":"nicolas","surname_client":"guzman","email_client":"nico@gmail.com","address_client":"adasdas","phone_client":"12312312","id_office_client":"3","id_admin_client":"16"}
+---
+2026-06-17 20:16:24
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=nicolas&surname_admin=guzman&email_admin=nico%40gmail.com&password_admin=12345678&rol_admin=vendedor&id_office_admin=4&id_warehouse_admin=0&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22on%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22off%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22off%22%2C%22ordenes%22%3A%22on%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22on%22%2C%22gastos%22%3A%22on%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22off%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22on%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22on%22%
+POST ARRAY: {"name_admin":"nicolas","surname_admin":"guzman","email_admin":"nico@gmail.com","password_admin":"12345678","rol_admin":"vendedor","id_office_admin":"4","id_warehouse_admin":"0","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"on\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"off\",\"combos\":\"off\",\"compras\":\"off\",\"ordenes\":\"on\",\"ventas\":\"off\",\"caja\":\"on\",\"gastos\":\"on\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"off\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"on\",\"reportes_empresa\":\"off\",\"qrs\":\"on\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-17 20:24:22
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_product_purchase=18&cost_purchase=1&qty_purchase=1&invest_purchase=1&id_office_purchase=0
+POST ARRAY: {"id_supplier_purchase":"1","id_product_purchase":"18","cost_purchase":"1","qty_purchase":"1","invest_purchase":"1","id_office_purchase":"0"}
+---
+2026-06-17 20:27:10
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_office_purchase=2&id_product_purchase=18&cost_purchase=1&qty_purchase=1&invest_purchase=1
+POST ARRAY: {"id_supplier_purchase":"1","id_office_purchase":"2","id_product_purchase":"18","cost_purchase":"1","qty_purchase":"1","invest_purchase":"1"}
+---
+2026-06-17 20:29:15
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_product_purchase=1&id_office_purchase=6&qty_purchase=10&cost_purchase=10&status_purchase=pagado
+POST ARRAY: {"id_supplier_purchase":"1","id_product_purchase":"1","id_office_purchase":"6","qty_purchase":"10","cost_purchase":"10","status_purchase":"pagado"}
+---
+2026-06-17 20:29:43
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_product_purchase=1&id_office_purchase=6&qty_purchase=10&cost_purchase=10&status_purchase=pagado
+POST ARRAY: {"id_supplier_purchase":"1","id_product_purchase":"1","id_office_purchase":"6","qty_purchase":"10","cost_purchase":"10","status_purchase":"pagado"}
+---
+2026-06-17 20:30:13
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_product_purchase=1&id_office_purchase=6&qty_purchase=10&cost_purchase=10&status_purchase=pagado
+POST ARRAY: {"id_supplier_purchase":"1","id_product_purchase":"1","id_office_purchase":"6","qty_purchase":"10","cost_purchase":"10","status_purchase":"pagado"}
+---
+2026-06-17 20:30:38
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_product_purchase=1&id_office_purchase=6&qty_purchase=10&cost_purchase=10&status_purchase=pagado
+POST ARRAY: {"id_supplier_purchase":"1","id_product_purchase":"1","id_office_purchase":"6","qty_purchase":"10","cost_purchase":"10","status_purchase":"pagado"}
+---
+2026-06-17 20:31:03
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_product_purchase=1&id_office_purchase=6&qty_purchase=10&cost_purchase=10&status_purchase=pagado
+POST ARRAY: {"id_supplier_purchase":"1","id_product_purchase":"1","id_office_purchase":"6","qty_purchase":"10","cost_purchase":"10","status_purchase":"pagado"}
+---
+2026-06-17 20:31:51
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_product_purchase=1&id_office_purchase=6&qty_purchase=10&cost_purchase=10&status_purchase=pagado
+POST ARRAY: {"id_supplier_purchase":"1","id_product_purchase":"1","id_office_purchase":"6","qty_purchase":"10","cost_purchase":"10","status_purchase":"pagado"}
+---
+2026-06-17 20:33:32
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=2&id_office_purchase=1&id_product_purchase=18&cost_purchase=1&qty_purchase=2&invest_purchase=2
+POST ARRAY: {"id_supplier_purchase":"2","id_office_purchase":"1","id_product_purchase":"18","cost_purchase":"1","qty_purchase":"2","invest_purchase":"2"}
+---
+2026-06-19 13:25:25
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=hoola&img_product=&id_category_product=9&sku_product=12313213&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=1&initial_stock_product=0&is_compound_product=0&origin_office_product=3
+POST ARRAY: {"title_product":"hoola","img_product":"","id_category_product":"9","sku_product":"12313213","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"1","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"3"}
+---
+2026-06-19 16:08:26
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: 
+POST ARRAY: []
+---
+2026-06-19 16:10:52
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_office=Sucursal+Montero+&address_office=montero+city&phone_office=12345678&dni_office=12345678
+POST ARRAY: {"title_office":"Sucursal Montero ","address_office":"montero city","phone_office":"12345678","dni_office":"12345678"}
+---
+2026-06-19 16:11:16
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_office=Sucursal+Santa+Cruz&address_office=av+banzer&phone_office=12345678&dni_office=7896541
+POST ARRAY: {"title_office":"Sucursal Santa Cruz","address_office":"av banzer","phone_office":"12345678","dni_office":"7896541"}
+---
+2026-06-19 16:19:45
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_warehouse=Almacen+Ventas&id_office_warehouse=3
+POST ARRAY: {"title_warehouse":"Almacen Ventas","id_office_warehouse":"3"}
+---
+2026-06-19 16:23:15
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_warehouse=Almacen+Vendedores&id_office_warehouse=3
+POST ARRAY: {"title_warehouse":"Almacen Vendedores","id_office_warehouse":"3"}
+---
+2026-06-19 16:23:35
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_warehouse=Almacen+Ventas-SC&id_office_warehouse=3
+POST ARRAY: {"title_warehouse":"Almacen Ventas-SC","id_office_warehouse":"3"}
+---
+2026-06-19 16:23:52
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_warehouse=Almacen+Ventas-Mo&id_office_warehouse=2
+POST ARRAY: {"title_warehouse":"Almacen Ventas-Mo","id_office_warehouse":"2"}
+---
+2026-06-19 16:34:14
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=Lab&surname_admin=Admin&email_admin=labadmin%40pos.com&password_admin=12345678&rol_admin=lab_admin&id_office_admin=0&id_warehouse_admin=0&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22off%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22on%22%2C%22productos%22%3A%22on%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22on%22%2C%22ordenes%22%3A%22off%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22off%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22on%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22on%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22off%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22off%22%2
+POST ARRAY: {"name_admin":"Lab","surname_admin":"Admin","email_admin":"labadmin@pos.com","password_admin":"12345678","rol_admin":"lab_admin","id_office_admin":"0","id_warehouse_admin":"0","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"off\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"on\",\"productos\":\"on\",\"combos\":\"off\",\"compras\":\"on\",\"ordenes\":\"off\",\"ventas\":\"off\",\"caja\":\"off\",\"gastos\":\"off\",\"proveedores\":\"on\",\"almacenes\":\"off\",\"almacen\":\"on\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"off\",\"reportes_empresa\":\"off\",\"qrs\":\"off\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"on\",\"insumos_lab\":\"on\",\"proveedores_lab\":\"on\",\"inventario_mp\":\"on\",\"entradas\":\"on\",\"recetas\":\"on\",\"produccion\":\"on\",\"calidad\":\"on\",\"inventario_final\":\"on\"}"}
+---
+2026-06-19 16:36:23
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=Despachador-Vendedores&surname_admin=&email_admin=despachadorV%40pos.com&password_admin=12345678&rol_admin=despachador&id_office_admin=0&id_warehouse_admin=2&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22off%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22off%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22on%22%2C%22ordenes%22%3A%22off%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22off%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22on%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22on%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22off%22%2C%22reportes_empresa%22%3A%22off%22%2C%
+POST ARRAY: {"name_admin":"Despachador-Vendedores","surname_admin":"","email_admin":"despachadorV@pos.com","password_admin":"12345678","rol_admin":"despachador","id_office_admin":"0","id_warehouse_admin":"2","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"off\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"off\",\"combos\":\"off\",\"compras\":\"on\",\"ordenes\":\"off\",\"ventas\":\"off\",\"caja\":\"off\",\"gastos\":\"off\",\"proveedores\":\"on\",\"almacenes\":\"off\",\"almacen\":\"on\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"off\",\"reportes_empresa\":\"off\",\"qrs\":\"off\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-19 16:37:08
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=Despachador-Ventas&surname_admin=&email_admin=despachador2%40pos.com&password_admin=12345678&rol_admin=despachador&id_office_admin=0&id_warehouse_admin=3&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22off%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22off%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22on%22%2C%22ordenes%22%3A%22off%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22off%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22on%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22on%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22off%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qr
+POST ARRAY: {"name_admin":"Despachador-Ventas","surname_admin":"","email_admin":"despachador2@pos.com","password_admin":"12345678","rol_admin":"despachador","id_office_admin":"0","id_warehouse_admin":"3","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"off\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"off\",\"combos\":\"off\",\"compras\":\"on\",\"ordenes\":\"off\",\"ventas\":\"off\",\"caja\":\"off\",\"gastos\":\"off\",\"proveedores\":\"on\",\"almacenes\":\"off\",\"almacen\":\"on\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"off\",\"reportes_empresa\":\"off\",\"qrs\":\"off\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-19 16:41:03
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=Vendedor&surname_admin=&email_admin=vendedor%40pos.com&password_admin=12345678&rol_admin=vendedor&id_office_admin=3&id_warehouse_admin=2&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22on%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22off%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22off%22%2C%22ordenes%22%3A%22on%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22on%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22off%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22on%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22on%22%2C
+POST ARRAY: {"name_admin":"Vendedor","surname_admin":"","email_admin":"vendedor@pos.com","password_admin":"12345678","rol_admin":"vendedor","id_office_admin":"3","id_warehouse_admin":"2","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"on\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"off\",\"combos\":\"off\",\"compras\":\"off\",\"ordenes\":\"on\",\"ventas\":\"off\",\"caja\":\"on\",\"gastos\":\"off\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"off\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"on\",\"reportes_empresa\":\"off\",\"qrs\":\"on\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-19 20:09:54
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=Cajero-SCZ&surname_admin=&email_admin=cajero%40pos.com&password_admin=12345678&rol_admin=cajero&id_office_admin=3&id_warehouse_admin=3&id_inventory_admin=0&pct_commission_admin=2&status_admin=1&permissions_admin=%7B%22pos%22%3A%22on%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22on%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22off%22%2C%22ordenes%22%3A%22on%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22on%22%2C%22gastos%22%3A%22on%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22off%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22on%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22on%22%2C%22g
+POST ARRAY: {"name_admin":"Cajero-SCZ","surname_admin":"","email_admin":"cajero@pos.com","password_admin":"12345678","rol_admin":"cajero","id_office_admin":"3","id_warehouse_admin":"3","id_inventory_admin":"0","pct_commission_admin":"2","status_admin":"1","permissions_admin":"{\"pos\":\"on\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"on\",\"combos\":\"off\",\"compras\":\"off\",\"ordenes\":\"on\",\"ventas\":\"off\",\"caja\":\"on\",\"gastos\":\"on\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"off\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"on\",\"reportes_empresa\":\"off\",\"qrs\":\"on\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-19 20:10:54
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=Cajero-Mo&surname_admin=&email_admin=cajero1%40pos.com&password_admin=12345678&rol_admin=cajero&id_office_admin=2&id_warehouse_admin=4&id_inventory_admin=0&pct_commission_admin=3&status_admin=1&permissions_admin=%7B%22pos%22%3A%22on%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22on%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22off%22%2C%22ordenes%22%3A%22on%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22on%22%2C%22gastos%22%3A%22on%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22off%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22on%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22on%22%2C%22g
+POST ARRAY: {"name_admin":"Cajero-Mo","surname_admin":"","email_admin":"cajero1@pos.com","password_admin":"12345678","rol_admin":"cajero","id_office_admin":"2","id_warehouse_admin":"4","id_inventory_admin":"0","pct_commission_admin":"3","status_admin":"1","permissions_admin":"{\"pos\":\"on\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"on\",\"combos\":\"off\",\"compras\":\"off\",\"ordenes\":\"on\",\"ventas\":\"off\",\"caja\":\"on\",\"gastos\":\"on\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"off\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"on\",\"reportes_empresa\":\"off\",\"qrs\":\"on\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-19 20:18:44
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_category=Lacteos&img_category=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1781914602_6a35dbea72577.jpg&order_category=1&status_category=1
+POST ARRAY: {"title_category":"Lacteos","img_category":"http:\/\/localhost:8081\/uploads\/img_1781914602_6a35dbea72577.jpg","order_category":"1","status_category":"1"}
+---
+2026-06-19 20:19:48
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_category=Vinagres&img_category=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1781914768_6a35dc9056c2f.jpg&order_category=2&status_category=1
+POST ARRAY: {"title_category":"Vinagres","img_category":"http:\/\/localhost:8081\/uploads\/img_1781914768_6a35dc9056c2f.jpg","order_category":"2","status_category":"1"}
+---
+2026-06-19 20:32:05
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=Vinagre+de+Manzana&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1781915494_6a35df66a2315.jpg&id_category_product=2&sku_product=1234&unit_product=500ml&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=12345&price_product=25&wholesale_price_product=18&wholesale_qty_product=50&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"Vinagre de Manzana","img_product":"http:\/\/localhost:8081\/uploads\/img_1781915494_6a35df66a2315.jpg","id_category_product":"2","sku_product":"1234","unit_product":"500ml","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"12345","price_product":"25","wholesale_price_product":"18","wholesale_qty_product":"50","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-19 20:32:05 POST_ERROR: Error: Fields in the form do not match the database
+Columns sent: title_product, img_product, id_category_product, sku_product, unit_product, stock_product, discount_product, status_product, id_office_product, code_product, price_product, wholesale_price_product, wholesale_qty_product, initial_stock_product, is_compound_product, origin_office_product
+2026-06-19 20:32:12
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=Vinagre+de+Manzana&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1781915494_6a35df66a2315.jpg&id_category_product=2&sku_product=1234&unit_product=500ml&stock_product=&discount_product=11&status_product=1&id_office_product=0&code_product=12345&price_product=25&wholesale_price_product=18&wholesale_qty_product=50&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"Vinagre de Manzana","img_product":"http:\/\/localhost:8081\/uploads\/img_1781915494_6a35df66a2315.jpg","id_category_product":"2","sku_product":"1234","unit_product":"500ml","stock_product":"","discount_product":"11","status_product":"1","id_office_product":"0","code_product":"12345","price_product":"25","wholesale_price_product":"18","wholesale_qty_product":"50","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-19 20:32:12 POST_ERROR: Error: Fields in the form do not match the database
+Columns sent: title_product, img_product, id_category_product, sku_product, unit_product, stock_product, discount_product, status_product, id_office_product, code_product, price_product, wholesale_price_product, wholesale_qty_product, initial_stock_product, is_compound_product, origin_office_product
+2026-06-19 20:35:28
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=Vinagre+de+Manzana&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1781915706_6a35e03ab7aec.jpg&id_category_product=2&sku_product=12356&unit_product=500ml&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=&price_product=30&wholesale_price_product=23&wholesale_qty_product=40&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"Vinagre de Manzana","img_product":"http:\/\/localhost:8081\/uploads\/img_1781915706_6a35e03ab7aec.jpg","id_category_product":"2","sku_product":"12356","unit_product":"500ml","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"","price_product":"30","wholesale_price_product":"23","wholesale_qty_product":"40","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-19 20:37:04
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=Leche+de+Coco&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1781915801_6a35e099e122a.jpg&id_category_product=1&sku_product=321&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=13&price_product=28&wholesale_price_product=20&wholesale_qty_product=80&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"Leche de Coco","img_product":"http:\/\/localhost:8081\/uploads\/img_1781915801_6a35e099e122a.jpg","id_category_product":"1","sku_product":"321","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"13","price_product":"28","wholesale_price_product":"20","wholesale_qty_product":"80","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-19 20:46:29
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_supply=Botella+500ml&unit_supply=unidad&stock_supply=10&price_supply=4&id_supplier_supply=0&id_office_supply=0&status_supply=1
+POST ARRAY: {"name_supply":"Botella 500ml","unit_supply":"unidad","stock_supply":"10","price_supply":"4","id_supplier_supply":"0","id_office_supply":"0","status_supply":"1"}
+---
+2026-06-19 22:09:16
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=4&id_office_purchase=0&id_product_purchase=2&cost_purchase=20&qty_purchase=50&invest_purchase=1000&may_product=0&wholesale_quantity=0
+POST ARRAY: {"id_supplier_purchase":"4","id_office_purchase":"0","id_product_purchase":"2","cost_purchase":"20","qty_purchase":"50","invest_purchase":"1000","may_product":"0","wholesale_quantity":"0"}
+---
+2026-06-19 22:11:03
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=4&id_office_purchase=0&id_product_purchase=2&cost_purchase=111&qty_purchase=111&invest_purchase=12321
+POST ARRAY: {"id_supplier_purchase":"4","id_office_purchase":"0","id_product_purchase":"2","cost_purchase":"111","qty_purchase":"111","invest_purchase":"12321"}
+---
+2026-06-19 22:12:29
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=4&id_office_purchase=0&id_product_purchase=2&cost_purchase=111&qty_purchase=111&invest_purchase=12321
+POST ARRAY: {"id_supplier_purchase":"4","id_office_purchase":"0","id_product_purchase":"2","cost_purchase":"111","qty_purchase":"111","invest_purchase":"12321"}
+---

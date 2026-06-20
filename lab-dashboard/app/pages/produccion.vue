@@ -76,7 +76,7 @@ async function fetchRecipes() {
       method: 'POST',
       body: new URLSearchParams({
         getLabRecipes: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -142,7 +142,7 @@ async function fetchProductions() {
       method: 'POST',
       body: new URLSearchParams({
         getLabProductions: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -229,7 +229,7 @@ async function fetchMaterials() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: String(auth.officeId || 6),
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
         is_insumo: '1'
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -375,7 +375,7 @@ async function submitPackaging() {
     payload.append('pkg_final_qty', String(final_qty))
     payload.append('pkg_final_name', final_name)
     payload.append('pkg_envase_type', pkgForm.value.envase_type)
-    payload.append('id_office', String(auth.officeId || 6))
+    payload.append('id_office', String(auth.effectiveOfficeId ?? auth.officeId ?? 0))
     payload.append('real_bulk_qty', real_bulk_qty !== null ? String(real_bulk_qty) : '')
     payload.append('original_bulk_qty', String(cleanFloat(pkgForm.value.total_qty)))
     payload.append('waste_packaged_qty', String(parseFloat(pkgForm.value.waste_packaged_qty) || 0))
@@ -501,7 +501,7 @@ async function handleSaveProduction() {
     body.append('total_qty', String(totalQtyInput.raw.value))
     body.append('cif', String(cifInput.raw.value))
     body.append('mo', String(moInput.raw.value))
-    body.append('id_office', String(auth.officeId || 6))
+    body.append('id_office', String(auth.effectiveOfficeId ?? auth.officeId ?? 0))
     body.append('id_admin', String(auth.user?.id_admin || 1))
 
     const response = await $fetch<any>(apiBase, {
@@ -880,7 +880,7 @@ onMounted(() => {
 
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre a Inventario</label>
-              <input v-model="pkgForm.final_name" type="text" placeholder="Ej: Jabón Líquido 500ml" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+              <input disabled v-model="pkgForm.final_name" type="text" placeholder="Ej: Jabón Líquido 500ml" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed">
             </div>
           </div>
 

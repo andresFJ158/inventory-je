@@ -43,6 +43,17 @@ const vendedoresList = ref<Array<{ value: string; label: string }>>([
   { value: '0', label: 'Sin asignar (Pool)' }
 ])
 
+const customUnitType = ref('gr')
+const customUnitAmount = ref<string | number>('')
+
+watch([customUnitType, customUnitAmount], ([type, amount]) => {
+  if (amount !== undefined && amount !== null && amount !== '') {
+    formModel.value['unit_product'] = `${amount}${type}`
+  } else {
+    formModel.value['unit_product'] = type
+  }
+})
+
 const canManageClients = computed(() => {
   const r = auth.role
   let p: Record<string, string> = {}
@@ -86,7 +97,7 @@ async function loadFormMetadata() {
         }
 
         // Custom skips for 'compras' (purchases)
-        if (props.moduleName === 'compras' && ['price_purchase', 'utility_purchase'].includes(col.title_column)) {
+        if (props.moduleName === 'compras' && ['price_purchase', 'utility_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) {
           continue
         }
 
@@ -212,6 +223,21 @@ async function loadFormMetadata() {
           await loadVendedores()
         }
       }
+
+      // Initialize custom unit fields for products
+      if (moduleConfig.value.title_module === 'products') {
+        const val = formModel.value.unit_product || ''
+        const match = String(val).match(/^([\d.]+)(.*)$/)
+        if (match) {
+          customUnitAmount.value = match[1]
+          customUnitType.value = match[2] || 'gr'
+        } else {
+          customUnitAmount.value = ''
+          const recognizedTypes = ['gr', 'kg', 'ml', 'Lt', 'und']
+          customUnitType.value = recognizedTypes.includes(val) ? val : 'gr'
+        }
+      }
+
     }
   } catch (e) {
     console.error('Error loading form metadata:', e)
@@ -320,13 +346,11 @@ async function handleSubmit() {
 
   // Basic validation for purchases
   if (props.moduleName === 'compras') {
+    // Force office purchase to 0 (Central Warehouse)
+    formModel.value.id_office_purchase = '0'
+    
     if (!formModel.value.id_supplier_purchase) {
       toast.add({ title: 'Por favor selecciona un proveedor.', color: 'error' })
-      saving.value = false
-      return
-    }
-    if (!formModel.value.id_office_purchase) {
-      toast.add({ title: 'Por favor selecciona un almacén.', color: 'error' })
       saving.value = false
       return
     }
@@ -405,14 +429,16 @@ async function handleSubmit() {
         body.append(dateCreatedCol, new Date().toISOString().split('T')[0] || '')
       }
 
-      if (config.title_module === 'products' && auth.role === 'lab_admin') {
+      if (config.title_module === 'products') {
         body.set('id_office_product', '0')
         body.set('initial_stock_product', '0')
         body.set('is_compound_product', '0')
-        body.set('origin_office_product', String(auth.officeId || 0))
+        body.set('origin_office_product', String(auth.effectiveOfficeId ?? auth.officeId ?? 0))
       }
       
-      // (No forzamos id_office_purchase = 0, el usuario debe seleccionarlo)
+      if (config.title_module === 'purchases') {
+        body.set('id_office_purchase', '0')
+      }
     }
 
     let url = `/api/${config.title_module}`
@@ -516,6 +542,7 @@ async function handleImageUpload(colName: string, event: Event) {
     if (data.status === 200 && data.url) {
       formModel.value[colName] = data.url
       toast.add({ title: 'Imagen subida exitosamente', color: 'success' })
+    } else {
       toast.add({ title: 'Error al subir la imagen', color: 'error' })
     }
   } catch (e) {
@@ -561,13 +588,30 @@ watch(() => props.initialData, () => {
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'utility_purchase') && !(moduleConfig?.title_module === 'purchases' && col.title_column === 'price_purchase') && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client')">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && ['utility_purchase', 'price_purchase', 'id_office_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client') && !(moduleConfig?.title_module === 'products' && col.title_column === 'id_office_product')">
 
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
               {{ col.alias_column || col.title_column }}
             </label>
 
-            <div v-if="col.type_column === 'boolean'" class="flex items-center gap-3">
+            <div v-if="col.title_column === 'unit_product'" class="flex gap-2">
+              <select v-model="customUnitType" class="block w-1/3 text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                <option value="gr">Gramos (gr)</option>
+                <option value="kg">Kilogramos (kg)</option>
+                <option value="ml">Mililitros (ml)</option>
+                <option value="Lt">Litros (Lt)</option>
+                <option value="und">Unidades (und)</option>
+              </select>
+              <UInput
+                v-model="customUnitAmount"
+                type="number"
+                step="any"
+                placeholder="Cantidad (Ej: 500)"
+                class="w-2/3"
+              />
+            </div>
+
+            <div v-else-if="col.type_column === 'boolean'" class="flex items-center gap-3">
               <USwitch v-model="formModel[col.title_column]" />
               <span class="text-sm text-slate-600">
                 {{ formModel[col.title_column] ? 'Activo (ON)' : 'Inactivo (OFF)' }}

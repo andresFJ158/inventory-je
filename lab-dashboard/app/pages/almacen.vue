@@ -63,9 +63,10 @@ const officesList = ref<any[]>([])
 
 // Transfer Dialog
 const isTransferOpen = ref(false)
-const transferOffice = ref('')
+const transferWarehouse = ref<any>(null)
 const transferQty = ref(1)
 const transferNotes = ref('')
+const warehousesList = ref<any[]>([])
 
 const apiHeaders = {
   Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
@@ -101,6 +102,19 @@ async function fetchOffices() {
     }
   } catch (e) {
     console.error('Error fetching offices:', e)
+  }
+}
+
+async function fetchWarehouses() {
+  try {
+    const data = await $fetch<any>('/api/warehouses', {
+      headers: apiHeaders
+    })
+    if (data.status === 200 && data.results) {
+      warehousesList.value = data.results
+    }
+  } catch (e) {
+    console.error('Error fetching warehouses:', e)
   }
 }
 
@@ -222,6 +236,7 @@ async function fetchWastePackaged() {
 
 onMounted(async () => {
   await fetchOffices()
+  await fetchWarehouses()
   await fetchAdmins()
   await fetchStock()
   await fetchSubWarehouses()
@@ -288,13 +303,14 @@ async function confirmAssign() {
 }
 
 // Traspasos entre almacenes
-const destinationOffices = computed(() => {
+const destinationWarehouses = computed(() => {
   const currentOfficeId = String(auth.effectiveOfficeId ?? 3)
-  return officesList.value
-    .filter((o: any) => String(o.id_office) !== currentOfficeId)
-    .map((o: any) => ({
-      value: String(o.id_office),
-      label: decodeURIComponent(o.title_office).replace(/\+/g, ' ')
+  const currentWhId = String(auth.warehouseId || 0)
+  return warehousesList.value
+    .filter((w: any) => String(w.id_office_warehouse) !== currentOfficeId || String(w.id_warehouse) !== currentWhId)
+    .map((w: any) => ({
+      value: `${w.id_office_warehouse}_${w.id_warehouse}`, // string value for USelect
+      label: `${decodeURIComponent(w.title_warehouse).replace(/\+/g, ' ')} (${officesMap.value[w.id_office_warehouse] || ''})`
     }))
 })
 
@@ -309,13 +325,13 @@ function onTransferQtyInput(e: Event) {
 function startTransfer(prod: any) {
   selectedProduct.value = prod
   transferQty.value = 1
-  transferOffice.value = ''
+  transferWarehouse.value = ''
   transferNotes.value = ''
   isTransferOpen.value = true
 }
 
 async function confirmTransfer() {
-  if (!selectedProduct.value || !transferOffice.value) {
+  if (!selectedProduct.value || !transferWarehouse.value) {
     toast.add({ title: 'Por favor completa todos los campos requeridos.', color: 'error' })
     return
   }
@@ -328,7 +344,9 @@ async function confirmTransfer() {
 
   processingAction.value = true
   try {
+    const [destOfficeId, destWarehouseId] = String(transferWarehouse.value).split('_')
     const officeId = auth.effectiveOfficeId ?? 3
+    const whId = auth.warehouseId || 0
     const adminId = auth.user?.id_admin || 1
 
     const res = await $fetch<any>('/ajax/pos.ajax.php', {
@@ -337,7 +355,9 @@ async function confirmTransfer() {
         transferStockBetweenOffices: 'true',
         id_product: String(selectedProduct.value.id_product),
         id_office_source: String(officeId),
-        id_office_dest: transferOffice.value,
+        id_warehouse_source: String(whId),
+        id_office_dest: String(destOfficeId),
+        id_warehouse_dest: String(destWarehouseId),
         qty: String(transferQty.value),
         notes: transferNotes.value,
         id_dispatched_by: String(adminId)
@@ -792,8 +812,8 @@ function getMovementLabel(type: string): string {
           <div>
             <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Almacén de Destino *</label>
             <USelect
-              v-model="transferOffice"
-              :items="destinationOffices"
+              v-model="transferWarehouse"
+              :items="destinationWarehouses"
               placeholder="Seleccionar almacén de destino..."
               class="w-full"
               required

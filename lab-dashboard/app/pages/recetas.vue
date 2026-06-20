@@ -102,7 +102,7 @@ async function fetchMaterials() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -124,7 +124,7 @@ async function fetchRecipes() {
       method: 'POST',
       body: new URLSearchParams({
         getLabRecipes: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -215,7 +215,7 @@ async function handleSaveRecipe() {
     body.append('name_product', selectedProduct ? selectedProduct.title_product : newRecipe.value.name_product)
     body.append('batch_size', String(newBatchInput.raw.value))
     body.append('unit_batch', selectedProduct ? (selectedProduct.unit_product || newRecipe.value.unit_batch) : newRecipe.value.unit_batch)
-    body.append('id_office', String(auth.officeId || 6))
+    body.append('id_office', String(auth.effectiveOfficeId ?? auth.officeId ?? 0))
     body.append('id_admin', String(auth.user?.id_admin || 1))
     body.append('ingredients', JSON.stringify(validIngredients))
     body.append('labor', JSON.stringify([]))
@@ -554,7 +554,11 @@ onMounted(() => {
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Unidad de Medida</label>
-                <input v-model="editForm.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 text-sm cursor-not-allowed">
+                <select v-model="editForm.unit_batch" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+                  <option value="L">Litros (L)</option>
+                  <option value="kg">Kilogramos (kg)</option>
+                  <option value="unidad">Unidad</option>
+                </select>
               </div>
             </div>
 
@@ -670,7 +674,11 @@ onMounted(() => {
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Unidad de Medida</label>
-                <input v-model="newRecipe.unit_batch" type="text" disabled placeholder="L" class="block w-full py-2.5 px-3 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 text-sm cursor-not-allowed">
+                <select v-model="newRecipe.unit_batch" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+                  <option value="L">Litros (L)</option>
+                  <option value="kg">Kilogramos (kg)</option>
+                  <option value="unidad">Unidad</option>
+                </select>
               </div>
             </div>
 

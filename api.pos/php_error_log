@@ -81,3 +81,133 @@
 [16-Jun-2026 22:13:05 America/La_Paz] warehouse error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_request_transfer' in 'INSERT INTO'
 [16-Jun-2026 22:19:02 America/La_Paz] [STOCK_MOVEMENT] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.stock_movements' doesn't exist
 [16-Jun-2026 22:19:13 America/La_Paz] [STOCK_MOVEMENT] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.stock_movements' doesn't exist
+[17-Jun-2026 11:04:47 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'NULL', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:13:14 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:14:38 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:14:38 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:14:38 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:15:35 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:15:41 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:16:25 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:16:55 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:30 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:30 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:30 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:30 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:30 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:30 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:30 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:31 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:34 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:34 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:34 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:41 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:41 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:41 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:43 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:43 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:43 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:45 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:45 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:45 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:49 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:49 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:17:49 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'change-me-generate-random-string', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 11:52:12 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'source_type_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\02_recipes_production.php:761
+[17-Jun-2026 12:47:35 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'source_type_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\02_recipes_production.php:761
+[17-Jun-2026 12:47:59 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'source_type_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\02_recipes_production.php:761
+[17-Jun-2026 12:49:33 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'source_type_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\02_recipes_production.php:761
+[17-Jun-2026 12:50:19 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'source_type_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\02_recipes_production.php:761
+[17-Jun-2026 12:50:46 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'source_type_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\02_recipes_production.php:761
+[17-Jun-2026 13:15:09 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'NULL', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 20:11:37 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'NULL', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[17-Jun-2026 20:15:24 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[17-Jun-2026 20:18:57 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[17-Jun-2026 20:27:10 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'SELECT' in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php:35
+Stack trace:
+#0 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(35): PDO->prepare('\r\n\t\tSELECT p.id...')
+#1 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(101): purchase_guard_purchasable_product(Object(PDO), 18)
+#2 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\post.php(103): purchase_guard_validate(Array, 'admin')
+#3 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\routes.php(112): include('C:\\Users\\sebas\\...')
+#4 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\controllers\routes.controller.php(13): include('C:\\Users\\sebas\\...')
+#5 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\index.php(49): RoutesController->index()
+#6 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\router.php(19): require('C:\\Users\\sebas\\...')
+#7 {main}
+  thrown in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php on line 35
+[17-Jun-2026 20:29:15 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'SELECT' in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php:35
+Stack trace:
+#0 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(35): PDO->prepare('\r\n\t\tSELECT p.id...')
+#1 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(101): purchase_guard_purchasable_product(Object(PDO), 1)
+#2 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\post.php(105): purchase_guard_validate(Array, 'admin')
+#3 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\routes.php(112): include('C:\\Users\\sebas\\...')
+#4 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\controllers\routes.controller.php(13): include('C:\\Users\\sebas\\...')
+#5 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\index.php(49): RoutesController->index()
+#6 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\router.php(19): require('C:\\Users\\sebas\\...')
+#7 {main}
+  thrown in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php on line 35
+[17-Jun-2026 20:29:43 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'SELECT' in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php:35
+Stack trace:
+#0 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(35): PDO->prepare('\r\n\t\tSELECT p.id...')
+#1 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(101): purchase_guard_purchasable_product(Object(PDO), 1)
+#2 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\post.php(105): purchase_guard_validate(Array, 'admin')
+#3 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\routes.php(112): include('C:\\Users\\sebas\\...')
+#4 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\controllers\routes.controller.php(13): include('C:\\Users\\sebas\\...')
+#5 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\index.php(49): RoutesController->index()
+#6 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\router.php(19): require('C:\\Users\\sebas\\...')
+#7 {main}
+  thrown in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php on line 35
+[17-Jun-2026 20:30:13 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'SELECT' in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php:35
+Stack trace:
+#0 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(35): PDO->prepare('\r\n\t\tSELECT p.id...')
+#1 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(101): purchase_guard_purchasable_product(Object(PDO), 1)
+#2 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\post.php(105): purchase_guard_validate(Array, 'admin')
+#3 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\routes.php(112): include('C:\\Users\\sebas\\...')
+#4 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\controllers\routes.controller.php(13): include('C:\\Users\\sebas\\...')
+#5 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\index.php(49): RoutesController->index()
+#6 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\router.php(19): require('C:\\Users\\sebas\\...')
+#7 {main}
+  thrown in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php on line 35
+[17-Jun-2026 20:30:38 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_manufactured_product' in 'SELECT' in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php:35
+Stack trace:
+#0 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(35): PDO->prepare('\r\n\t\tSELECT p.id...')
+#1 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(101): purchase_guard_purchasable_product(Object(PDO), 1)
+#2 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\post.php(108): purchase_guard_validate(Array, 'admin')
+#3 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\routes.php(112): include('C:\\Users\\sebas\\...')
+#4 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\controllers\routes.controller.php(13): include('C:\\Users\\sebas\\...')
+#5 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\index.php(49): RoutesController->index()
+#6 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\router.php(19): require('C:\\Users\\sebas\\...')
+#7 {main}
+  thrown in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php on line 35
+[17-Jun-2026 20:31:03 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.is_combo_product' in 'SELECT' in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php:35
+Stack trace:
+#0 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(35): PDO->prepare('\r\n\t\tSELECT p.id...')
+#1 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php(101): purchase_guard_purchasable_product(Object(PDO), 1)
+#2 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\post.php(108): purchase_guard_validate(Array, 'admin')
+#3 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\routes.php(112): include('C:\\Users\\sebas\\...')
+#4 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\controllers\routes.controller.php(13): include('C:\\Users\\sebas\\...')
+#5 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\index.php(49): RoutesController->index()
+#6 C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\router.php(19): require('C:\\Users\\sebas\\...')
+#7 {main}
+  thrown in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\routes\services\purchase.guard.php on line 35
+[19-Jun-2026 13:08:02 America/La_Paz] EXCEPTION in pos.ajax.php: There is no active transaction at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\01_pos_sales.php:338
+[19-Jun-2026 13:39:50 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 13:58:12 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.price_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\06_commerce.php:414
+[19-Jun-2026 13:58:58 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.price_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\06_commerce.php:414
+[19-Jun-2026 13:59:04 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.price_product' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\06_commerce.php:414
+[19-Jun-2026 13:59:41 America/La_Paz] createCombo error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'price_product' in 'INSERT INTO'
+[19-Jun-2026 16:08:26 America/La_Paz] PHP Warning:  Undefined array key 0 in C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\models\connection.php on line 217
+[19-Jun-2026 21:03:59 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\06_commerce.php:913
+[19-Jun-2026 21:04:16 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\06_commerce.php:913
+[19-Jun-2026 21:44:46 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.qty_production' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\04_lab.php:723
+[19-Jun-2026 21:44:46 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'p.qty_production' in 'SELECT' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\04_lab.php:723
+[19-Jun-2026 22:27:39 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\lib\bootstrap.php:98
+[19-Jun-2026 22:27:39 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\lib\bootstrap.php:98
+[19-Jun-2026 22:27:39 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\lib\bootstrap.php:98
+[19-Jun-2026 22:27:39 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\lib\bootstrap.php:98

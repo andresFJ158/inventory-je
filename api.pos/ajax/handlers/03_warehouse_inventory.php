@@ -76,21 +76,24 @@ if (isset($_POST["getMyWarehouseMovements"])) {
 //=====================================
 if (isset($_POST["getPendingInboundTransfers"])) {
 	$id_office = intval($_POST["id_office"]);
+	$id_warehouse = intval($_POST["id_warehouse"] ?? 0);
 	$db = LocalConnection::connect();
 	$stmt = $db->prepare("
-		SELECT st.id_transfer, st.id_origin_office, st.id_dest_office, st.id_product_transfer,
+		SELECT st.id_transfer, st.id_origin_office, st.id_dest_office, st.id_product_transfer, st.id_dest_warehouse,
 			   st.qty_transfer, st.notes_transfer, st.status_transfer,
 			   st.date_created_transfer, p.title_product, p.sku_product, p.unit_product,
-			   o.title_office AS origin_office_name, a.name_admin AS dispatched_by
+			   o.title_office AS origin_office_name, a.name_admin AS dispatched_by, w.title_warehouse AS dest_warehouse_name
 		FROM stock_transfers st
 		JOIN products p ON st.id_product_transfer = p.id_product
 		LEFT JOIN offices o ON st.id_origin_office = o.id_office
 		LEFT JOIN admins a ON st.id_admin_transfer = a.id_admin
+		LEFT JOIN warehouses w ON st.id_dest_warehouse = w.id_warehouse
 		WHERE st.id_dest_office = :office
+		  AND (:warehouse = 0 OR st.id_dest_warehouse = :warehouse)
 		  AND st.status_transfer = 'en_transito'
 		ORDER BY st.id_transfer DESC
 	");
-	$stmt->execute([':office' => $id_office]);
+	$stmt->execute([':office' => $id_office, ':warehouse' => $id_warehouse]);
 	pos_ok(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
@@ -99,21 +102,24 @@ if (isset($_POST["getPendingInboundTransfers"])) {
 //=====================================
 if (isset($_POST["getInboundTransferHistory"])) {
 	$id_office = intval($_POST["id_office"]);
+	$id_warehouse = intval($_POST["id_warehouse"] ?? 0);
 	$db = LocalConnection::connect();
 	$stmt = $db->prepare("
-		SELECT st.id_transfer, st.qty_transfer, st.notes_transfer, st.status_transfer,
+		SELECT st.id_transfer, st.qty_transfer, st.notes_transfer, st.status_transfer, st.id_dest_warehouse,
 			   st.date_created_transfer, p.title_product, p.sku_product, p.unit_product,
-			   o.title_office AS origin_office_name, a.name_admin AS dispatched_by
+			   o.title_office AS origin_office_name, a.name_admin AS dispatched_by, w.title_warehouse AS dest_warehouse_name
 		FROM stock_transfers st
 		JOIN products p ON st.id_product_transfer = p.id_product
 		LEFT JOIN offices o ON st.id_origin_office = o.id_office
 		LEFT JOIN admins a ON st.id_admin_transfer = a.id_admin
+		LEFT JOIN warehouses w ON st.id_dest_warehouse = w.id_warehouse
 		WHERE st.id_dest_office = :office
+		  AND (:warehouse = 0 OR st.id_dest_warehouse = :warehouse)
 		  AND st.status_transfer IN ('recibido', 'rechazado')
 		ORDER BY st.id_transfer DESC
 		LIMIT 100
 	");
-	$stmt->execute([':office' => $id_office]);
+	$stmt->execute([':office' => $id_office, ':warehouse' => $id_warehouse]);
 	pos_ok(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
@@ -417,6 +423,8 @@ if (isset($_POST["transferStockBetweenOffices"])) {
 	$id_product = $_POST["id_product"];
 	$id_office_source = $_POST["id_office_source"];
 	$id_office_dest = $_POST["id_office_dest"];
+	$id_warehouse_source = (int)($_POST["id_warehouse_source"] ?? 0);
+	$id_warehouse_dest = (int)($_POST["id_warehouse_dest"] ?? 0);
 	$qty = $_POST["qty"];
 	$notes = $_POST["notes"];
 	$id_dispatched_by = $_POST["id_dispatched_by"];
@@ -425,7 +433,7 @@ if (isset($_POST["transferStockBetweenOffices"])) {
 	try {
 		$db->beginTransaction();
 
-		pos_create_stock_transfer($db, (int)$id_product, (int)$id_office_source, (int)$id_office_dest, (float)$qty, (int)$id_dispatched_by, $notes);
+		pos_create_stock_transfer($db, (int)$id_product, (int)$id_office_source, (int)$id_office_dest, (float)$qty, (int)$id_dispatched_by, $notes, null, $id_warehouse_source, $id_warehouse_dest);
 
 		$db->commit();
 		echo "ok";
@@ -490,7 +498,7 @@ if (isset($_POST["dispatchDirectToWarehouse"])) {
 			':admin' => $id_dispatched_by
 		]);
 
-		pos_create_stock_transfer($db, (int)$id_product, (int)$id_office_source, (int)$id_office_dest, (float)$qty, (int)$id_dispatched_by, $notes);
+		pos_create_stock_transfer($db, (int)$id_product, (int)$id_office_source, (int)$id_office_dest, (float)$qty, (int)$id_dispatched_by, $notes, null, 0, (int)$id_warehouse_dest);
 
 		$db->commit();
 		echo "ok";
@@ -643,12 +651,12 @@ if (isset($_POST["getWarehouseProducts"])) {
 			SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
 				   pi.stock_inventory as stock
 			FROM products p
-			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.status_inventory = 1
+			INNER JOIN product_inventory pi ON pi.id_product_inventory = p.id_product AND pi.id_office_inventory = :office AND pi.id_warehouse_inventory = :warehouse AND pi.status_inventory = 1
 			WHERE p.status_product = 1
 			HAVING stock > 0
 			ORDER BY p.id_product DESC
 		");
-		$stmt->execute([':office' => $id_office]);
+		$stmt->execute([':office' => $id_office, ':warehouse' => $id_warehouse]);
 		$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 		echo json_encode($results);
 	} else {

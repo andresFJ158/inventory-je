@@ -336,6 +336,7 @@ function getTypeLabel(type: string): string {
             <tr>
               <th class="py-3 pr-4">Producto</th>
               <th class="py-3 px-4">Origen</th>
+              <th class="py-3 px-4">Destino</th>
               <th class="py-3 px-4 text-right">Cantidad</th>
               <th class="py-3 px-4 text-right">Precio POS</th>
               <th class="py-3 pl-4 text-right">Acciones</th>
@@ -348,6 +349,7 @@ function getTypeLabel(type: string): string {
                 <div class="text-xs text-slate-400">{{ row.sku_product || '-' }}</div>
               </td>
               <td class="py-3 px-4 text-slate-600">{{ formatText(row.origin_office_name) || '-' }}</td>
+              <td class="py-3 px-4 text-slate-600 font-semibold">{{ formatText(row.dest_warehouse_name) || '-' }}</td>
               <td class="py-3 px-4 text-right font-mono font-bold">{{ row.qty_transfer }} {{ row.unit_product || '' }}</td>
               <td class="py-3 px-4 text-right font-mono">Bs {{ parseFloat(row.unit_price_transfer || 0).toFixed(2) }}</td>
               <td class="py-3 pl-4">

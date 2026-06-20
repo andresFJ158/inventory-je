@@ -56,10 +56,25 @@ export function useNumericInput(initial: number | string = '', options: NumericI
       return
     }
 
+    if (e.key === '.') {
+      e.preventDefault()
+      const input = e.target as HTMLInputElement
+      const start = input.selectionStart ?? 0
+      const end = input.selectionEnd ?? 0
+      const val = input.value
+      // Solo insertar coma si no hay una ya
+      if (!val.includes(',')) {
+        input.value = val.substring(0, start) + ',' + val.substring(end)
+        input.setSelectionRange(start + 1, start + 1)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+      return
+    }
+
     // Permitir: dígitos, coma, backspace, delete, tab, arrows, ctrl+a/c/v/x
     const allowed = [
       'Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight',
-      'Home', 'End', ',', '.'
+      'Home', 'End', ','
     ]
     if (
       allowed.includes(e.key) ||
@@ -74,11 +89,11 @@ export function useNumericInput(initial: number | string = '', options: NumericI
     const input = e.target as HTMLInputElement
     const cursorPos = input.selectionStart ?? 0
 
-    // Limpiar: solo dígitos y una coma/punto decimal
-    let raw = input.value.replace(/[^\d,\.]/g, '')
-
-    // Si escriben punto (.), tratarlo como coma decimal
-    raw = raw.replace(/\./g, ',')
+    // Limpiar puntos (que son separadores de miles generados por nosotros)
+    let raw = input.value.replace(/\./g, '')
+    
+    // Solo dejar números y coma
+    raw = raw.replace(/[^\d,]/g, '')
 
     // Solo permitir una coma
     const parts = raw.split(',')

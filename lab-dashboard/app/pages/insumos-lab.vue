@@ -51,7 +51,8 @@ const fetchSuppliers = async () => {
 const fetchInsumosLab = async () => {
   loading.value = true
   try {
-    const res = await $fetch<any>(`/api/lab_supplies?linkTo=id_office_supply&equalTo=${auth.effectiveOfficeId || auth.officeId || 6}`, {
+    const officeIdToFetch = auth.effectiveOfficeId ?? auth.officeId ?? 0;
+    const res = await $fetch<any>(`/api/lab_supplies?linkTo=id_office_supply&equalTo=${officeIdToFetch}`, {
       headers: { 'Authorization': API_KEY }
     })
     if (res.status === 200) {
@@ -124,7 +125,7 @@ async function saveInsumoLab() {
       stock_supply: String(form.value.stock),
       price_supply: String(form.value.price),
       id_supplier_supply: form.value.id_supplier || '0',
-      id_office_supply: String(auth.effectiveOfficeId || 0),
+      id_office_supply: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
       status_supply: '1'
     })
 
@@ -261,30 +262,29 @@ function getSupplierName(id: number | string) {
 
           <form class="space-y-4" @submit.prevent="saveInsumoLab">
             <div class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Nombre</label>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Nombre</label>
               <UInput v-model="form.name" placeholder="Ej. Etiqueta" required />
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-1.5">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Unidad de Medida</label>
-                <select v-model="form.unit" required class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
-                  <option v-for="o in unitOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-                </select>
-              </div>
-              <div class="space-y-1.5">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Precio Referencial (Bs.)</label>
-                <UInput v-model.number="form.price" type="number" step="0.01" min="0" required />
-              </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Unidad de Medida</label>
+              <select v-model="form.unit" required class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                <option v-for="o in unitOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
             </div>
 
             <div class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Stock Inicial (Solo para ajuste)</label>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Precio Referencial (Bs.)</label>
+              <UInput v-model.number="form.price" type="number" step="0.01" min="0" required />
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Stock Inicial</label>
               <UInput v-model.number="form.stock" type="number" step="any" min="0" required />
             </div>
 
             <div class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Proveedor (Opcional)</label>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Proveedor (Opcional)</label>
               <select v-model="form.id_supplier" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
                 <option value="">Seleccionar Proveedor</option>
                 <option v-for="s in suppliers" :key="s.id_supplier" :value="String(s.id_supplier)">

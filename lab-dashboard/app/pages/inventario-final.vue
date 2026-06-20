@@ -31,7 +31,7 @@ async function fetchWarehouse() {
       method: 'POST',
       body: new URLSearchParams({
         getLabWarehouse: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -106,7 +106,7 @@ async function submitDispatch() {
       id_product: dispatchForm.value.id_product,
       qty: String(dispatchForm.value.qty),
       id_dispatched_by: String(auth.user?.id_admin || 1),
-      id_office_source: String(auth.officeId || 6),
+      id_office_source: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
       id_warehouse_dest: String(dispatchForm.value.id_warehouse_dest),
       unit_price: String(dispatchForm.value.unit_price || 0),
       wholesale_price: String(dispatchForm.value.wholesale_price || 0),

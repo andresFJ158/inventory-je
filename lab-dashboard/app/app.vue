@@ -330,9 +330,10 @@ const sidebarItems = computed(() => {
       items.push({ label: 'Proveedores Producto', to: '/proveedores', icon: 'i-lucide-truck' })
     }
     items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
-    items.push({ label: 'Insumos Lab', to: '/insumos-lab', icon: 'i-lucide-beaker' })
+    items.push({ label: 'Catálogo Insumos', to: '/insumos-lab', icon: 'i-lucide-beaker' })
     if (hasPerm('proveedores_lab')) items.push({ label: 'Proveedores Lab', to: '/proveedores-lab', icon: 'i-lucide-building-2' })
     items.push({ label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' })
+    items.push({ label: 'Inventario Insumos', to: '/inventario-insumos', icon: 'i-lucide-beaker' })
     items.push({ label: 'Ingresos / Egresos', to: '/ingreso-egreso', icon: 'i-lucide-arrow-left-right' })
     items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })
     items.push({ label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' })

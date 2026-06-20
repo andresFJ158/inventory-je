@@ -5,29 +5,22 @@ const auth = useAuthStore()
 
 const items = ref<any[]>([])
 const loading = ref(true)
-const apiBase = '/ajax/pos.ajax.php'
+const API_KEY = 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
 
 async function fetchInventory() {
   loading.value = true
   try {
-    const response = await $fetch<any>(apiBase, {
-      method: 'POST',
-      body: new URLSearchParams({
-        getLabMaterials: 'ok',
-        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
-        is_insumo: '0'
-      }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    const officeIdToFetch = auth.effectiveOfficeId ?? auth.officeId ?? 0;
+    const response = await $fetch<any>(`/api/lab_supplies?linkTo=id_office_supply&equalTo=${officeIdToFetch}`, {
+      headers: { 'Authorization': API_KEY }
     })
 
-    const data = typeof response === 'string' ? JSON.parse(response) : response
-    if (data.status === 200) {
-      items.value = data.results.map((m: any) => ({
-        id: m.id_raw_material,
-        name: m.name_raw_material,
-        stock: parseFloat(m.stock_raw_material) || 0,
-        unit: m.unit_raw_material,
-        is_insumo: m.is_insumo || 0
+    if (response.status === 200) {
+      items.value = response.results.filter((s: any) => parseInt(s.status_supply) === 1).map((m: any) => ({
+        id: m.id_supply,
+        name: decodeURIComponent(m.name_supply || '').replace(/\+/g, ' '),
+        stock: parseFloat(m.stock_supply) || 0,
+        unit: m.unit_supply,
       }))
     } else {
       items.value = []
@@ -51,13 +44,13 @@ onMounted(() => {
     <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
       <h1 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
         <UIcon
-          name="i-lucide-package"
+          name="i-lucide-beaker"
           class="text-green-500"
         />
-        Inventario de Materia Prima
+        Inventario de Insumos
       </h1>
       <p class="text-slate-500 text-sm mt-1">
-        Existencias físicas de materias primas registradas en el laboratorio.
+        Existencias físicas de insumos registradas en el laboratorio.
       </p>
     </div>
 
@@ -75,13 +68,13 @@ onMounted(() => {
           Cargando existencias desde la base de datos...
         </div>
         <div v-else-if="items.length === 0" class="text-center p-8 text-slate-500">
-          No hay materias primas registradas en el inventario.
+          No hay insumos registrados en el inventario.
         </div>
         
         <table v-else class="w-full text-left text-sm text-slate-700">
           <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
             <tr>
-              <th class="px-6 py-4">Materia Prima</th>
+              <th class="px-6 py-4">Insumo</th>
               <th class="px-6 py-4 text-right">Cantidad Disponible</th>
             </tr>
           </thead>

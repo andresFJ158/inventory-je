@@ -865,12 +865,8 @@ if (isset($_POST['getSuppliers'])) {
 }
 
 if (isset($_POST['saveSupplier'])) {
-    $typeReq = $_POST['type_supplier'] ?? 'ambos';
-    if ($typeReq === 'materias_primas') {
-        pos_require_role(['admin', 'superadmin', 'lab_admin']);
-    } else {
-        pos_require_role(['admin', 'superadmin']);
-    }
+    $typeReq = $_POST['type_supplier'] ?? 'productos';
+    pos_require_role(['admin', 'superadmin', 'lab_admin']);
     $db = LocalConnection::connect();
     $id = intval($_POST['id_supplier'] ?? 0);
     $fields = [
@@ -907,21 +903,12 @@ if (isset($_POST['deleteSupplier'])) {
         echo json_encode(['status' => 403, 'results' => 'Sin permiso para eliminar proveedores']);
         exit;
     }
-    if ($role === 'lab_admin') {
-        $check = $db->prepare("SELECT type_supplier FROM suppliers WHERE id_supplier=:id");
-        $check->execute([':id' => intval($_POST['id_supplier'])]);
-        $type = $check->fetchColumn();
-        if ($type !== 'materias_primas') {
-            http_response_code(403);
-            echo json_encode(['status' => 403, 'results' => 'Solo puedes eliminar proveedores de laboratorio']);
-            exit;
-        }
-    }
-    $stmt = $db->prepare("UPDATE suppliers SET status_supplier=0 WHERE id_supplier=:id");
+    $stmt = $db->prepare("DELETE FROM suppliers WHERE id_supplier=:id");
     $stmt->execute([':id' => intval($_POST['id_supplier'])]);
     echo json_encode(['status' => 200, 'message' => 'Proveedor eliminado']);
     exit;
 }
+
 
 //=====================================
 // FACTURAS

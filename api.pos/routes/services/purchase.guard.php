@@ -83,7 +83,7 @@ function purchase_guard_validate(array $payload, string $role, int $purchaseId =
 	if ($supplierId <= 0) {
 		return ['ok' => false, 'status' => 400, 'message' => 'Selecciona un proveedor para la compra.'];
 	}
-	if ($warehouseId <= 0) {
+	if ($warehouseId < 0) {
 		return ['ok' => false, 'status' => 400, 'message' => 'Selecciona el almacén de ingreso de la compra.'];
 	}
 	if ($productId <= 0) {
