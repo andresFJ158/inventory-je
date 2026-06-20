@@ -216,7 +216,7 @@ function pos_ensure_office_subwarehouse(PDO $db, int $officeId): int {
 
 /** Crea una reposición en tránsito: baja origen ahora y espera confirmación del destino. */
 function pos_create_stock_transfer(PDO $db, int $productId, int $sourceOfficeId, int $destOfficeId, float $qty, int $adminId, string $notes = '', ?int $requestId = null, int $sourceWarehouseId = 0, int $destWarehouseId = 0): int {
-	if ($productId <= 0 || $sourceOfficeId <= 0 || $destOfficeId <= 0 || $qty <= 0) {
+	if ($productId <= 0 || $sourceOfficeId < 0 || $destOfficeId <= 0 || $qty <= 0) {
 		throw new InvalidArgumentException('Datos de transferencia inválidos.');
 	}
 
@@ -245,12 +245,13 @@ function pos_create_stock_transfer(PDO $db, int $productId, int $sourceOfficeId,
 	if ($subId > 0) {
 		$stmtAssign = $db->prepare("
 			INSERT INTO warehouse_assignments
-				(id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, id_request_assignment, type_assignment, notes_assignment, date_created_assignment)
+				(id_sub_warehouse_assignment, id_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, id_request_assignment, type_assignment, notes_assignment, date_created_assignment)
 			VALUES
-				(:sub, :prod, :qty, :admin, :request_id, 'despacho_pendiente', :notes, NOW())
+				(:sub, :wh, :prod, :qty, :admin, :request_id, 'despacho_pendiente', :notes, NOW())
 		");
 		$stmtAssign->execute([
 			':sub' => $subId,
+			':wh' => $destWarehouseId,
 			':prod' => $productId,
 			':qty' => $qty,
 			':admin' => $adminId,
@@ -301,12 +302,13 @@ function pos_confirm_stock_transfer(PDO $db, int $transferId, int $destOfficeId,
 	if ($subId > 0) {
 		$stmtAssign = $db->prepare("
 			INSERT INTO warehouse_assignments
-				(id_sub_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, id_request_assignment, type_assignment, notes_assignment, date_created_assignment)
+				(id_sub_warehouse_assignment, id_warehouse_assignment, id_product_assignment, qty_assignment, id_dispatched_by, id_request_assignment, type_assignment, notes_assignment, date_created_assignment)
 			VALUES
-				(:sub, :prod, :qty, :admin, NULL, 'despacho', :notes, NOW())
+				(:sub, :wh, :prod, :qty, :admin, NULL, 'despacho', :notes, NOW())
 		");
 		$stmtAssign->execute([
 			':sub' => $subId,
+			':wh' => $destWarehouseId,
 			':prod' => $productId,
 			':qty' => $qty,
 			':admin' => $adminId,

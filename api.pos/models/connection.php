@@ -125,6 +125,7 @@ class Connection{
                 PDO::ATTR_EMULATE_PREPARES   => false
             ]);
             $link->exec("SET NAMES utf8mb4");
+            $link->exec("SET time_zone = '-04:00'");
             return $link;
         } catch (PDOException $e) {
             self::logSqlError("db_connect", [

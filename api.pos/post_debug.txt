@@ -242,3 +242,15 @@ CONTENT_TYPE: application/x-www-form-urlencoded
 RAW INPUT: id_supplier_purchase=4&id_office_purchase=0&id_product_purchase=2&cost_purchase=111&qty_purchase=111&invest_purchase=12321
 POST ARRAY: {"id_supplier_purchase":"4","id_office_purchase":"0","id_product_purchase":"2","cost_purchase":"111","qty_purchase":"111","invest_purchase":"12321"}
 ---
+2026-06-20 16:45:24
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_office=&address_office=&phone_office=&dni_office=
+POST ARRAY: {"title_office":"","address_office":"","phone_office":"","dni_office":""}
+---
+2026-06-20 17:15:14
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=4&id_office_purchase=0&id_product_purchase=2&cost_purchase=30&qty_purchase=300&invest_purchase=9000
+POST ARRAY: {"id_supplier_purchase":"4","id_office_purchase":"0","id_product_purchase":"2","cost_purchase":"30","qty_purchase":"300","invest_purchase":"9000"}
+---

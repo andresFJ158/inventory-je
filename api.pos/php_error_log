@@ -211,3 +211,25 @@ Stack trace:
 [19-Jun-2026 22:27:39 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\lib\bootstrap.php:98
 [19-Jun-2026 22:27:39 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\lib\bootstrap.php:98
 [19-Jun-2026 22:27:39 America/La_Paz] EXCEPTION in pos.ajax.php: Unmatched '}' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\lib\bootstrap.php:98
+[20-Jun-2026 17:29:29 America/La_Paz] warehouse error: Datos de transferencia inválidos.
+[20-Jun-2026 17:29:46 America/La_Paz] warehouse error: Datos de transferencia inválidos.
+[20-Jun-2026 17:33:47 America/La_Paz] warehouse error: Datos de transferencia inválidos.
+[20-Jun-2026 17:34:02 America/La_Paz] warehouse error: Datos de transferencia inválidos.
+[20-Jun-2026 18:17:29 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000]: General error: 1271 Illegal mix of collations for operation 'UNION' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:112
+[20-Jun-2026 18:17:34 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000]: General error: 1271 Illegal mix of collations for operation 'UNION' at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:112
+[20-Jun-2026 18:26:37 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:26:37 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:26:37 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:26:37 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:26:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:26:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:26:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:26:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected identifier "st" at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:424
+[20-Jun-2026 18:27:38 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423
+[20-Jun-2026 18:27:38 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423
+[20-Jun-2026 18:27:38 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423
+[20-Jun-2026 18:27:38 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423
+[20-Jun-2026 18:27:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423
+[20-Jun-2026 18:27:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423
+[20-Jun-2026 18:27:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423
+[20-Jun-2026 18:27:43 America/La_Paz] EXCEPTION in pos.ajax.php: syntax error, unexpected token "<", expecting end of file at C:\Users\sebas\Desktop\UFCPPV_Unitech\inventory-je\api.pos\ajax\handlers\03_warehouse_inventory.php:423

@@ -1,3 +1,0 @@
-POST start. Table: products
-POST start. Table: products
-POST start. Table: products

@@ -125,7 +125,8 @@ async function fetchStock() {
     const officeId = auth.effectiveOfficeId ?? 3
     
     // 1. Fetch products inventory of this office
-    const prodData = await $fetch<any>(`/api/relations?rel=product_inventory,products&type=inventory,product&linkTo=id_office_inventory,status_inventory&equalTo=${officeId},1`, {
+    const whId = auth.warehouseId || 0
+    const prodData = await $fetch<any>(`/api/relations?rel=product_inventory,products&type=inventory,product&linkTo=id_office_inventory,status_inventory,id_warehouse_inventory&equalTo=${officeId},1,${whId}`, {
       headers: apiHeaders
     })
     
@@ -138,7 +139,8 @@ async function fetchStock() {
       body: new URLSearchParams({
         getAssignedByOffice: 'true',
         id_office: String(officeId),
-        id_dispatcher: String(adminId)
+        id_dispatcher: String(adminId),
+        id_warehouse: String(whId)
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -196,7 +198,8 @@ async function fetchMovements() {
       body: new URLSearchParams({
         getWarehouseMovements: 'true',
         id_office: String(officeId),
-        id_dispatcher: String(adminId)
+        id_dispatcher: String(adminId),
+        id_warehouse: String(auth.warehouseId || 0)
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -392,14 +395,12 @@ const tabsItems = [
 function exportCSV() {
   if (activeTab.value === 0) {
     if (products.value.length === 0) return
-    const headers = ['SKU', 'Producto', 'Stock Confirmado', 'Asignado', 'En Transito', 'Disponible']
+    const headers = ['SKU', 'Producto', 'Disponible', 'En Transito']
     const rows = products.value.map(p => [
       p.sku_product,
       decodeURIComponent(p.title_product || '').replace(/\+/g, ' '),
-      (parseFloat(p.stock_inventory) || 0) + (assignedMap.value[p.id_product] || 0),
-      assignedMap.value[p.id_product] || 0,
-      pendingMap.value[p.id_product] || 0,
-      parseFloat(p.stock_inventory) || 0
+      parseFloat(p.stock_inventory) || 0,
+      pendingMap.value[p.id_product] || 0
     ])
     const csvContent = "\ufeff" + [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -443,6 +444,9 @@ function getMovementColor(type: string): 'primary' | 'warning' | 'success' | 'er
   if (type === 'devolucion') return 'warning'
   if (type === 'traspaso') return 'success'
   if (type === 'venta') return 'error'
+  if (type === 'rechazado') return 'error'
+  if (type === 'enviado_pendiente') return 'warning'
+  if (type === 'enviado_confirmado') return 'success'
   return 'neutral'
 }
 
@@ -452,6 +456,9 @@ function getMovementLabel(type: string): string {
   if (type === 'devolucion') return 'Devolución'
   if (type === 'traspaso') return 'Traspaso'
   if (type === 'venta') return 'Venta'
+  if (type === 'rechazado') return 'Rechazado'
+  if (type === 'enviado_pendiente') return 'Enviado (pendiente)'
+  if (type === 'enviado_confirmado') return 'Enviado (confirmado)'
   return type || '-'
 }
 </script>
@@ -512,10 +519,8 @@ function getMovementLabel(type: string): string {
                   <th class="p-4">Imagen</th>
                   <th class="p-4">SKU</th>
                   <th class="p-4">Producto</th>
-                  <th class="p-4">Stock Confirmado</th>
-                  <th class="p-4">Asignado</th>
-                  <th class="p-4">En Tránsito</th>
                   <th class="p-4">Disponible (Almacén)</th>
+                  <th class="p-4">En Tránsito</th>
                   <th class="p-4 text-right">Distribución</th>
                 </tr>
               </thead>
@@ -531,17 +536,10 @@ function getMovementLabel(type: string): string {
                   <td class="p-4 font-mono text-xs">{{ prod.sku_product }}</td>
                   <td class="p-4 font-semibold text-slate-800">{{ decodeURIComponent(prod.title_product || '').replace(/\+/g, ' ') }}</td>
                   
-                  <!-- Total Stock = Main + Assigned -->
+                  <!-- Available Stock (In main warehouse office) -->
                   <td class="p-4">
-                    <UBadge color="success" variant="soft" class="font-mono text-xs">
-                      {{ (parseFloat(prod.stock_inventory) || 0) + (assignedMap[prod.id_product] || 0) }}
-                    </UBadge>
-                  </td>
-
-                  <!-- Assigned Stock -->
-                  <td class="p-4">
-                    <UBadge color="info" variant="soft" class="font-mono text-xs">
-                      {{ assignedMap[prod.id_product] || 0 }}
+                    <UBadge color="primary" variant="solid" class="font-mono text-xs">
+                      {{ parseFloat(prod.stock_inventory) || 0 }}
                     </UBadge>
                   </td>
 
@@ -551,12 +549,7 @@ function getMovementLabel(type: string): string {
                     </UBadge>
                   </td>
 
-                  <!-- Available Stock (In main warehouse office) -->
-                  <td class="p-4">
-                    <UBadge color="primary" variant="solid" class="font-mono text-xs">
-                      {{ parseFloat(prod.stock_inventory) || 0 }}
-                    </UBadge>
-                  </td>
+
 
                   <!-- Manual Stock Assignment and Transfer Buttons -->
                   <td class="p-4 text-right">

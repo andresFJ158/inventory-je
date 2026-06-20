@@ -295,6 +295,7 @@ if(isset($_POST["getLabEntries"])){
 				rme.concept_entry,
 				rme.date_entry,
 				rme.date_created_entry,
+				rme.date_updated_entry AS sort_date,
 				rme.id_raw_material_entry,
 				rme.unit_price_entry,
 				rm.name_raw_material,
@@ -318,6 +319,7 @@ if(isset($_POST["getLabEntries"])){
 				rme.concept_entry,
 				rme.date_entry,
 				rme.date_created_entry,
+				rme.date_updated_entry AS sort_date,
 				rme.id_raw_material_entry,
 				rme.unit_price_entry,
 				rm.name_raw_material,
@@ -345,6 +347,7 @@ if(isset($_POST["getLabEntries"])){
 				lse.concept_entry,
 				lse.date_entry,
 				lse.date_created_entry,
+				lse.date_created_entry AS sort_date,
 				CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
 				0 AS unit_price_entry,
 				ls.name_supply AS name_raw_material,
@@ -367,6 +370,7 @@ if(isset($_POST["getLabEntries"])){
 				lse.concept_entry,
 				lse.date_entry,
 				lse.date_created_entry,
+				lse.date_created_entry AS sort_date,
 				CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
 				0 AS unit_price_entry,
 				ls.name_supply AS name_raw_material,
@@ -383,8 +387,8 @@ if(isset($_POST["getLabEntries"])){
 	// Unificar y ordenar por fecha descendente
 	$all = array_merge($fromRaw, $fromLs);
 	usort($all, function($a, $b) {
-		$da = $a['date_created_entry'] ?? $a['date_entry'] ?? '';
-		$db2 = $b['date_created_entry'] ?? $b['date_entry'] ?? '';
+		$da = $a['sort_date'] ?? $a['date_created_entry'] ?? $a['date_entry'] ?? '';
+		$db2 = $b['sort_date'] ?? $b['date_created_entry'] ?? $b['date_entry'] ?? '';
 		return strcmp($db2, $da);
 	});
 
@@ -618,28 +622,33 @@ if(isset($_POST["cancelProduction"])){
 if(isset($_POST["getLabWarehouse"])){
 	$db = LocalConnection::connect();
 	$id_office = intval($_POST["id_office"]);
+	$id_warehouse = isset($_POST["id_warehouse"]) ? intval($_POST["id_warehouse"]) : 0;
 	$stmt = $db->prepare("
 		SELECT 
 			p.id_product AS id_warehouse, 
 			p.title_product AS name_product, 
-			COALESCE((SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = p.id_product AND id_office_inventory = :office_stock LIMIT 1), 0) AS qty_warehouse, 
-			p.rte_product AS cost_warehouse,
+			COALESCE((SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = p.id_product AND id_office_inventory = :office_stock AND (id_warehouse_inventory = :wh_stock OR (:wh_stock = 0 AND id_warehouse_inventory = 0)) LIMIT 1), 0) AS qty_warehouse, 
+			COALESCE(NULLIF(p.rte_product, 0), (SELECT MAX(cost_purchase) FROM purchases WHERE id_product_purchase = p.id_product), 0) AS cost_warehouse,
 			p.price_product AS sale_price_warehouse,
-			(p.price_product > 0) AS price_defined_warehouse
+			(p.price_product > 0) AS price_defined_warehouse,
+			COALESCE(p.wholesale_price_product, 0) AS wholesale_price,
+			COALESCE(p.wholesale_qty_product, 0) AS wholesale_qty
 		FROM products p
 		WHERE p.status_product = 1
-		  AND COALESCE(p.is_compound_product, 0) = 1
 		  AND EXISTS (
 		  	SELECT 1
 		  	FROM product_inventory pi
 		  	WHERE pi.id_product_inventory = p.id_product
 		  	  AND pi.id_office_inventory = :office_exists
+		  	  AND (pi.id_warehouse_inventory = :wh_exists OR (:wh_exists = 0 AND pi.id_warehouse_inventory = 0))
 		  )
 		ORDER BY p.id_product DESC
 	");
 	$stmt->execute([
 		':office_stock' => $id_office,
-		':office_exists' => $id_office
+		':wh_stock' => $id_warehouse,
+		':office_exists' => $id_office,
+		':wh_exists' => $id_warehouse
 	]);
 	echo json_encode([
 		'status' => 200,

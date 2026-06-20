@@ -21,6 +21,7 @@ class SchemaMigrator {
 				id_inventory INT(11) NOT NULL AUTO_INCREMENT,
 				id_product_inventory INT(11) NOT NULL,
 				id_office_inventory INT(11) NOT NULL,
+				id_warehouse_inventory INT(11) DEFAULT 0,
 				stock_inventory DOUBLE DEFAULT 0,
 				status_inventory INT(11) DEFAULT 1,
 				date_created_inventory DATE DEFAULT NULL,
@@ -63,6 +64,7 @@ class SchemaMigrator {
 				id_transfer INT(11) NOT NULL AUTO_INCREMENT,
 				id_origin_office INT(11) NOT NULL,
 				id_dest_office INT(11) NOT NULL,
+				id_dest_warehouse INT(11) DEFAULT 0,
 				id_product_transfer INT(11) NOT NULL,
 				qty_transfer DOUBLE NOT NULL,
 				id_admin_transfer INT(11) NOT NULL,
@@ -117,6 +119,7 @@ class SchemaMigrator {
 			"CREATE TABLE IF NOT EXISTS warehouse_assignments (
 				id_assignment INT(11) NOT NULL AUTO_INCREMENT,
 				id_sub_warehouse_assignment INT(11) NOT NULL,
+				id_warehouse_assignment INT(11) DEFAULT 0,
 				id_product_assignment INT(11) NOT NULL,
 				qty_assignment DOUBLE NOT NULL,
 				id_dispatched_by INT(11) NOT NULL,
@@ -310,7 +313,11 @@ class SchemaMigrator {
 			"ALTER TABLE raw_materials ADD COLUMN is_insumo TINYINT(1) DEFAULT 0 AFTER status_raw_material",
 			"ALTER TABLE bills ADD COLUMN id_cash_bill INT(11) DEFAULT 0",
 			"ALTER TABLE orders ADD COLUMN invoice_order INT(11) DEFAULT 0",
-			"ALTER TABLE production_material_costs ADD COLUMN id_supply_mat_cost INT(11) NULL DEFAULT 0"
+			"ALTER TABLE production_material_costs ADD COLUMN id_supply_mat_cost INT(11) NULL DEFAULT 0",
+			// ── Almacenes múltiples dentro de una misma sucursal ──
+			"ALTER TABLE product_inventory ADD COLUMN id_warehouse_inventory INT(11) DEFAULT 0",
+			"ALTER TABLE warehouse_assignments ADD COLUMN id_warehouse_assignment INT(11) DEFAULT 0 AFTER id_sub_warehouse_assignment",
+			"ALTER TABLE stock_transfers ADD COLUMN id_dest_warehouse INT(11) DEFAULT 0 AFTER id_dest_office"
 		);
 
 		foreach($alterQueries as $query){
@@ -491,6 +498,21 @@ class SchemaMigrator {
 		try {
 			$link->exec("INSERT INTO schema_migrations (version, name) VALUES (4, 'add_id_supply_mat_cost_to_production_material_costs')");
 		} catch (Throwable $e) {}
+		try {
+			$link->exec("INSERT INTO schema_migrations (version, name) VALUES (5, 'multi_warehouse_columns')");
+		} catch (Throwable $e) {}
+
+		// Backfill: asignar id_warehouse_assignment a registros antiguos basándose en el admin que los creó
+		try {
+			$link->exec("
+				UPDATE warehouse_assignments wa
+				JOIN admins a ON wa.id_dispatched_by = a.id_admin
+				SET wa.id_warehouse_assignment = a.id_warehouse_admin
+				WHERE wa.id_warehouse_assignment = 0 AND a.id_warehouse_admin > 0
+			");
+		} catch (Throwable $e) {
+			error_log("[RUNTIME_SCHEMA_BACKFILL] ".$e->getMessage());
+		}
 	}
 
 	private static function ensureProductInventoryUniqueIndex(PDO $link): void {

@@ -2,8 +2,9 @@
 if (isset($_POST["getSubWarehouseStock"])) {
 	$id_admin = $_POST["id_admin"];
 	$id_office = $_POST["id_office"];
+	$id_warehouse = isset($_POST["id_warehouse"]) ? $_POST["id_warehouse"] : 0;
 	$role = $_POST["role"];
-	file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getSubWarehouseStock START - id_office: $id_office\n", FILE_APPEND);
+	file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getSubWarehouseStock START - id_office: $id_office, id_warehouse: $id_warehouse\n", FILE_APPEND);
 	$db = LocalConnection::connect();
 
 	// product_inventory es la fuente única de stock vendible confirmado.
@@ -14,12 +15,13 @@ if (isset($_POST["getSubWarehouseStock"])) {
 		INNER JOIN product_inventory pi
 			ON pi.id_product_inventory = p.id_product
 			AND pi.id_office_inventory = :office
+			AND (pi.id_warehouse_inventory = :wh OR (:wh = 0 AND pi.id_warehouse_inventory = 0))
 			AND pi.status_inventory = 1
 		WHERE p.status_product = 1
 		  AND COALESCE(pi.stock_inventory, 0) > 0
 		ORDER BY p.title_product ASC
 	");
-	$stmt->execute([':office' => $id_office]);
+	$stmt->execute([':office' => $id_office, ':wh' => $id_warehouse]);
 	$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 	file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getSubWarehouseStock - id_admin: $id_admin, id_office: $id_office, role: $role, Results: " . count($results) . "\n", FILE_APPEND);
 	echo json_encode($results);
@@ -56,17 +58,57 @@ if (isset($_POST["getPurchasableProducts"])) {
 //=====================================
 if (isset($_POST["getMyWarehouseMovements"])) {
 	$id_admin = $_POST["id_admin"];
-	$id_office = $_POST["id_office"];
+	$id_office = intval($_POST["id_office"]);
+	$id_warehouse = isset($_POST["id_warehouse"]) ? intval($_POST["id_warehouse"]) : 0;
 	$db = LocalConnection::connect();
+
+	// Consultar stock_transfers: muestra inbound (llegaron), outbound (despachados) y rechazados
 	$stmt = $db->prepare("
-		SELECT wa.date_created_assignment, wa.type_assignment, p.title_product, wa.qty_assignment, wa.notes_assignment
-		FROM warehouse_assignments wa
-		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-		JOIN products p ON wa.id_product_assignment = p.id_product
-		WHERE sw.id_office_sub_warehouse = :office
-		ORDER BY wa.id_assignment DESC
+		SELECT 
+			st.date_created_transfer as date_created_assignment,
+			CASE 
+				WHEN st.status_transfer = 'rechazado' THEN 'rechazado'
+				WHEN st.status_transfer = 'en_transito' AND st.id_dest_office = :office_in AND (:wh_in = 0 OR st.id_dest_warehouse = :wh_in) THEN 'despacho_pendiente'
+				WHEN st.status_transfer = 'recibido' AND st.id_dest_office = :office_in2 AND (:wh_in2 = 0 OR st.id_dest_warehouse = :wh_in2) THEN 'despacho'
+				WHEN st.id_origin_office = :office_out AND st.status_transfer = 'en_transito' THEN 'enviado_pendiente'
+				WHEN st.id_origin_office = :office_out2 AND st.status_transfer = 'recibido' THEN 'enviado_confirmado'
+				ELSE st.status_transfer
+			END as type_assignment,
+			p.title_product,
+			st.qty_transfer as qty_assignment,
+			COALESCE(st.notes_transfer, '') as notes_assignment,
+			origin_o.title_office as origin_office_name,
+			dest_o.title_office as dest_office_name
+		FROM stock_transfers st
+		JOIN products p ON st.id_product_transfer = p.id_product
+		LEFT JOIN offices origin_o ON st.id_origin_office = origin_o.id_office
+		LEFT JOIN offices dest_o ON st.id_dest_office = dest_o.id_office
+		WHERE (
+			(st.id_dest_office = :office_dest AND (:wh_dest = 0 OR st.id_dest_warehouse = :wh_dest))
+			OR
+			(st.id_origin_office = :office_orig)
+		)
+		AND (
+			:wh_filter = 0
+			OR st.id_dest_warehouse = :wh_filter2
+			OR EXISTS (SELECT 1 FROM admins a WHERE a.id_admin = st.id_admin_transfer AND a.id_warehouse_admin = :wh_filter3)
+		)
+		ORDER BY st.id_transfer DESC
 	");
-	$stmt->execute([':office' => $id_office]);
+	$stmt->execute([
+		':office_in'   => $id_office,
+		':wh_in'       => $id_warehouse,
+		':office_in2'  => $id_office,
+		':wh_in2'      => $id_warehouse,
+		':office_out'  => $id_office,
+		':office_out2' => $id_office,
+		':office_dest' => $id_office,
+		':wh_dest'     => $id_warehouse,
+		':office_orig' => $id_office,
+		':wh_filter'   => $id_warehouse,
+		':wh_filter2'  => $id_warehouse,
+		':wh_filter3'  => $id_warehouse,
+	]);
 	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
 	exit;
 }
@@ -237,6 +279,7 @@ if (isset($_POST["getProductPricesForOffice"])) {
 if (isset($_POST["getAssignedByOffice"])) {
 	$id_office = (int)$_POST["id_office"];
 	$id_disp = isset($_POST["id_dispatcher"]) ? (int)$_POST["id_dispatcher"] : 0;
+	$id_warehouse = isset($_POST["id_warehouse"]) ? (int)$_POST["id_warehouse"] : 0;
 	$db = LocalConnection::connect();
 
 	// Resolver la sucursal real del almacen del despachador.
@@ -254,19 +297,19 @@ if (isset($_POST["getAssignedByOffice"])) {
 		}
 	}
 
-	$stmt = $db->prepare("
-		SELECT wa.id_product_assignment as id_product,
-			   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment
-						WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment
-						ELSE 0 END) as total_assigned,
-			   SUM(CASE WHEN wa.type_assignment = 'despacho_pendiente' THEN wa.qty_assignment ELSE 0 END) as total_pending
-		FROM warehouse_assignments wa
-		JOIN sub_warehouses sw ON wa.id_sub_warehouse_assignment = sw.id_sub_warehouse
-		WHERE sw.id_office_sub_warehouse = :office
-		GROUP BY wa.id_product_assignment
+	// En lugar de usar warehouse_assignments (que no limpia despacho_pendiente),
+	// consultamos directamente la tabla stock_transfers para obtener lo que está realmente en tránsito.
+	$stmtPending = $db->prepare("
+		SELECT id_product_transfer as id_product, SUM(qty_transfer) as total_pending
+		FROM stock_transfers st
+		JOIN admins a ON st.id_admin_transfer = a.id_admin
+		WHERE st.id_origin_office = :office
+		  AND st.status_transfer = 'en_transito'
+		  AND (:wh = 0 OR a.id_warehouse_admin = :wh OR a.id_warehouse_admin = 0)
+		GROUP BY id_product_transfer
 	");
-	$stmt->execute([':office' => $officeFilter]);
-	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+	$stmtPending->execute([':office' => $officeFilter, ':wh' => $id_warehouse]);
+	echo json_encode($stmtPending->fetchAll(PDO::FETCH_ASSOC));
 	exit;
 }
 
@@ -333,10 +376,12 @@ if (isset($_POST["getSubWarehousesDetail"])) {
 if (isset($_POST["getWarehouseMovements"])) {
 	$id_office = (int)$_POST["id_office"];
 	$id_disp = isset($_POST["id_dispatcher"]) ? (int)$_POST["id_dispatcher"] : 0;
+	$id_warehouse = isset($_POST["id_warehouse"]) ? (int)$_POST["id_warehouse"] : 0;
 	$db = LocalConnection::connect();
 
-	// Obtener la sucursal real del almac�n del despachador (para Didier que tiene id_office=0)
+	// Obtener la sucursal real del almacen del despachador (para Didier que tiene id_office=0)
 	$officeFilter = $id_office;
+	$dispRow = null;
 	if ($id_disp > 0) {
 		$stmtDisp = $db->prepare("SELECT id_office_admin, id_warehouse_admin FROM admins WHERE id_admin = :id LIMIT 1");
 		$stmtDisp->execute([':id' => $id_disp]);
@@ -363,14 +408,19 @@ if (isset($_POST["getWarehouseMovements"])) {
 		LEFT JOIN admins sale_a ON (wa.type_assignment = 'venta' AND wa.id_dispatched_by = sale_a.id_admin)
 		LEFT JOIN admins disp_a ON (wa.type_assignment = 'despacho' AND wa.id_dispatched_by = disp_a.id_admin)
 		LEFT JOIN offices o ON sw.id_office_sub_warehouse = o.id_office
-		WHERE sw.id_office_sub_warehouse = :office
+		WHERE (sw.id_office_sub_warehouse = :office AND (:wh = 0 OR wa.id_warehouse_assignment = :wh OR wa.id_warehouse_assignment = 0))
 		   OR (wa.type_assignment = 'despacho' AND (
 		         disp_a.id_office_admin = :office 
+		         OR disp_a.id_warehouse_admin = :wh2
 		         OR (disp_a.id_office_admin = 0 AND disp_a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office))
 		      ))
 		ORDER BY wa.id_assignment DESC
 	");
-	$stmt->execute([':office' => $officeFilter]);
+	$stmt->execute([
+		':office' => $officeFilter,
+		':wh' => $id_warehouse,
+		':wh2' => $dispRow['id_warehouse_admin'] ?? 0
+	]);
 	echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
 	exit;
 }
@@ -504,7 +554,7 @@ if (isset($_POST["dispatchDirectToWarehouse"])) {
 		echo "ok";
 	} catch (Exception $e) {
 		$db->rollBack();
-		error_log("warehouse error: " . $e->getMessage()); echo "error: Error al procesar la operación.";
+		error_log("warehouse error: " . $e->getMessage()); echo "error: Error al procesar la operación: " . $e->getMessage();
 	}
 	exit;
 }

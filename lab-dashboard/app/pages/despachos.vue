@@ -23,10 +23,28 @@ function onDispatchQtyInput(e: Event) {
 // State
 const pendingRequests = ref<any[]>([])
 const searchVendedor = ref('')
+const searchHistory = ref('')
+const searchOrders = ref('')
+const searchDispatched = ref('')
 const filteredPendingRequests = computed(() => {
   if (!searchVendedor.value) return pendingRequests.value
   const q = searchVendedor.value.toLowerCase()
   return pendingRequests.value.filter(req => req.name_admin && req.name_admin.toLowerCase().includes(q))
+})
+const filteredHistoryRequests = computed(() => {
+  if (!searchHistory.value) return historyRequests.value
+  const q = searchHistory.value.toLowerCase()
+  return historyRequests.value.filter(req => req.name_admin && req.name_admin.toLowerCase().includes(q))
+})
+const filteredPendingOrders = computed(() => {
+  if (!searchOrders.value) return pendingOrders.value
+  const q = searchOrders.value.toLowerCase()
+  return pendingOrders.value.filter((o: any) => (o.vendedor_name && o.vendedor_name.toLowerCase().includes(q)) || (o.name_client && o.name_client.toLowerCase().includes(q)))
+})
+const filteredDispatchedOrders = computed(() => {
+  if (!searchDispatched.value) return dispatchedOrders.value
+  const q = searchDispatched.value.toLowerCase()
+  return dispatchedOrders.value.filter((o: any) => (o.vendedor_name && o.vendedor_name.toLowerCase().includes(q)) || (o.name_client && o.name_client.toLowerCase().includes(q)))
 })
 const historyRequests = ref<any[]>([])
 const loadingPending = ref(true)
@@ -584,12 +602,20 @@ watch(activeTab, (newTab) => {
         </div>
 
         <!-- TAB 1: History -->
-        <div v-if="index === 1" class="mt-4">
+        <div v-if="index === 1" class="mt-4 space-y-4">
+          <div class="flex justify-end">
+            <UInput
+              v-model="searchHistory"
+              icon="i-lucide-search"
+              placeholder="Filtrar por vendedor..."
+              class="w-full md:w-64"
+            />
+          </div>
           <div v-if="loadingHistory" class="flex justify-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="historyRequests.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
+          <div v-else-if="filteredHistoryRequests.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
             No hay historial de solicitudes registradas.
           </div>
 
@@ -607,7 +633,7 @@ watch(activeTab, (newTab) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="req in historyRequests" :key="req.id_request" class="border-b border-slate-100 hover:bg-slate-50">
+                <tr v-for="req in filteredHistoryRequests" :key="req.id_request" class="border-b border-slate-100 hover:bg-slate-50">
                   <td class="p-4 font-mono text-xs">{{ req.date_created_request }}</td>
                   <td class="p-4">{{ req.name_admin }}</td>
                   <td class="p-4">{{ decodeURIComponent(req.title_product || '').replace(/\+/g, ' ') }}</td>
@@ -630,17 +656,25 @@ watch(activeTab, (newTab) => {
         </div>
         <!-- TAB 2: Órdenes por Despachar -->
         <div v-if="index === 2" class="mt-4 space-y-3">
+          <div class="flex justify-end">
+            <UInput
+              v-model="searchOrders"
+              icon="i-lucide-search"
+              placeholder="Filtrar por vendedor..."
+              class="w-full md:w-64"
+            />
+          </div>
           <div v-if="loadingOrders" class="flex justify-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="pendingOrders.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
+          <div v-else-if="filteredPendingOrders.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
             <UIcon name="i-lucide-package-check" class="w-10 h-10 mx-auto mb-2 text-slate-700" />
             No hay órdenes pendientes de despacho.
           </div>
 
           <template v-else>
-            <div v-for="order in pendingOrders" :key="order.id_order" class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div v-for="order in filteredPendingOrders" :key="order.id_order" class="bg-white border border-slate-200 rounded-xl overflow-hidden">
               <!-- Order Header -->
               <div class="p-4 flex flex-wrap gap-3 items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -746,17 +780,25 @@ watch(activeTab, (newTab) => {
         
         <!-- TAB 3: Órdenes Despachadas -->
         <div v-if="index === 3" class="mt-4 space-y-3">
+          <div class="flex justify-end">
+            <UInput
+              v-model="searchDispatched"
+              icon="i-lucide-search"
+              placeholder="Filtrar por vendedor..."
+              class="w-full md:w-64"
+            />
+          </div>
           <div v-if="loadingDispatched" class="flex justify-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="dispatchedOrders.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
+          <div v-else-if="filteredDispatchedOrders.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
             <UIcon name="i-lucide-check-circle" class="w-10 h-10 mx-auto mb-2 text-slate-700" />
             No hay historial de órdenes despachadas.
           </div>
 
           <template v-else>
-            <div v-for="order in dispatchedOrders" :key="order.id_order" class="bg-white border border-slate-200 rounded-xl overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
+            <div v-for="order in filteredDispatchedOrders" :key="order.id_order" class="bg-white border border-slate-200 rounded-xl overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
               <!-- Order Header -->
               <div class="p-4 flex flex-wrap gap-3 items-center justify-between">
                 <div class="flex items-center gap-3">
