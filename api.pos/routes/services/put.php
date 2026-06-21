@@ -167,6 +167,13 @@ if(isset($_GET["id"]) && isset($_GET["nameId"])){
 				}
 			}
 
+			// Force lab staff to laboratory warehouse 0
+			if ($table === 'admins') {
+				if (isset($data['rol_admin']) && in_array($data['rol_admin'], ['lab_admin', 'despachador_laboratorio'])) {
+					$data['id_office_admin'] = 0;
+				}
+			}
+
 			$response = new PutController();
 			$response -> putData($table,$data,$_GET["id"],$_GET["nameId"]);
 			return;

@@ -104,6 +104,22 @@ const savingAdmin = ref(false)
 
 const sucursalOptions = computed(() => offices.value.filter((o: any) => o.type_office === 'sucursal'))
 
+const filteredWarehouses = computed(() => {
+  if (!formModel.value.id_office_admin || formModel.value.id_office_admin === '0') {
+    return warehouses.value
+  }
+  return warehouses.value.filter(w => String(w.id_office_warehouse) === String(formModel.value.id_office_admin))
+})
+
+watch(() => formModel.value.id_office_admin, () => {
+  if (formModel.value.id_warehouse_admin) {
+    const valid = filteredWarehouses.value.find(w => String(w.id_warehouse) === String(formModel.value.id_warehouse_admin))
+    if (!valid) {
+      formModel.value.id_warehouse_admin = ''
+    }
+  }
+})
+
 async function fetchAdmins() {
   loading.value = true
   try {
@@ -735,7 +751,7 @@ onMounted(async () => {
               <option value="lab_calidad">Control Calidad</option>
             </select>
           </UFormField>
-          <UFormField v-if="formModel.rol_admin !== 'despachador' && formModel.rol_admin !== 'despachador_laboratorio'" label="Sucursal Asignada">
+          <UFormField v-if="!['despachador', 'despachador_laboratorio', 'lab_admin'].includes(formModel.rol_admin)" label="Sucursal Asignada">
             <select v-model="formModel.id_office_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="">Todas (Super)</option>
               <option v-for="o in sucursalOptions" :key="o.id_office" :value="String(o.id_office)">
@@ -743,33 +759,24 @@ onMounted(async () => {
               </option>
             </select>
           </UFormField>
-          <UFormField v-if="['despachador', 'despachador_laboratorio', 'vendedor'].includes(formModel.rol_admin)" label="Almacén Asignado">
+
+          <div v-if="['lab_admin', 'despachador_laboratorio'].includes(formModel.rol_admin)" class="p-3 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-100 flex items-center gap-2">
+            <UIcon name="i-lucide-info" class="w-5 h-5 shrink-0" />
+            Este usuario pertenece al Laboratorio Principal, no requiere asignación manual de sucursal ni almacén.
+          </div>
+
+          <UFormField v-if="['despachador', 'vendedor', 'cajero'].includes(formModel.rol_admin)" label="Almacén Asignado">
             <select v-model="formModel.id_warehouse_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="">Ninguno</option>
-              <option v-for="w in warehouses" :key="w.id_warehouse" :value="String(w.id_warehouse)">
+              <option v-for="w in filteredWarehouses" :key="w.id_warehouse" :value="String(w.id_warehouse)">
                 {{ decodeURIComponent(w.title_warehouse || '').replace(/\+/g, ' ') }}
               </option>
             </select>
           </UFormField>
 
-          <UFormField v-if="formModel.rol_admin === 'vendedor'" label="% de Comisión">
+          <UFormField v-if="['vendedor', 'cajero'].includes(formModel.rol_admin)" label="% de Comisión">
             <UInput v-model.number="formModel.pct_commission_admin" type="number" min="0" max="100" step="0.1" placeholder="0" class="w-full text-sm" />
           </UFormField>
-
-          <div class="grid grid-cols-2 gap-3" v-if="formModel.rol_admin === 'cajero'">
-            <UFormField label="Inventario Asignado">
-              <select v-model="formModel.id_inventory_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
-                <option value="">Ninguno</option>
-                <option v-for="o in sucursalOptions" :key="o.id_office" :value="String(o.id_office)">
-                  {{ decodeURIComponent(o.title_office || '').replace(/\+/g, ' ') }}
-                </option>
-              </select>
-            </UFormField>
-
-            <UFormField label="% de Comisión">
-              <UInput v-model.number="formModel.pct_commission_admin" type="number" min="0" max="100" step="0.1" placeholder="0" class="w-full text-sm" />
-            </UFormField>
-          </div>
 
           <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
             <span class="text-sm font-bold text-slate-500 uppercase">Estado Cuenta</span>

@@ -138,6 +138,7 @@ if(isset($_POST)){
 					// Store the creator's admin ID
 					$_POST['id_admin_client'] = $adminRow->id_admin;
 
+
 					$dni = trim($_POST['dni_client'] ?? '');
 					$nit = trim($_POST['nit_client'] ?? '');
 					if ($dni !== '' || $nit !== '') {
@@ -162,6 +163,13 @@ if(isset($_POST)){
 
 					if ($role === 'vendedor') {
 						$_POST['id_cash_bill'] = 0;
+					}
+				}
+
+				// Force lab staff to laboratory warehouse 0
+				if ($table === 'admins') {
+					if (isset($_POST['rol_admin']) && in_array($_POST['rol_admin'], ['lab_admin', 'despachador_laboratorio'])) {
+						$_POST['id_office_admin'] = 0;
 					}
 				}
 

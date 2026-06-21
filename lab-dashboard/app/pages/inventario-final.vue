@@ -31,7 +31,8 @@ async function fetchWarehouse() {
       method: 'POST',
       body: new URLSearchParams({
         getLabWarehouse: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
+        id_warehouse: String(auth.warehouseId || 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -43,7 +44,9 @@ async function fetchWarehouse() {
         name: w.name_product || 'Producto Terminado',
         stock: parseFloat(w.qty_warehouse) || 0,
         cost: parseFloat(w.cost_warehouse) || 0.00,
-        salePrice: parseFloat(w.sale_price_warehouse) || 0
+        salePrice: parseFloat(w.sale_price_warehouse) || 0,
+        wholesale_price: parseFloat(w.wholesale_price) || 0,
+        wholesale_qty: parseFloat(w.wholesale_qty) || 0
       }))
     } else {
       items.value = []
@@ -82,8 +85,8 @@ function openDispatchModal(item: any) {
     qty: 1,
     id_warehouse_dest: '',
     unit_price: parseFloat(item.salePrice || item.cost) || 0,
-    wholesale_price: 0,
-    wholesale_qty: 0
+    wholesale_price: parseFloat(item.wholesale_price) || 0,
+    wholesale_qty: parseFloat(item.wholesale_qty) || 0
   }
   isDispatchModalOpen.value = true
 }
@@ -95,9 +98,7 @@ async function submitDispatch() {
   if (dispatchForm.value.qty <= 0 || dispatchForm.value.qty > dispatchForm.value.max_qty) {
     return toast.add({ title: 'Error', description: 'Cantidad inválida o superior al stock.', color: 'error' })
   }
-  if (dispatchForm.value.unit_price <= 0) {
-    return toast.add({ title: 'Error', description: 'Ingrese un precio POS mayor a cero para la sucursal destino.', color: 'error' })
-  }
+
 
   submittingDispatch.value = true
   try {
@@ -106,7 +107,7 @@ async function submitDispatch() {
       id_product: dispatchForm.value.id_product,
       qty: String(dispatchForm.value.qty),
       id_dispatched_by: String(auth.user?.id_admin || 1),
-      id_office_source: String(auth.officeId || 6),
+      id_office_source: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
       id_warehouse_dest: String(dispatchForm.value.id_warehouse_dest),
       unit_price: String(dispatchForm.value.unit_price || 0),
       wholesale_price: String(dispatchForm.value.wholesale_price || 0),
@@ -272,20 +273,7 @@ onMounted(() => {
               />
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div class="space-y-1.5">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Precio POS *</label>
-                <UInput v-model.number="dispatchForm.unit_price" type="number" min="0.01" step="0.01" required />
-              </div>
-              <div class="space-y-1.5">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Mayorista</label>
-                <UInput v-model.number="dispatchForm.wholesale_price" type="number" min="0" step="0.01" />
-              </div>
-              <div class="space-y-1.5">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Cant. Mayorista</label>
-                <UInput v-model.number="dispatchForm.wholesale_qty" type="number" min="0" step="1" />
-              </div>
-            </div>
+
 
             <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 mt-6">
               <UButton label="Cancelar" variant="ghost" color="neutral" @click="isDispatchModalOpen = false" />

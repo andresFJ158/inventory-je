@@ -14,7 +14,8 @@ async function fetchInventory() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
+        is_insumo: '0'
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -56,7 +57,7 @@ onMounted(() => {
         Inventario de Materia Prima
       </h1>
       <p class="text-slate-500 text-sm mt-1">
-        Existencias físicas de insumos químicos registradas en el laboratorio.
+        Existencias físicas de materias primas registradas en el laboratorio.
       </p>
     </div>
 
@@ -74,13 +75,13 @@ onMounted(() => {
           Cargando existencias desde la base de datos...
         </div>
         <div v-else-if="items.length === 0" class="text-center p-8 text-slate-500">
-          No hay insumos registrados en el inventario.
+          No hay materias primas registradas en el inventario.
         </div>
         
         <table v-else class="w-full text-left text-sm text-slate-700">
           <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
             <tr>
-              <th class="px-6 py-4">Insumo / Materia Prima</th>
+              <th class="px-6 py-4">Materia Prima</th>
               <th class="px-6 py-4 text-right">Cantidad Disponible</th>
             </tr>
           </thead>
@@ -89,8 +90,6 @@ onMounted(() => {
               <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
                   {{ item.name }}
-                  <span v-if="item.is_insumo === 1 || item.is_insumo === '1'" class="px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800">Insumo</span>
-                  <span v-else class="px-2 py-0.5 rounded text-[10px] bg-green-100 text-green-800">Materia Prima</span>
                 </div>
               </td>
               <td class="px-6 py-4 text-right font-mono font-bold text-slate-900 text-base">

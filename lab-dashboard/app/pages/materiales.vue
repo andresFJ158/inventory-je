@@ -18,6 +18,7 @@ function onConfirmCancel() { confirmResolve.value?.(false); confirmDialog.value.
 
 // State del formulario y catálogo reactivo desde la API del backend
 const items = ref<any[]>([])
+const suppliers = ref<any[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 
@@ -35,6 +36,19 @@ const filteredItems = computed(() => {
 const config = useRuntimeConfig()
 const apiBase = '/ajax/pos.ajax.php'
 
+async function fetchSuppliers() {
+  try {
+    const res = await $fetch<any>('/api/suppliers', {
+      headers: { 'Authorization': 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy' } // same API_KEY as insumos
+    })
+    if (res.status === 200) {
+      suppliers.value = res.results.filter((s: any) => s.type_supplier === 'materias_primas')
+    }
+  } catch (e) {
+    console.error('Error fetching suppliers:', e)
+  }
+}
+
 async function fetchMaterials() {
   loading.value = true
   try {
@@ -42,7 +56,7 @@ async function fetchMaterials() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }).toString(),
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -59,7 +73,8 @@ async function fetchMaterials() {
         unit: m.unit_raw_material,
         desc: m.description_raw_material || '',
         no_stock: parseInt(m.no_stock_raw_material) === 1,
-        price: parseFloat(m.price_raw_material) || 0
+        price: parseFloat(m.price_raw_material) || 0,
+        id_supplier: m.id_supplier_raw_material ? String(m.id_supplier_raw_material) : ''
       }))
     } else {
       items.value = []
@@ -73,6 +88,7 @@ async function fetchMaterials() {
 }
 
 onMounted(() => {
+  fetchSuppliers()
   fetchMaterials()
 })
 
@@ -86,7 +102,8 @@ const form = ref({
   unit: 'und',
   desc: '',
   no_stock: false,
-  price: 0
+  price: 0,
+  id_supplier: ''
 })
 
 const unitOptions = {
@@ -101,13 +118,13 @@ function handleMeasureTypeChange(type: 'unit' | 'weight' | 'volume') {
 }
 
 function openCreateModal() {
-  form.value = { id: null, name: '', type: 'unit', unit: 'und', desc: '', no_stock: false, price: 0 }
+  form.value = { id: null, name: '', type: 'unit', unit: 'und', desc: '', no_stock: false, price: 0, id_supplier: '' }
   modalTitle.value = 'Registrar Materia Prima'
   isModalOpen.value = true
 }
 
 function openEditModal(item: any) {
-  form.value = { ...item, type: item.type as 'unit' | 'weight' | 'volume' }
+  form.value = { ...item, type: item.type as 'unit' | 'weight' | 'volume', id_supplier: item.id_supplier || '' }
   modalTitle.value = 'Editar Materia Prima'
   isModalOpen.value = true
 }
@@ -129,7 +146,8 @@ async function saveMaterial() {
           unit_raw_material: form.value.unit,
           description_raw_material: form.value.desc,
           no_stock_raw_material: form.value.no_stock ? '1' : '0',
-          price_raw_material: String(form.value.price)
+          price_raw_material: String(form.value.price),
+          id_supplier_raw_material: form.value.id_supplier || '0'
         }).toString(),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       })
@@ -145,8 +163,9 @@ async function saveMaterial() {
           description_raw_material: form.value.desc,
           no_stock_raw_material: form.value.no_stock ? '1' : '0',
           price_raw_material: String(form.value.price),
-          id_office_raw_material: String(auth.officeId || 6),
-          id_admin_raw_material: String(auth.user?.id_admin || 1)
+          id_office_raw_material: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
+          id_admin_raw_material: String(auth.user?.id_admin || 1),
+          id_supplier_raw_material: form.value.id_supplier || '0'
         }).toString(),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       })
@@ -187,6 +206,12 @@ async function deleteMaterial(item: any) {
   } catch (error) {
     console.error('Error deleting material:', error)
   }
+}
+
+function getSupplierName(id: number | string) {
+  if (!id || id == '0') return 'N/A'
+  const s = suppliers.value.find(x => x.id_supplier == id)
+  return s ? decodeURIComponent(s.supplier_name || '').replace(/\+/g, ' ') : 'Desconocido'
 }
 </script>
 
@@ -268,6 +293,9 @@ async function deleteMaterial(item: any) {
               <th class="px-6 py-4">
                 Descripción
               </th>
+              <th class="px-6 py-4">
+                Proveedor
+              </th>
               <th
                 v-if="auth.role === 'lab_admin'"
                 class="px-6 py-4 text-center"
@@ -331,6 +359,9 @@ async function deleteMaterial(item: any) {
               <td class="px-6 py-4 text-xs text-slate-500 max-w-xs truncate">
                 {{ item.desc }}
               </td>
+              <td class="px-6 py-4">
+                {{ getSupplierName(item.id_supplier) }}
+              </td>
               <td
                 v-if="auth.role === 'lab_admin'"
                 class="px-6 py-4 text-center flex items-center justify-center gap-2"
@@ -378,7 +409,7 @@ async function deleteMaterial(item: any) {
           >
             <!-- Nombre -->
             <div class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Nombre de Insumo</label>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Nombre de Insumo</label>
               <UInput
                 v-model="form.name"
                 placeholder="Ej. Alcohol Isopropílico"
@@ -396,7 +427,7 @@ async function deleteMaterial(item: any) {
             </div>
 
             <div v-if="form.no_stock" class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-sky-600">Costo Fijo (Bs.)</label>
+              <label class="block text-xs font-bold uppercase tracking-wider text-sky-600">Costo Fijo (Bs.)</label>
               <UInput
                 v-model.number="form.price"
                 type="number"
@@ -453,7 +484,7 @@ async function deleteMaterial(item: any) {
 
             <!-- Unidad de Medida -->
             <div class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Unidad de Medida</label>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Unidad de Medida</label>
               <USelect
                 v-model="form.unit"
                 :items="unitOptions[form.type]"
@@ -465,12 +496,23 @@ async function deleteMaterial(item: any) {
 
             <!-- Descripción -->
             <div class="space-y-1.5">
-              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Descripción (Opcional)</label>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Descripción (Opcional)</label>
               <UTextarea
                 v-model="form.desc"
                 placeholder="Especificaciones, usos o detalles químicos..."
                 :rows="3"
               />
+            </div>
+
+            <!-- Proveedor -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Proveedor (Opcional)</label>
+              <select v-model="form.id_supplier" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+                <option value="">Seleccionar Proveedor</option>
+                <option v-for="s in suppliers" :key="s.id_supplier" :value="String(s.id_supplier)">
+                  {{ decodeURIComponent(s.supplier_name || '').replace(/\+/g, ' ') }}
+                </option>
+              </select>
             </div>
 
             <!-- Footer Buttons -->

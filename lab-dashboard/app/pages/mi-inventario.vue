@@ -15,7 +15,8 @@ const loadingInventory = ref(true)
 const loadingMovements = ref(true)
 const loadingInbound = ref(true)
 const receivingTransferId = ref<number | null>(null)
-const canDispatchFromInventory = computed(() => ['despachador', 'admin', 'superadmin'].includes(String(auth.role || '')))
+const canDispatchFromInventory = computed(() => ['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || '')))
+const canReceiveInbound = computed(() => ['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || '')))
 
 // Assignment modal state
 const assignModalOpen = ref(false)
@@ -29,23 +30,24 @@ const apiHeaders = {
   Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
 }
 
-async function fetchOffices() {
+async function fetchWarehouses() {
   try {
-    const data = await $fetch<any>('/api/offices', { headers: apiHeaders })
+    const data = await $fetch<any>('/api/warehouses', { headers: apiHeaders })
     if (data.status === 200) {
       offices.value = data.results || []
     }
   } catch (e) {
-    console.error('Error fetching offices:', e)
+    console.error('Error fetching warehouses:', e)
   }
 }
 
 const officeOptions = computed(() => {
+  const myWhId = String(auth.warehouseId || 0)
   return offices.value
-    .filter((o: any) => String(o.id_office) !== String(auth.effectiveOfficeId) && o.type_office !== 'central')
-    .map((o: any) => ({
-      value: String(o.id_office),
-      label: decodeURIComponent(o.title_office || '').replace(/\+/g, ' ')
+    .filter((w: any) => String(w.id_warehouse) !== myWhId)
+    .map((w: any) => ({
+      value: `${w.id_office_warehouse}_${w.id_warehouse}`,
+      label: decodeURIComponent(w.title_warehouse || '').replace(/\+/g, ' ')
     }))
 })
 
@@ -74,13 +76,16 @@ async function confirmAssignment() {
 
   assigning.value = true
   try {
+    const [destOfficeId, destWarehouseId] = String(selectedOfficeId.value).split('_')
     const response = await $fetch<string>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
         transferStockBetweenOffices: 'true',
         id_product: String(selectedProduct.value.id_product),
         id_office_source: String(auth.effectiveOfficeId),
-        id_office_dest: String(selectedOfficeId.value),
+        id_warehouse_source: String(auth.warehouseId || 0),
+        id_office_dest: String(destOfficeId),
+        id_warehouse_dest: String(destWarehouseId),
         qty: String(assignQty.value),
         notes: assignNotes.value || `Asignación manual de stock desde Almacén`,
         id_dispatched_by: String(auth.user?.id_admin || 1)
@@ -126,6 +131,7 @@ async function fetchInventory() {
         getSubWarehouseStock: 'true',
         id_admin: String(auth.user?.id_admin || 1),
         id_office: String(auth.effectiveOfficeId ?? 3),
+        id_warehouse: String(auth.warehouseId || 0),
         role: auth.role || 'cajero'
       }
     });
@@ -136,6 +142,7 @@ async function fetchInventory() {
         getSubWarehouseStock: 'true',
         id_admin: String(auth.user?.id_admin || 1),
         id_office: String(auth.effectiveOfficeId ?? 3),
+        id_warehouse: String(auth.warehouseId || 0),
         role: auth.role || 'cajero'
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -159,7 +166,8 @@ async function fetchMovements() {
       body: new URLSearchParams({
         getMyWarehouseMovements: 'true',
         id_admin: String(auth.user?.id_admin || 1),
-        id_office: String(auth.effectiveOfficeId ?? 3)
+        id_office: String(auth.effectiveOfficeId ?? 3),
+        id_warehouse: String(auth.warehouseId || 0)
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -180,7 +188,8 @@ async function fetchPendingInbound() {
       method: 'POST',
       body: new URLSearchParams({
         getPendingInboundTransfers: 'true',
-        id_office: String(auth.effectiveOfficeId ?? 3)
+        id_office: String(auth.effectiveOfficeId ?? 3),
+        id_warehouse: String(auth.warehouseId || 0)
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -258,7 +267,7 @@ watch(() => auth.user, async (newVal) => {
     await fetchPendingInbound()
     await fetchInventory()
     await fetchMovements()
-    await fetchOffices()
+    await fetchWarehouses()
   }
 }, { immediate: true })
 
@@ -287,6 +296,9 @@ function getTypeColor(type: string): string {
   if (type === 'despacho') return 'bg-green-100 text-green-700'
   if (type === 'despacho_pendiente') return 'bg-amber-100 text-amber-700'
   if (type === 'venta') return 'bg-red-100 text-red-700'
+  if (type === 'rechazado') return 'bg-red-100 text-red-700'
+  if (type === 'enviado_pendiente') return 'bg-blue-100 text-blue-700'
+  if (type === 'enviado_confirmado') return 'bg-teal-100 text-teal-700'
   return 'bg-amber-100 text-amber-700'
 }
 
@@ -294,6 +306,9 @@ function getTypeLabel(type: string): string {
   if (type === 'despacho') return 'Recibido'
   if (type === 'despacho_pendiente') return 'En tránsito'
   if (type === 'venta') return 'Venta'
+  if (type === 'rechazado') return 'Rechazado'
+  if (type === 'enviado_pendiente') return 'Enviado (pendiente)'
+  if (type === 'enviado_confirmado') return 'Enviado (confirmado)'
   return 'Devolución'
 }
 </script>
@@ -313,7 +328,7 @@ function getTypeLabel(type: string): string {
       </div>
     </div>
 
-    <UCard>
+    <UCard v-if="canReceiveInbound">
       <template #header>
         <h3 class="font-semibold text-lg flex items-center gap-2">
           <UIcon name="i-lucide-inbox" class="w-5 h-5 text-gray-500" />
@@ -335,6 +350,7 @@ function getTypeLabel(type: string): string {
             <tr>
               <th class="py-3 pr-4">Producto</th>
               <th class="py-3 px-4">Origen</th>
+              <th class="py-3 px-4">Destino</th>
               <th class="py-3 px-4 text-right">Cantidad</th>
               <th class="py-3 px-4 text-right">Precio POS</th>
               <th class="py-3 pl-4 text-right">Acciones</th>
@@ -347,6 +363,7 @@ function getTypeLabel(type: string): string {
                 <div class="text-xs text-slate-400">{{ row.sku_product || '-' }}</div>
               </td>
               <td class="py-3 px-4 text-slate-600">{{ formatText(row.origin_office_name) || '-' }}</td>
+              <td class="py-3 px-4 text-slate-600 font-semibold">{{ formatText(row.dest_warehouse_name) || '-' }}</td>
               <td class="py-3 px-4 text-right font-mono font-bold">{{ row.qty_transfer }} {{ row.unit_product || '' }}</td>
               <td class="py-3 px-4 text-right font-mono">Bs {{ parseFloat(row.unit_price_transfer || 0).toFixed(2) }}</td>
               <td class="py-3 pl-4">
@@ -505,7 +522,7 @@ function getTypeLabel(type: string): string {
                 v-model="selectedOfficeId"
                 :items="officeOptions"
                 class="w-full"
-                placeholder="Seleccionar sucursal..."
+                placeholder="Seleccionar almacén..."
                 value-key="value"
                 label-key="label"
                 :ui="{ content: 'z-[100]' }"

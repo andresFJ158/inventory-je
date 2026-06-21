@@ -281,9 +281,6 @@ const sidebarItems = computed(() => {
     if (hasPerm('clientes')) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
     if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-grid-2x2' })
     if (hasPerm('productos')) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
-    if (role === 'superadmin' || role === 'admin' || role === 'lab_admin') {
-      items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
-    }
     if (role !== 'vendedor' && hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
     if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
     if (role !== 'cajero' && role !== 'vendedor' && hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
@@ -334,9 +331,10 @@ const sidebarItems = computed(() => {
       items.push({ label: 'Proveedores Producto', to: '/proveedores', icon: 'i-lucide-truck' })
     }
     items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
-    items.push({ label: 'Insumos Lab', to: '/insumos-lab', icon: 'i-lucide-beaker' })
+    items.push({ label: 'Catálogo Insumos', to: '/insumos-lab', icon: 'i-lucide-beaker' })
     if (hasPerm('proveedores_lab')) items.push({ label: 'Proveedores Lab', to: '/proveedores-lab', icon: 'i-lucide-building-2' })
     items.push({ label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' })
+    items.push({ label: 'Inventario Insumos', to: '/inventario-insumos', icon: 'i-lucide-beaker' })
     items.push({ label: 'Ingresos / Egresos', to: '/ingreso-egreso', icon: 'i-lucide-arrow-left-right' })
     items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })
     items.push({ label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' })
@@ -344,6 +342,11 @@ const sidebarItems = computed(() => {
       items.push({ label: 'Control Calidad', to: '/calidad', icon: 'i-lucide-shield-check' })
     }
     items.push({ label: 'Inventario Final', to: '/inventario-final', icon: 'i-lucide-boxes' })
+  }
+
+  // Combos (Global visibility for lab roles and admins)
+  if (role === 'superadmin' || role === 'admin' || role === 'lab_admin' || role === 'despachador_laboratorio') {
+    items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
   }
 
   return items

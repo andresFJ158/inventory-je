@@ -13,6 +13,7 @@ class LocalConnection {
 			PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 		]);
 		$link->exec("SET NAMES utf8mb4");
+		$link->exec("SET time_zone = '-04:00'");
 		if (getenv("RUNTIME_SCHEMA") === "1" && !SchemaMigrator::isApplied($link)) {
 			SchemaMigrator::run($link);
 		}

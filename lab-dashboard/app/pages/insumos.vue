@@ -41,7 +41,7 @@ async function fetchInsumos() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: String(auth.officeId || 6),
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
         is_insumo: '1'
       }).toString(),
       headers: {
@@ -137,7 +137,7 @@ async function saveInsumo() {
           measure_type: form.value.type,
           unit_raw_material: form.value.unit,
           description_raw_material: form.value.desc,
-          id_office_raw_material: String(auth.officeId || 6),
+          id_office_raw_material: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
           id_admin_raw_material: String(auth.user?.id_admin || 1),
           is_insumo: '1'
         }).toString(),

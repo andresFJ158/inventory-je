@@ -24,8 +24,9 @@ if(isset($_POST["editRawMaterial"])){
 
 		$no_stock = intval($_POST['no_stock_raw_material'] ?? 0);
 		$price    = floatval($_POST['price_raw_material'] ?? 0);
+		$id_supplier = intval($_POST['id_supplier_raw_material'] ?? 0);
 
-		$stmt = $db->prepare("UPDATE raw_materials SET name_raw_material = :name, measure_type = :measure, unit_raw_material = :unit, description_raw_material = :desc, no_stock_raw_material = :no_stock, price_raw_material = :price WHERE id_raw_material = :id");
+		$stmt = $db->prepare("UPDATE raw_materials SET name_raw_material = :name, measure_type = :measure, unit_raw_material = :unit, description_raw_material = :desc, no_stock_raw_material = :no_stock, price_raw_material = :price, id_supplier_raw_material = :id_supplier WHERE id_raw_material = :id");
 		$stmt->execute([
 			':name'     => $name,
 			':measure'  => $measure_type,
@@ -33,6 +34,7 @@ if(isset($_POST["editRawMaterial"])){
 			':desc'     => $desc,
 			':no_stock' => $no_stock,
 			':price'    => $price,
+			':id_supplier' => $id_supplier,
 			':id'       => $id_raw_material
 		]);
 		echo "ok";
@@ -143,6 +145,7 @@ if(isset($_POST["saveLabMaterial"])){
 		$id_office = intval($_POST['id_office_raw_material']);
 		$id_admin = isset($_POST['id_admin_raw_material']) ? intval($_POST['id_admin_raw_material']) : 1;
 		$is_insumo = isset($_POST['is_insumo']) ? intval($_POST['is_insumo']) : 0;
+		$id_supplier = isset($_POST['id_supplier_raw_material']) ? intval($_POST['id_supplier_raw_material']) : 0;
 
 		// Validate duplicate name
 		$stmtDup = $db->prepare("SELECT id_raw_material FROM raw_materials WHERE name_raw_material = :name AND id_office_raw_material = :office AND is_insumo = :is_insumo LIMIT 1");
@@ -152,7 +155,7 @@ if(isset($_POST["saveLabMaterial"])){
 			exit;
 		}
 
-		$stmt = $db->prepare("INSERT INTO raw_materials (name_raw_material, measure_type, unit_raw_material, description_raw_material, id_office_raw_material, id_admin_raw_material, stock_raw_material, is_insumo, date_created_raw_material) VALUES (:name, :measure, :unit, :desc, :office, :id_admin, 0, :is_insumo, CURDATE())");
+		$stmt = $db->prepare("INSERT INTO raw_materials (name_raw_material, measure_type, unit_raw_material, description_raw_material, id_office_raw_material, id_admin_raw_material, stock_raw_material, is_insumo, date_created_raw_material, id_supplier_raw_material) VALUES (:name, :measure, :unit, :desc, :office, :id_admin, 0, :is_insumo, CURDATE(), :id_supplier)");
 		$stmt->execute([
 			':name' => $name,
 			':measure' => $measure_type,
@@ -160,7 +163,8 @@ if(isset($_POST["saveLabMaterial"])){
 			':desc' => $desc,
 			':office' => $id_office,
 			':id_admin' => $id_admin,
-			':is_insumo' => $is_insumo
+			':is_insumo' => $is_insumo,
+			':id_supplier' => $id_supplier
 		]);
 		echo "ok";
 	} catch (Exception $e) {
@@ -293,62 +297,114 @@ if(isset($_POST["getLabEntries"])){
 		)
 	");
 
-	// raw_materials (MP e insumos con flag is_insumo)
-	$stmtRaw = $db->prepare("
-		SELECT
-			CONCAT('rme_', rme.id_entry) AS id_entry,
-			rme.id_entry AS id_entry_raw,
-			rme.qty_entry,
-			rme.lot_number_entry,
-			rme.supplier_entry,
-			rme.notes_entry,
-			rme.status_entry,
-			rme.type_entry,
-			rme.concept_entry,
-			rme.date_entry,
-			rme.date_created_entry,
-			rme.id_raw_material_entry,
-			rme.unit_price_entry,
-			rm.name_raw_material,
-			rm.unit_raw_material,
-			rm.is_insumo
-		FROM raw_material_entries rme
-		JOIN raw_materials rm ON rme.id_raw_material_entry = rm.id_raw_material
-		WHERE rm.id_office_raw_material = :office
-	");
-	$stmtRaw->execute([':office' => $id_office]);
+	if ($id_office === 0) {
+		$stmtRaw = $db->prepare("
+			SELECT
+				CONCAT('rme_', rme.id_entry) AS id_entry,
+				rme.id_entry AS id_entry_raw,
+				rme.qty_entry,
+				rme.lot_number_entry,
+				rme.supplier_entry,
+				rme.notes_entry,
+				rme.status_entry,
+				rme.type_entry,
+				rme.concept_entry,
+				rme.date_entry,
+				rme.date_created_entry,
+				rme.date_updated_entry AS sort_date,
+				rme.id_raw_material_entry,
+				rme.unit_price_entry,
+				rm.name_raw_material,
+				rm.unit_raw_material,
+				rm.is_insumo
+			FROM raw_material_entries rme
+			JOIN raw_materials rm ON rme.id_raw_material_entry = rm.id_raw_material
+		");
+		$stmtRaw->execute();
+	} else {
+		$stmtRaw = $db->prepare("
+			SELECT
+				CONCAT('rme_', rme.id_entry) AS id_entry,
+				rme.id_entry AS id_entry_raw,
+				rme.qty_entry,
+				rme.lot_number_entry,
+				rme.supplier_entry,
+				rme.notes_entry,
+				rme.status_entry,
+				rme.type_entry,
+				rme.concept_entry,
+				rme.date_entry,
+				rme.date_created_entry,
+				rme.date_updated_entry AS sort_date,
+				rme.id_raw_material_entry,
+				rme.unit_price_entry,
+				rm.name_raw_material,
+				rm.unit_raw_material,
+				rm.is_insumo
+			FROM raw_material_entries rme
+			JOIN raw_materials rm ON rme.id_raw_material_entry = rm.id_raw_material
+			WHERE rm.id_office_raw_material = :office
+		");
+		$stmtRaw->execute([':office' => $id_office]);
+	}
 	$fromRaw = $stmtRaw->fetchAll(PDO::FETCH_ASSOC);
 
 	// lab_supplies (insumos)
-	$stmtLs = $db->prepare("
-		SELECT
-			CONCAT('ls_', lse.id_ls_entry) AS id_entry,
-			lse.qty_entry,
-			lse.lot_number_entry,
-			lse.supplier_entry,
-			lse.notes_entry,
-			lse.status_entry,
-			lse.type_entry,
-			lse.concept_entry,
-			lse.date_entry,
-			lse.date_created_entry,
-			CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
-			0 AS unit_price_entry,
-			ls.name_supply AS name_raw_material,
-			ls.unit_supply AS unit_raw_material,
-			1 AS is_insumo
-		FROM lab_supply_entries lse
-		JOIN lab_supplies ls ON lse.id_supply_entry = ls.id_supply
-		WHERE ls.id_office_supply = :office
-	");
-	$stmtLs->execute([':office' => $id_office]);
+	if ($id_office === 0) {
+		$stmtLs = $db->prepare("
+			SELECT
+				CONCAT('ls_', lse.id_ls_entry) AS id_entry,
+				lse.qty_entry,
+				lse.lot_number_entry,
+				lse.supplier_entry,
+				lse.notes_entry,
+				lse.status_entry,
+				lse.type_entry,
+				lse.concept_entry,
+				lse.date_entry,
+				lse.date_created_entry,
+				lse.date_created_entry AS sort_date,
+				CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
+				0 AS unit_price_entry,
+				ls.name_supply AS name_raw_material,
+				ls.unit_supply AS unit_raw_material,
+				1 AS is_insumo
+			FROM lab_supply_entries lse
+			JOIN lab_supplies ls ON lse.id_supply_entry = ls.id_supply
+		");
+		$stmtLs->execute();
+	} else {
+		$stmtLs = $db->prepare("
+			SELECT
+				CONCAT('ls_', lse.id_ls_entry) AS id_entry,
+				lse.qty_entry,
+				lse.lot_number_entry,
+				lse.supplier_entry,
+				lse.notes_entry,
+				lse.status_entry,
+				lse.type_entry,
+				lse.concept_entry,
+				lse.date_entry,
+				lse.date_created_entry,
+				lse.date_created_entry AS sort_date,
+				CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
+				0 AS unit_price_entry,
+				ls.name_supply AS name_raw_material,
+				ls.unit_supply AS unit_raw_material,
+				1 AS is_insumo
+			FROM lab_supply_entries lse
+			JOIN lab_supplies ls ON lse.id_supply_entry = ls.id_supply
+			WHERE ls.id_office_supply = :office
+		");
+		$stmtLs->execute([':office' => $id_office]);
+	}
 	$fromLs = $stmtLs->fetchAll(PDO::FETCH_ASSOC);
 
 	// Unificar y ordenar por fecha descendente
 	$all = array_merge($fromRaw, $fromLs);
 	usort($all, function($a, $b) {
-		$da = $a['date_created_entry'] ?? $a['date_entry'] ?? '';
-		$db2 = $b['date_created_entry'] ?? $b['date_entry'] ?? '';
+		$da = $a['sort_date'] ?? $a['date_created_entry'] ?? $a['date_entry'] ?? '';
+		$db2 = $b['sort_date'] ?? $b['date_created_entry'] ?? $b['date_entry'] ?? '';
 		return strcmp($db2, $da);
 	});
 
@@ -363,14 +419,24 @@ if(isset($_POST["getLabRecipes"])){
 	$db = LocalConnection::connect();
 	$id_office = intval($_POST["id_office"]);
 
-	$stmt = $db->prepare("
-		SELECT r.*, p.title_product, p.rte_product
-		FROM recipes r
-		JOIN products p ON r.id_product_recipe = p.id_product
-		WHERE r.id_office_recipe = :office
-		ORDER BY r.id_recipe ASC
-	");
-	$stmt->execute([':office' => $id_office]);
+	if ($id_office === 0) {
+		$stmt = $db->prepare("
+			SELECT r.*, p.title_product, p.rte_product
+			FROM recipes r
+			JOIN products p ON r.id_product_recipe = p.id_product
+			ORDER BY r.id_recipe ASC
+		");
+		$stmt->execute();
+	} else {
+		$stmt = $db->prepare("
+			SELECT r.*, p.title_product, p.rte_product
+			FROM recipes r
+			JOIN products p ON r.id_product_recipe = p.id_product
+			WHERE r.id_office_recipe = :office
+			ORDER BY r.id_recipe ASC
+		");
+		$stmt->execute([':office' => $id_office]);
+	}
 	$recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 	foreach ($recipes as &$recipe) {
@@ -445,16 +511,28 @@ if(isset($_POST["getLabRecipes"])){
 if(isset($_POST["getLabProductions"])){
 	$db = LocalConnection::connect();
 	$id_office = intval($_POST["id_office"]);
-	$stmt = $db->prepare("
-		SELECT p.*, prod.title_product AS name_product,
-		       r.unit_batch_recipe
-		FROM productions p 
-		JOIN products prod ON p.id_product_production = prod.id_product
-		LEFT JOIN recipes r ON p.id_recipe_production = r.id_recipe
-		WHERE p.id_office_production = :office 
-		ORDER BY p.id_production DESC
-	");
-	$stmt->execute([':office' => $id_office]);
+  	if ($id_office === 0) {
+  		$stmt = $db->prepare("
+  			SELECT p.*, prod.title_product AS name_product,
+  			       r.unit_batch_recipe
+  			FROM productions p 
+  			JOIN products prod ON p.id_product_production = prod.id_product
+  			LEFT JOIN recipes r ON p.id_recipe_production = r.id_recipe
+  			ORDER BY p.id_production DESC
+  		");
+  		$stmt->execute();
+  	} else {
+  		$stmt = $db->prepare("
+  			SELECT p.*, prod.title_product AS name_product,
+  			       r.unit_batch_recipe
+  			FROM productions p 
+  			JOIN products prod ON p.id_product_production = prod.id_product
+  			LEFT JOIN recipes r ON p.id_recipe_production = r.id_recipe
+  			WHERE p.id_office_production = :office 
+  			ORDER BY p.id_production DESC
+  		");
+  		$stmt->execute([':office' => $id_office]);
+  	}
 	echo json_encode([
 		'status' => 200,
 		'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
@@ -469,18 +547,32 @@ if(isset($_POST["getWastePackaged"])){
 	try {
 		$db = LocalConnection::connect();
 		$id_office = intval($_POST["id_office"]);
-		$stmt = $db->prepare("
-			SELECT w.*, p.title_product, p.unit_product, prod.id_recipe_production, rp.title_product AS recipe_name,
-			       IFNULL(prod.pkg_name_production, '') AS pkg_name_production
-			FROM waste_packaged w
-			JOIN products p ON w.id_product_waste = p.id_product
-			JOIN productions prod ON w.id_production_waste = prod.id_production
-			LEFT JOIN recipes r ON prod.id_recipe_production = r.id_recipe
-			LEFT JOIN products rp ON r.id_product_recipe = rp.id_product
-			WHERE w.id_office_waste = :office
-			ORDER BY w.id_waste DESC
-		");
-		$stmt->execute([':office' => $id_office]);
+  		if ($id_office === 0) {
+  			$stmt = $db->prepare("
+  				SELECT w.*, p.title_product, p.unit_product, prod.id_recipe_production, rp.title_product AS recipe_name,
+  				       IFNULL(prod.pkg_name_production, '') AS pkg_name_production
+  				FROM waste_packaged w
+  				JOIN products p ON w.id_product_waste = p.id_product
+  				JOIN productions prod ON w.id_production_waste = prod.id_production
+  				LEFT JOIN recipes r ON prod.id_recipe_production = r.id_recipe
+  				LEFT JOIN products rp ON r.id_product_recipe = rp.id_product
+  				ORDER BY w.id_waste DESC
+  			");
+  			$stmt->execute();
+  		} else {
+  			$stmt = $db->prepare("
+  				SELECT w.*, p.title_product, p.unit_product, prod.id_recipe_production, rp.title_product AS recipe_name,
+  				       IFNULL(prod.pkg_name_production, '') AS pkg_name_production
+  				FROM waste_packaged w
+  				JOIN products p ON w.id_product_waste = p.id_product
+  				JOIN productions prod ON w.id_production_waste = prod.id_production
+  				LEFT JOIN recipes r ON prod.id_recipe_production = r.id_recipe
+  				LEFT JOIN products rp ON r.id_product_recipe = rp.id_product
+  				WHERE w.id_office_waste = :office
+  				ORDER BY w.id_waste DESC
+  			");
+  			$stmt->execute([':office' => $id_office]);
+  		}
 		echo json_encode([
 			'status' => 200,
 			'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)
@@ -546,28 +638,33 @@ if(isset($_POST["cancelProduction"])){
 if(isset($_POST["getLabWarehouse"])){
 	$db = LocalConnection::connect();
 	$id_office = intval($_POST["id_office"]);
+	$id_warehouse = isset($_POST["id_warehouse"]) ? intval($_POST["id_warehouse"]) : 0;
 	$stmt = $db->prepare("
 		SELECT 
 			p.id_product AS id_warehouse, 
 			p.title_product AS name_product, 
-			COALESCE((SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = p.id_product AND id_office_inventory = :office_stock LIMIT 1), 0) AS qty_warehouse, 
-			p.rte_product AS cost_warehouse,
+			COALESCE((SELECT stock_inventory FROM product_inventory WHERE id_product_inventory = p.id_product AND id_office_inventory = :office_stock AND (id_warehouse_inventory = :wh_stock OR (:wh_stock = 0 AND id_warehouse_inventory = 0)) LIMIT 1), 0) AS qty_warehouse, 
+			COALESCE(NULLIF(p.rte_product, 0), (SELECT MAX(cost_purchase) FROM purchases WHERE id_product_purchase = p.id_product), 0) AS cost_warehouse,
 			p.price_product AS sale_price_warehouse,
-			(p.price_product > 0) AS price_defined_warehouse
+			(p.price_product > 0) AS price_defined_warehouse,
+			COALESCE(p.wholesale_price_product, 0) AS wholesale_price,
+			COALESCE(p.wholesale_qty_product, 0) AS wholesale_qty
 		FROM products p
 		WHERE p.status_product = 1
-		  AND COALESCE(p.is_compound_product, 0) = 0
 		  AND EXISTS (
 		  	SELECT 1
 		  	FROM product_inventory pi
 		  	WHERE pi.id_product_inventory = p.id_product
 		  	  AND pi.id_office_inventory = :office_exists
+		  	  AND (pi.id_warehouse_inventory = :wh_exists OR (:wh_exists = 0 AND pi.id_warehouse_inventory = 0))
 		  )
 		ORDER BY p.id_product DESC
 	");
 	$stmt->execute([
 		':office_stock' => $id_office,
-		':office_exists' => $id_office
+		':wh_stock' => $id_warehouse,
+		':office_exists' => $id_office,
+		':wh_exists' => $id_warehouse
 	]);
 	echo json_encode([
 		'status' => 200,
@@ -617,19 +714,35 @@ if(isset($_POST["getLabQCTests"])){
 	$id_office = intval($_POST["id_office"]);
 	
 	// Pending QC tests (from productions)
-	$stmtPending = $db->prepare("
-		SELECT p.id_production AS id, p.id_production AS id_prod, 
-			   CONCAT('LOT-', p.id_production) AS batch_code,
-			   pr.title_product AS name_product,
-			   'Pendiente' AS result_qc,
-			   p.date_updated_production AS date_created_qc,
-			   'pendiente' AS status_qc,
-			   p.total_qty_production
-		FROM productions p
-		JOIN products pr ON p.id_product_production = pr.id_product
-		WHERE p.id_office_production = :office AND p.status_production = 'pendiente_qc'
-	");
-	$stmtPending->execute([':office' => $id_office]);
+  	if ($id_office === 0) {
+  		$stmtPending = $db->prepare("
+  			SELECT p.id_production AS id, p.id_production AS id_prod, 
+  				   CONCAT('LOT-', p.id_production) AS batch_code,
+  				   pr.title_product AS name_product,
+  				   'Pendiente' AS result_qc,
+  				   p.date_updated_production AS date_created_qc,
+  				   'pendiente' AS status_qc,
+  				   p.total_qty_production
+  			FROM productions p
+  			JOIN products pr ON p.id_product_production = pr.id_product
+  			WHERE p.status_production = 'pendiente_qc'
+  		");
+  		$stmtPending->execute();
+  	} else {
+  		$stmtPending = $db->prepare("
+  			SELECT p.id_production AS id, p.id_production AS id_prod, 
+  				   CONCAT('LOT-', p.id_production) AS batch_code,
+  				   pr.title_product AS name_product,
+  				   'Pendiente' AS result_qc,
+  				   p.date_updated_production AS date_created_qc,
+  				   'pendiente' AS status_qc,
+  				   p.total_qty_production
+  			FROM productions p
+  			JOIN products pr ON p.id_product_production = pr.id_product
+  			WHERE p.id_office_production = :office AND p.status_production = 'pendiente_qc'
+  		");
+  		$stmtPending->execute([':office' => $id_office]);
+  	}
 	$pending = $stmtPending->fetchAll(PDO::FETCH_ASSOC);
 
 	// Completed QC tests
@@ -772,14 +885,11 @@ if(isset($_POST['updateLabSupplyStock'])) {
 
 		$db->beginTransaction();
 
-		// Actualizar stock
-		$stmt = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply + :qty WHERE id_supply = :id");
-		$stmt->execute([':qty' => $qty, ':id' => $id_supply]);
-
-		// Registrar movimiento
+		// No actualizar stock hasta que se apruebe
+		// Registrar movimiento como pendiente
 		$stmtLog = $db->prepare("
 			INSERT INTO lab_supply_entries (id_supply_entry, qty_entry, type_entry, status_entry, lot_number_entry, supplier_entry, id_admin_entry, date_entry)
-			VALUES (:id, :qty, 'ingreso', 'aprobado', :lot, :sup, :admin, CURDATE())
+			VALUES (:id, :qty, 'ingreso', 'pendiente', :lot, :sup, :admin, CURDATE())
 		");
 		$stmtLog->execute([':id' => $id_supply, ':qty' => $qty, ':lot' => $lot_number, ':sup' => $supplier, ':admin' => $id_admin]);
 

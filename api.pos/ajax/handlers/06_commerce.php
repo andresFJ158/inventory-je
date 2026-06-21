@@ -412,10 +412,10 @@ if (isset($_POST['getCombos'])) {
 
     // Query 1: all combos
     $combos = $db->query("
-        SELECT p.id_product, p.title_product, p.sku_product, p.discount_product,
+        SELECT p.id_product, p.title_product, p.sku_product, p.discount_product, p.price_product,
                p.combo_price_mode, p.status_product, p.id_category_product, p.img_product
         FROM products p
-        WHERE p.is_compound_product = 1
+        WHERE p.is_combo_product = 1
         ORDER BY p.title_product ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -485,7 +485,13 @@ if (isset($_POST['getCombos'])) {
         }
         $combo['items']       = $items;
         $combo['stock_combo'] = $minStock ?? 0;
-        $combo['total_price'] = array_sum(array_map(fn($i) => $i['price_ci'] * $i['qty_ci'], $items));
+        
+        $sumPrice = array_sum(array_map(fn($i) => $i['price_ci'] * $i['qty_ci'], $items));
+        if ($combo['combo_price_mode'] === 'fijo') {
+            $combo['total_price'] = floatval($combo['price_product']);
+        } else {
+            $combo['total_price'] = $sumPrice;
+        }
     }
     unset($combo);
 
@@ -495,7 +501,7 @@ if (isset($_POST['getCombos'])) {
 
 // Crear nuevo combo
 if (isset($_POST['createCombo'])) {
-    pos_require_role(['admin', 'superadmin']);
+    pos_require_role(['admin', 'superadmin', 'lab_admin', 'despachador_laboratorio']);
     $db = LocalConnection::connect();
     try {
         $db->beginTransaction();
@@ -504,14 +510,18 @@ if (isset($_POST['createCombo'])) {
         $idCat = intval($_POST['id_category'] ?? 0);
         $discount = floatval($_POST['discount'] ?? 0);
 
-        if (empty($title)) { echo json_encode(['status' => 400, 'message' => 'Nombre requerido']); exit; }
+        $priceMode = $_POST['combo_price_mode'] ?? 'fijo';
+        $priceProduct = floatval($_POST['price_product'] ?? 0);
 
         $stmt = $db->prepare("
-            INSERT INTO products (title_product, sku_product, id_category_product, discount_product,
-                is_compound_product, combo_price_mode, status_product, date_created_product)
-            VALUES (:title, :sku, :cat, :discount, 1, 'fijo', 1, CURDATE())
+            INSERT INTO products (title_product, sku_product, id_category_product, discount_product, price_product,
+                is_combo_product, is_compound_product, combo_price_mode, status_product, date_created_product)
+            VALUES (:title, :sku, :cat, :discount, :price, 1, 0, :mode, 1, CURDATE())
         ");
-        $stmt->execute([':title' => urlencode($title), ':sku' => $sku, ':cat' => $idCat, ':discount' => $discount]);
+        $stmt->execute([
+            ':title' => urlencode($title), ':sku' => $sku, ':cat' => $idCat, 
+            ':discount' => $discount, ':price' => $priceProduct, ':mode' => $priceMode
+        ]);
         $comboId = $db->lastInsertId();
 
         // Insertar items
@@ -538,7 +548,7 @@ if (isset($_POST['createCombo'])) {
 
 // Actualizar combo (datos + items en una sola llamada)
 if (isset($_POST['updateCombo'])) {
-    pos_require_role(['admin', 'superadmin']);
+    pos_require_role(['admin', 'superadmin', 'lab_admin', 'despachador_laboratorio']);
     $db = LocalConnection::connect();
     try {
         $db->beginTransaction();
@@ -547,9 +557,15 @@ if (isset($_POST['updateCombo'])) {
         $sku      = $_POST['sku'] ?? '';
         $discount = floatval($_POST['discount'] ?? 0);
         $idCat    = intval($_POST['id_category'] ?? 0);
+        $priceMode = $_POST['combo_price_mode'] ?? 'fijo';
+        $priceProduct = floatval($_POST['price_product'] ?? 0);
 
-        $stmt = $db->prepare("UPDATE products SET title_product=:t, sku_product=:s, discount_product=:d, id_category_product=:c WHERE id_product=:id");
-        $stmt->execute([':t' => urlencode($title), ':s' => $sku, ':d' => $discount, ':c' => $idCat, ':id' => $comboId]);
+        $stmt = $db->prepare("
+            UPDATE products SET title_product=:t, sku_product=:s, discount_product=:d, id_category_product=:c,
+                   price_product=:p, combo_price_mode=:m
+            WHERE id_product=:id AND is_combo_product=1
+        ");
+        $stmt->execute([':t' => urlencode($title), ':s' => $sku, ':d' => $discount, ':c' => $idCat, ':p' => $priceProduct, ':m' => $priceMode, ':id' => $comboId]);
 
         // Reemplazar items
         $items = json_decode($_POST['items'] ?? '[]', true);
@@ -576,13 +592,13 @@ if (isset($_POST['updateCombo'])) {
 
 // Eliminar combo completo
 if (isset($_POST['deleteCombo'])) {
-    pos_require_role(['admin', 'superadmin']);
+    pos_require_role(['admin', 'superadmin', 'lab_admin', 'despachador_laboratorio']);
     $db = LocalConnection::connect();
     try {
         $db->beginTransaction();
         $id = intval($_POST['id_combo']);
         $db->prepare("DELETE FROM combo_items WHERE id_combo_ci=:id")->execute([':id' => $id]);
-        $db->prepare("DELETE FROM products WHERE id_product=:id AND is_compound_product=1")->execute([':id' => $id]);
+        $db->prepare("DELETE FROM products WHERE id_product=:id AND is_combo_product=1")->execute([':id' => $id]);
         $db->commit();
         echo json_encode(['status' => 200, 'message' => 'Combo eliminado']);
     } catch (Throwable $e) {
@@ -595,18 +611,18 @@ if (isset($_POST['deleteCombo'])) {
 
 // Activar/desactivar combo
 if (isset($_POST['toggleComboStatus'])) {
-    pos_require_role(['admin', 'superadmin']);
+    pos_require_role(['admin', 'superadmin', 'lab_admin', 'despachador_laboratorio']);
     $db = LocalConnection::connect();
     $id = intval($_POST['id_combo']);
     $status = intval($_POST['status']);
-    $db->prepare("UPDATE products SET status_product=:s WHERE id_product=:id AND is_compound_product=1")->execute([':s' => $status, ':id' => $id]);
+    $db->prepare("UPDATE products SET status_product=:s WHERE id_product=:id AND is_combo_product=1")->execute([':s' => $status, ':id' => $id]);
     echo json_encode(['status' => 200]);
     exit;
 }
 
 // Subir imagen del combo
 if (isset($_POST['uploadComboImage'])) {
-    pos_require_role(['admin', 'superadmin']);
+    pos_require_role(['admin', 'superadmin', 'lab_admin', 'despachador_laboratorio']);
     $db  = LocalConnection::connect();
     $id  = intval($_POST['id_combo'] ?? 0);
     if (!$id) { echo json_encode(['status' => 400, 'message' => 'ID requerido']); exit; }
@@ -634,7 +650,7 @@ if (isset($_POST['uploadComboImage'])) {
             echo json_encode(['status' => 500, 'message' => 'La imagen no quedó en disco']); exit;
         }
         $path = 'views/assets/products/' . $fileName;
-        $db->prepare("UPDATE products SET img_product=:img WHERE id_product=:id AND is_compound_product=1")
+        $db->prepare("UPDATE products SET img_product=:img WHERE id_product=:id AND is_combo_product=1")
            ->execute([':img' => $path, ':id' => $id]);
         echo json_encode(['status' => 200, 'path' => $path]);
     } catch (Throwable $e) {
@@ -853,12 +869,8 @@ if (isset($_POST['getSuppliers'])) {
 }
 
 if (isset($_POST['saveSupplier'])) {
-    $typeReq = $_POST['type_supplier'] ?? 'ambos';
-    if ($typeReq === 'materias_primas') {
-        pos_require_role(['admin', 'superadmin', 'lab_admin']);
-    } else {
-        pos_require_role(['admin', 'superadmin']);
-    }
+    $typeReq = $_POST['type_supplier'] ?? 'productos';
+    pos_require_role(['admin', 'superadmin', 'lab_admin']);
     $db = LocalConnection::connect();
     $id = intval($_POST['id_supplier'] ?? 0);
     $fields = [
@@ -895,21 +907,12 @@ if (isset($_POST['deleteSupplier'])) {
         echo json_encode(['status' => 403, 'results' => 'Sin permiso para eliminar proveedores']);
         exit;
     }
-    if ($role === 'lab_admin') {
-        $check = $db->prepare("SELECT type_supplier FROM suppliers WHERE id_supplier=:id");
-        $check->execute([':id' => intval($_POST['id_supplier'])]);
-        $type = $check->fetchColumn();
-        if ($type !== 'materias_primas') {
-            http_response_code(403);
-            echo json_encode(['status' => 403, 'results' => 'Solo puedes eliminar proveedores de laboratorio']);
-            exit;
-        }
-    }
-    $stmt = $db->prepare("UPDATE suppliers SET status_supplier=0 WHERE id_supplier=:id");
+    $stmt = $db->prepare("DELETE FROM suppliers WHERE id_supplier=:id");
     $stmt->execute([':id' => intval($_POST['id_supplier'])]);
     echo json_encode(['status' => 200, 'message' => 'Proveedor eliminado']);
     exit;
 }
+
 
 //=====================================
 // FACTURAS

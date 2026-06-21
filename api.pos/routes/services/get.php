@@ -22,15 +22,12 @@ if ($table === 'purchasable-products') {
 		$db = Connection::connect();
 		$stmt = $db->prepare("
 			SELECT p.id_product,
-			       CONCAT(
-			       	COALESCE(NULLIF(p.title_product, ''), CONCAT('Producto #', p.id_product)),
-			       	CASE WHEN COALESCE(p.sku_product, '') <> '' THEN CONCAT(' · ', p.sku_product) ELSE '' END
-			       ) AS title_product,
+			       COALESCE(NULLIF(p.title_product, ''), CONCAT('Producto #', p.id_product)) AS title_product,
 			       p.sku_product,
 			       p.unit_product
 			FROM products p
 			WHERE p.status_product = 1
-			  AND COALESCE(p.is_compound_product, 0) = 0
+			  AND COALESCE(p.is_combo_product, 0) = 0
 			  AND NOT EXISTS (SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product)
 			ORDER BY p.title_product ASC
 		");

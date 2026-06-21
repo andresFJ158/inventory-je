@@ -156,7 +156,7 @@ async function fetchMaterials() {
       method: 'POST',
       body: new URLSearchParams({
         getLabMaterials: 'ok',
-        id_office: String(auth.effectiveOfficeId || auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -168,7 +168,7 @@ async function fetchMaterials() {
     try {
       const res2 = await $fetch<any>('/api/lab_supplies', {
         headers: { Authorization: API_KEY },
-        params: { linkTo: 'id_office_supply', equalTo: String(auth.effectiveOfficeId || auth.officeId || 6) }
+        params: { linkTo: 'id_office_supply', equalTo: String(auth.effectiveOfficeId ?? auth.officeId ?? 0) }
       })
       if (res2.status === 200) {
         fromLabSupplies = res2.results
@@ -180,7 +180,8 @@ async function fetchMaterials() {
             stock_raw_material: parseFloat(s.stock_supply) || 0,
             is_insumo: 1,
             _source: 'lab_supplies',
-            id_supply: s.id_supply
+            id_supply: s.id_supply,
+            id_supplier_raw_material: s.id_supplier_supply || ''
           }))
       }
     } catch (_) { /* ignorar si falla */ }
@@ -203,7 +204,7 @@ async function fetchEntries() {
       method: 'POST',
       body: new URLSearchParams({
         getLabEntries: 'ok',
-        id_office: String(auth.effectiveOfficeId || auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -328,6 +329,18 @@ async function handleOpenCreateModal() {
   }
   qtyInput.reset()
   isCreateOpen.value = true
+}
+
+function onMaterialChange() {
+  const selectedMaterialId = newEntry.value.id_raw_material
+  if (!selectedMaterialId) return
+  const material = materials.value.find(m => String(m.id_raw_material) === String(selectedMaterialId))
+  if (material && material.id_supplier_raw_material) {
+    const validSupplier = suppliers.value.find(s => String(s.id_supplier) === String(material.id_supplier_raw_material))
+    if (validSupplier) {
+      newEntry.value.id_supplier = String(validSupplier.id_supplier)
+    }
+  }
 }
 
 async function handleSaveEntry() {
@@ -727,7 +740,7 @@ onMounted(() => {
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                 Seleccionar {{ entryType === 'mp' ? 'Materia Prima' : 'Insumo' }}
               </label>
-              <select v-model="newEntry.id_raw_material" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+              <select v-model="newEntry.id_raw_material" @change="onMaterialChange" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
                 <option value="">Seleccione...</option>
                 <option v-for="m in filteredEntryMaterials" :key="m.id_raw_material" :value="m.id_raw_material">
                   {{ m.name_raw_material }} (Stock: {{ parseFloat(m.stock_raw_material || 0).toFixed(2) }} {{ m.unit_raw_material }})

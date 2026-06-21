@@ -251,11 +251,12 @@ const canEditOrDelete = computed(() => {
 const canCreateRecord = computed(() => {
   if (!moduleConfig.value) return false
   
+  const isSuperOrAdmin = auth.role === 'superadmin' || auth.role === 'admin'
+
   if (moduleConfig.value.title_module === 'products') {
-    return auth.role === 'lab_admin'
+    return auth.role === 'lab_admin' || isSuperOrAdmin
   }
   
-  const isSuperOrAdmin = auth.role === 'superadmin' || auth.role === 'admin'
   if (isSuperOrAdmin) return true
   if (auth.role === 'lab_admin' && ['purchases', 'suppliers', 'categories'].includes(moduleConfig.value.title_module)) {
     return true
@@ -299,12 +300,12 @@ function getImageUrl(imgStr: string) {
 // Filtered Rows
 const filteredRows = computed(() => {
   if (!search.value) return rows.value
-  const query = search.value.toLowerCase()
-  return rows.value.filter((row: any) => {
-    // Search across all text-like values
-    return Object.values(row).some(val => 
-      String(val).toLowerCase().includes(query)
-    )
+  const query = search.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  return rows.value.filter(item => {
+    return Object.values(item).some(val => {
+      if (val === null || val === undefined) return false
+      return String(val).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(query)
+    })
   })
 })
 

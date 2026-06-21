@@ -94,7 +94,7 @@ async function fetchPending() {
       method: 'POST',
       body: new URLSearchParams({
         getPendingQC: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -116,7 +116,7 @@ async function fetchHistory() {
       method: 'POST',
       body: new URLSearchParams({
         getQCHistory: 'ok',
-        id_office: String(auth.officeId || 6)
+        id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0)
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
@@ -185,7 +185,7 @@ async function submitQC() {
     payload.append('submitQualityCheck', 'ok')
     payload.append('id_production', qcForm.value.id_production)
     payload.append('id_admin', String(auth.user?.id_admin || 1))
-    payload.append('id_office', String(auth.officeId || 6))
+    payload.append('id_office', String(auth.effectiveOfficeId ?? auth.officeId ?? 0))
     payload.append('result_qc', result)
     payload.append('qty_approved', String(approved))
     payload.append('qty_rejected', String(rejected))
