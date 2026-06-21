@@ -21,7 +21,7 @@ $stmt = $db->prepare("
           AND (
               :office = 0 
               OR o.id_office_order = :office2
-              OR a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office3)
+              OR a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_sucursal_warehouse = :office3)
           )
         ORDER BY o.date_created_order DESC
 ");

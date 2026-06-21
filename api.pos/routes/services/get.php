@@ -28,6 +28,7 @@ if ($table === 'purchasable-products') {
 			FROM products p
 			WHERE p.status_product = 1
 			  AND COALESCE(p.is_combo_product, 0) = 0
+			  AND COALESCE(p.is_compound_product, 0) = 0
 			  AND NOT EXISTS (SELECT 1 FROM recipes r WHERE r.id_product_recipe = p.id_product)
 			ORDER BY p.title_product ASC
 		");

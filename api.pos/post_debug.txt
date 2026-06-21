@@ -82,3 +82,117 @@ CONTENT_TYPE: application/x-www-form-urlencoded
 RAW INPUT: title_warehouse=almacen+vendedores+alemana&address_warehouse=alemana+4to+anillo&phone_warehouse=12345678
 POST ARRAY: {"title_warehouse":"almacen vendedores alemana","address_warehouse":"alemana 4to anillo","phone_warehouse":"12345678"}
 ---
+2026-06-21 08:46:36
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=Didier&surname_admin=Florez&email_admin=didi%40pos.com&password_admin=12345678&rol_admin=cajero&id_office_admin=9&id_warehouse_admin=0&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22on%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22on%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22off%22%2C%22ordenes%22%3A%22on%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22on%22%2C%22gastos%22%3A%22on%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22off%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22on%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22on%22%2C%22g
+POST ARRAY: {"name_admin":"Didier","surname_admin":"Florez","email_admin":"didi@pos.com","password_admin":"12345678","rol_admin":"cajero","id_office_admin":"9","id_warehouse_admin":"0","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"on\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"on\",\"combos\":\"off\",\"compras\":\"off\",\"ordenes\":\"on\",\"ventas\":\"off\",\"caja\":\"on\",\"gastos\":\"on\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"off\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"on\",\"reportes_empresa\":\"off\",\"qrs\":\"on\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"aprobar_entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-21 09:03:14
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=sebastian&surname_admin=guzman&email_admin=sebas%40pos.com&password_admin=12345678&rol_admin=vendedor&id_office_admin=10&id_warehouse_admin=4&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22on%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22off%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22off%22%2C%22ordenes%22%3A%22on%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22on%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22off%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22on%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22on%
+POST ARRAY: {"name_admin":"sebastian","surname_admin":"guzman","email_admin":"sebas@pos.com","password_admin":"12345678","rol_admin":"vendedor","id_office_admin":"10","id_warehouse_admin":"4","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"on\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"off\",\"combos\":\"off\",\"compras\":\"off\",\"ordenes\":\"on\",\"ventas\":\"off\",\"caja\":\"on\",\"gastos\":\"off\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"off\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"on\",\"reportes_empresa\":\"off\",\"qrs\":\"on\",\"gestionar_clientes\":\"on\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"aprobar_entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-21 09:04:17
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=guille&surname_admin=da+silva&email_admin=guille%40pos.com&password_admin=12345678&rol_admin=despachador&id_office_admin=0&id_warehouse_admin=4&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22off%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22off%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22on%22%2C%22ordenes%22%3A%22off%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22off%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22on%22%2C%22despachos%22%3A%22on%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22off%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22
+POST ARRAY: {"name_admin":"guille","surname_admin":"da silva","email_admin":"guille@pos.com","password_admin":"12345678","rol_admin":"despachador","id_office_admin":"0","id_warehouse_admin":"4","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"off\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"off\",\"combos\":\"off\",\"compras\":\"on\",\"ordenes\":\"off\",\"ventas\":\"off\",\"caja\":\"off\",\"gastos\":\"off\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"on\",\"despachos\":\"on\",\"mi_inventario\":\"on\",\"reportes\":\"off\",\"reportes_empresa\":\"off\",\"qrs\":\"off\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"aprobar_entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-21 09:04:59
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=administrador+&surname_admin=laboratorio&email_admin=adminlab%40pos.com&password_admin=12345678&rol_admin=lab_admin&id_office_admin=0&id_warehouse_admin=0&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22off%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22on%22%2C%22productos%22%3A%22on%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22on%22%2C%22ordenes%22%3A%22off%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22off%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22on%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22on%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22off%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs
+POST ARRAY: {"name_admin":"administrador ","surname_admin":"laboratorio","email_admin":"adminlab@pos.com","password_admin":"12345678","rol_admin":"lab_admin","id_office_admin":"0","id_warehouse_admin":"0","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"off\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"on\",\"productos\":\"on\",\"combos\":\"off\",\"compras\":\"on\",\"ordenes\":\"off\",\"ventas\":\"off\",\"caja\":\"off\",\"gastos\":\"off\",\"proveedores\":\"on\",\"almacenes\":\"off\",\"almacen\":\"on\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"off\",\"reportes_empresa\":\"off\",\"qrs\":\"off\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"on\",\"insumos_lab\":\"on\",\"proveedores_lab\":\"on\",\"inventario_mp\":\"on\",\"entradas\":\"on\",\"aprobar_entradas\":\"on\",\"recetas\":\"on\",\"produccion\":\"on\",\"calidad\":\"on\",\"inventario_final\":\"on\"}"}
+---
+2026-06-21 09:08:09
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_supply=botella&unit_supply=unidad&stock_supply=50&price_supply=1&id_supplier_supply=2&id_office_supply=0&status_supply=1
+POST ARRAY: {"name_supply":"botella","unit_supply":"unidad","stock_supply":"50","price_supply":"1","id_supplier_supply":"2","id_office_supply":"0","status_supply":"1"}
+---
+2026-06-21 09:12:38
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_supply=prueba&unit_supply=unidad&stock_supply=20&price_supply=5&id_supplier_supply=2&id_office_supply=0&status_supply=1
+POST ARRAY: {"name_supply":"prueba","unit_supply":"unidad","stock_supply":"20","price_supply":"5","id_supplier_supply":"2","id_office_supply":"0","status_supply":"1"}
+---
+2026-06-21 09:17:01
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=vinagre+de+frutilla&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1782047811_6a37e4432b7c6.png&id_category_product=undefined&sku_product=65226&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=&price_product=0&wholesale_price_product=0&wholesale_qty_product=0&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"vinagre de frutilla","img_product":"http:\/\/localhost:8081\/uploads\/img_1782047811_6a37e4432b7c6.png","id_category_product":"undefined","sku_product":"65226","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"","price_product":"0","wholesale_price_product":"0","wholesale_qty_product":"0","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-21 09:17:08
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=vinagre+de+frutilla&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1782047811_6a37e4432b7c6.png&id_category_product=undefined&sku_product=65226&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=&price_product=0&wholesale_price_product=0&wholesale_qty_product=0&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"vinagre de frutilla","img_product":"http:\/\/localhost:8081\/uploads\/img_1782047811_6a37e4432b7c6.png","id_category_product":"undefined","sku_product":"65226","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"","price_product":"0","wholesale_price_product":"0","wholesale_qty_product":"0","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-21 09:17:20
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=vinagre+de+frutilla&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1782047811_6a37e4432b7c6.png&id_category_product=undefined&sku_product=65226&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=&price_product=0&wholesale_price_product=0&wholesale_qty_product=0&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"vinagre de frutilla","img_product":"http:\/\/localhost:8081\/uploads\/img_1782047811_6a37e4432b7c6.png","id_category_product":"undefined","sku_product":"65226","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"","price_product":"0","wholesale_price_product":"0","wholesale_qty_product":"0","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-21 09:24:53
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=vinagre+de+frutilla&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1782048272_6a37e6100c821.png&id_category_product=undefined&sku_product=4315&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=31351&price_product=70&wholesale_price_product=65&wholesale_qty_product=12&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"vinagre de frutilla","img_product":"http:\/\/localhost:8081\/uploads\/img_1782048272_6a37e6100c821.png","id_category_product":"undefined","sku_product":"4315","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"31351","price_product":"70","wholesale_price_product":"65","wholesale_qty_product":"12","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-21 09:25:16
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=vinagre+de+frutilla&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1782048272_6a37e6100c821.png&id_category_product=undefined&sku_product=4315&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=31351&price_product=70&wholesale_price_product=65&wholesale_qty_product=12&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"vinagre de frutilla","img_product":"http:\/\/localhost:8081\/uploads\/img_1782048272_6a37e6100c821.png","id_category_product":"undefined","sku_product":"4315","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"31351","price_product":"70","wholesale_price_product":"65","wholesale_qty_product":"12","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-21 09:31:36
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_category=vinagres&img_category=&order_category=0&status_category=1
+POST ARRAY: {"title_category":"vinagres","img_category":"","order_category":"0","status_category":"1"}
+---
+2026-06-21 09:34:20
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=Vinagre+de+frutilla&img_product=http%3A%2F%2Flocalhost%3A8081%2Fuploads%2Fimg_1782048843_6a37e84b2a8cc.png&id_category_product=1&sku_product=54772&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=4651&price_product=70&wholesale_price_product=65&wholesale_qty_product=12&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"Vinagre de frutilla","img_product":"http:\/\/localhost:8081\/uploads\/img_1782048843_6a37e84b2a8cc.png","id_category_product":"1","sku_product":"54772","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"4651","price_product":"70","wholesale_price_product":"65","wholesale_qty_product":"12","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-21 09:34:46
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_product=vinagre+de+caca&img_product=&id_category_product=1&sku_product=4833&unit_product=1Lt&stock_product=&discount_product=0&status_product=1&id_office_product=0&code_product=5868&price_product=60&wholesale_price_product=50&wholesale_qty_product=12&initial_stock_product=0&is_compound_product=0&origin_office_product=0
+POST ARRAY: {"title_product":"vinagre de caca","img_product":"","id_category_product":"1","sku_product":"4833","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"5868","price_product":"60","wholesale_price_product":"50","wholesale_qty_product":"12","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"}
+---
+2026-06-21 09:56:46
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: name_admin=santi&surname_admin=a&email_admin=santi%40pos.com&password_admin=12345678&rol_admin=despachador&id_office_admin=0&id_warehouse_admin=4&id_inventory_admin=0&pct_commission_admin=0&status_admin=1&permissions_admin=%7B%22pos%22%3A%22off%22%2C%22sucursales%22%3A%22off%22%2C%22admins%22%3A%22off%22%2C%22clientes%22%3A%22off%22%2C%22categorias%22%3A%22off%22%2C%22productos%22%3A%22off%22%2C%22combos%22%3A%22off%22%2C%22compras%22%3A%22on%22%2C%22ordenes%22%3A%22off%22%2C%22ventas%22%3A%22off%22%2C%22caja%22%3A%22off%22%2C%22gastos%22%3A%22off%22%2C%22proveedores%22%3A%22off%22%2C%22almacenes%22%3A%22off%22%2C%22almacen%22%3A%22on%22%2C%22despachos%22%3A%22off%22%2C%22mi_inventario%22%3A%22on%22%2C%22reportes%22%3A%22off%22%2C%22reportes_empresa%22%3A%22off%22%2C%22qrs%22%3A%22off%22%2
+POST ARRAY: {"name_admin":"santi","surname_admin":"a","email_admin":"santi@pos.com","password_admin":"12345678","rol_admin":"despachador","id_office_admin":"0","id_warehouse_admin":"4","id_inventory_admin":"0","pct_commission_admin":"0","status_admin":"1","permissions_admin":"{\"pos\":\"off\",\"sucursales\":\"off\",\"admins\":\"off\",\"clientes\":\"off\",\"categorias\":\"off\",\"productos\":\"off\",\"combos\":\"off\",\"compras\":\"on\",\"ordenes\":\"off\",\"ventas\":\"off\",\"caja\":\"off\",\"gastos\":\"off\",\"proveedores\":\"off\",\"almacenes\":\"off\",\"almacen\":\"on\",\"despachos\":\"off\",\"mi_inventario\":\"on\",\"reportes\":\"off\",\"reportes_empresa\":\"off\",\"qrs\":\"off\",\"gestionar_clientes\":\"off\",\"dashboard_lab\":\"off\",\"materiales\":\"off\",\"insumos_lab\":\"off\",\"proveedores_lab\":\"off\",\"inventario_mp\":\"off\",\"entradas\":\"off\",\"aprobar_entradas\":\"off\",\"recetas\":\"off\",\"produccion\":\"off\",\"calidad\":\"off\",\"inventario_final\":\"off\"}"}
+---
+2026-06-21 10:11:52
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: id_supplier_purchase=1&id_office_purchase=0&id_product_purchase=2&cost_purchase=40&qty_purchase=30&invest_purchase=1200
+POST ARRAY: {"id_supplier_purchase":"1","id_office_purchase":"0","id_product_purchase":"2","cost_purchase":"40","qty_purchase":"30","invest_purchase":"1200"}
+---
+2026-06-21 10:13:31
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: date_created_cash=2026-06-21&id_office_cash=10&id_admin_cash=28&date_start_cash=2026-06-21+10%3A13%3A31&start_cash=120&status_cash=1&bills_cash=0&money_cash=0&diff_cash=0
+POST ARRAY: {"date_created_cash":"2026-06-21","id_office_cash":"10","id_admin_cash":"28","date_start_cash":"2026-06-21 10:13:31","start_cash":"120","status_cash":"1","bills_cash":"0","money_cash":"0","diff_cash":"0"}
+---
+2026-06-21 10:17:43
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: concept_bill=comida&cost_bill=50&id_admin_bill=28&id_office_bill=10&id_cash_bill=1
+POST ARRAY: {"concept_bill":"comida","cost_bill":"50","id_admin_bill":"28","id_office_bill":"10","id_cash_bill":"1"}
+---
+2026-06-21 10:18:29
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: date_created_cash=2026-06-21&id_office_cash=10&id_admin_cash=28&date_start_cash=2026-06-21+10%3A18%3A29&start_cash=50&status_cash=1&bills_cash=0&money_cash=0&diff_cash=0
+POST ARRAY: {"date_created_cash":"2026-06-21","id_office_cash":"10","id_admin_cash":"28","date_start_cash":"2026-06-21 10:18:29","start_cash":"50","status_cash":"1","bills_cash":"0","money_cash":"0","diff_cash":"0"}
+---

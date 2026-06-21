@@ -1142,8 +1142,8 @@ if (isset($_POST['closeCashRegister'])) {
 
     $gap = $physicalCash - $res['diff_cash']; // Sobrante/Faltante
 
-    $stmtC = $db->prepare("UPDATE cashs SET status_cash = 0, gap_cash = :gap, date_end_cash = NOW() WHERE id_cash = :id");
-    $stmtC->execute([':gap' => $gap, ':id' => $idCash]);
+    $stmtC = $db->prepare("UPDATE cashs SET status_cash = 0, gap_cash = :gap, end_cash = :physical, date_end_cash = NOW() WHERE id_cash = :id");
+    $stmtC->execute([':gap' => $gap, ':physical' => $physicalCash, ':id' => $idCash]);
 
     echo json_encode(['status' => 200, 'message' => 'Caja cerrada correctamente', 'gap' => $gap]);
     exit;

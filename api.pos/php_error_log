@@ -288,3 +288,79 @@ Stack trace:
 #3 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
 #4 {main}
   thrown in D:\Unitech2.0\api.pos\routes\services\delete.php on line 58
+[21-Jun-2026 08:50:48 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse_inventory' in 'WHERE' in D:\Unitech2.0\api.pos\models\get.model.php:269
+Stack trace:
+#0 D:\Unitech2.0\api.pos\models\get.model.php(269): PDO->prepare('SELECT * FROM p...')
+#1 D:\Unitech2.0\api.pos\controllers\get.controller.php(52): GetModel::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#2 D:\Unitech2.0\api.pos\routes\services\get.php(253): GetController::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#3 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#4 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#5 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#6 {main}
+  thrown in D:\Unitech2.0\api.pos\models\get.model.php on line 269
+[21-Jun-2026 08:50:48 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse_inventory' in 'WHERE' in D:\Unitech2.0\api.pos\models\get.model.php:269
+Stack trace:
+#0 D:\Unitech2.0\api.pos\models\get.model.php(269): PDO->prepare('SELECT * FROM p...')
+#1 D:\Unitech2.0\api.pos\controllers\get.controller.php(52): GetModel::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#2 D:\Unitech2.0\api.pos\routes\services\get.php(253): GetController::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#3 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#4 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#5 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#6 {main}
+  thrown in D:\Unitech2.0\api.pos\models\get.model.php on line 269
+[21-Jun-2026 08:50:49 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'wa.id_warehouse_assignment' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:422
+[21-Jun-2026 09:05:15 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse_inventory' in 'WHERE' in D:\Unitech2.0\api.pos\models\get.model.php:269
+Stack trace:
+#0 D:\Unitech2.0\api.pos\models\get.model.php(269): PDO->prepare('SELECT * FROM p...')
+#1 D:\Unitech2.0\api.pos\controllers\get.controller.php(52): GetModel::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#2 D:\Unitech2.0\api.pos\routes\services\get.php(253): GetController::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#3 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#4 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#5 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#6 {main}
+  thrown in D:\Unitech2.0\api.pos\models\get.model.php on line 269
+[21-Jun-2026 09:05:15 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse_inventory' in 'WHERE' in D:\Unitech2.0\api.pos\models\get.model.php:269
+Stack trace:
+#0 D:\Unitech2.0\api.pos\models\get.model.php(269): PDO->prepare('SELECT * FROM p...')
+#1 D:\Unitech2.0\api.pos\controllers\get.controller.php(52): GetModel::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#2 D:\Unitech2.0\api.pos\routes\services\get.php(253): GetController::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#3 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#4 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#5 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#6 {main}
+  thrown in D:\Unitech2.0\api.pos\models\get.model.php on line 269
+[21-Jun-2026 09:05:15 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse_inventory' in 'WHERE' in D:\Unitech2.0\api.pos\models\get.model.php:269
+Stack trace:
+#0 D:\Unitech2.0\api.pos\models\get.model.php(269): PDO->prepare('SELECT * FROM p...')
+#1 D:\Unitech2.0\api.pos\controllers\get.controller.php(52): GetModel::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#2 D:\Unitech2.0\api.pos\routes\services\get.php(253): GetController::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#3 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#4 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#5 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#6 {main}
+  thrown in D:\Unitech2.0\api.pos\models\get.model.php on line 269
+[21-Jun-2026 09:05:15 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse_inventory' in 'WHERE' in D:\Unitech2.0\api.pos\models\get.model.php:269
+Stack trace:
+#0 D:\Unitech2.0\api.pos\models\get.model.php(269): PDO->prepare('SELECT * FROM p...')
+#1 D:\Unitech2.0\api.pos\controllers\get.controller.php(52): GetModel::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#2 D:\Unitech2.0\api.pos\routes\services\get.php(253): GetController::getRelDataFilter('product_invento...', 'inventory,produ...', '*', 'id_office_inven...', '3,1,0', NULL, NULL, NULL, NULL)
+#3 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#4 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#5 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#6 {main}
+  thrown in D:\Unitech2.0\api.pos\models\get.model.php on line 269
+[21-Jun-2026 09:05:15 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'wa.id_warehouse_assignment' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:422
+[21-Jun-2026 09:05:15 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'wa.id_warehouse_assignment' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\03_warehouse_inventory.php:422
+[21-Jun-2026 09:11:59 America/La_Paz] lab error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_supplier_raw_material' in 'INSERT INTO'
+[21-Jun-2026 09:12:16 America/La_Paz] lab error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_supplier_raw_material' in 'INSERT INTO'
+[21-Jun-2026 09:17:01 America/La_Paz] [SQL_ERROR] {"type":"pdo_exception","timestamp":"2026-06-21 09:17:01","model":"PostModel::postData","table":"products","sql":"INSERT INTO products (title_product,img_product,id_category_product,sku_product,unit_product,stock_product,discount_product,status_product,id_office_product,code_product,price_product,wholesale_price_product,wholesale_qty_product,initial_stock_product,is_compound_product,origin_office_product) VALUES (:title_product,:img_product,:id_category_product,:sku_product,:unit_product,:stock_product,:discount_product,:status_product,:id_office_product,:code_product,:price_product,:wholesale_price_product,:wholesale_qty_product,:initial_stock_product,:is_compound_product,:origin_office_product)","params":{"title_product":"vinagre de frutilla","img_product":"http://localhost:8081/uploads/img_1782047811_6a37e4432b7c6.png","id_category_product":"undefined","sku_product":"65226","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"","price_product":"0","wholesale_price_product":"0","wholesale_qty_product":"0","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"},"message":"SQLSTATE[22007]: Invalid datetime format: 1366 Incorrect integer value: 'undefined' for column `u228744577_pos`.`products`.`id_category_product` at row 1","code":"22007","file":"D:\\Unitech2.0\\api.pos\\models\\post.model.php","line":41}
+[21-Jun-2026 09:17:08 America/La_Paz] [SQL_ERROR] {"type":"pdo_exception","timestamp":"2026-06-21 09:17:08","model":"PostModel::postData","table":"products","sql":"INSERT INTO products (title_product,img_product,id_category_product,sku_product,unit_product,stock_product,discount_product,status_product,id_office_product,code_product,price_product,wholesale_price_product,wholesale_qty_product,initial_stock_product,is_compound_product,origin_office_product) VALUES (:title_product,:img_product,:id_category_product,:sku_product,:unit_product,:stock_product,:discount_product,:status_product,:id_office_product,:code_product,:price_product,:wholesale_price_product,:wholesale_qty_product,:initial_stock_product,:is_compound_product,:origin_office_product)","params":{"title_product":"vinagre de frutilla","img_product":"http://localhost:8081/uploads/img_1782047811_6a37e4432b7c6.png","id_category_product":"undefined","sku_product":"65226","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"","price_product":"0","wholesale_price_product":"0","wholesale_qty_product":"0","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"},"message":"SQLSTATE[22007]: Invalid datetime format: 1366 Incorrect integer value: 'undefined' for column `u228744577_pos`.`products`.`id_category_product` at row 1","code":"22007","file":"D:\\Unitech2.0\\api.pos\\models\\post.model.php","line":41}
+[21-Jun-2026 09:17:21 America/La_Paz] [SQL_ERROR] {"type":"pdo_exception","timestamp":"2026-06-21 09:17:21","model":"PostModel::postData","table":"products","sql":"INSERT INTO products (title_product,img_product,id_category_product,sku_product,unit_product,stock_product,discount_product,status_product,id_office_product,code_product,price_product,wholesale_price_product,wholesale_qty_product,initial_stock_product,is_compound_product,origin_office_product) VALUES (:title_product,:img_product,:id_category_product,:sku_product,:unit_product,:stock_product,:discount_product,:status_product,:id_office_product,:code_product,:price_product,:wholesale_price_product,:wholesale_qty_product,:initial_stock_product,:is_compound_product,:origin_office_product)","params":{"title_product":"vinagre de frutilla","img_product":"http://localhost:8081/uploads/img_1782047811_6a37e4432b7c6.png","id_category_product":"undefined","sku_product":"65226","unit_product":"1Lt","stock_product":"","discount_product":"0","status_product":"1","id_office_product":"0","code_product":"","price_product":"0","wholesale_price_product":"0","wholesale_qty_product":"0","initial_stock_product":"0","is_compound_product":"0","origin_office_product":"0"},"message":"SQLSTATE[22007]: Invalid datetime format: 1366 Incorrect integer value: 'undefined' for column `u228744577_pos`.`products`.`id_category_product` at row 1","code":"22007","file":"D:\\Unitech2.0\\api.pos\\models\\post.model.php","line":41}
+[21-Jun-2026 09:38:32 America/La_Paz] pos_sales error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'unit_price_entry' in 'SET'
+[21-Jun-2026 09:38:52 America/La_Paz] pos_sales error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'unit_price_entry' in 'SET'
+[21-Jun-2026 09:43:22 America/La_Paz] warehouse error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse_inventory' in 'INSERT INTO'
+[21-Jun-2026 09:53:37 America/La_Paz] warehouse error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_dest_warehouse' in 'INSERT INTO'
+[21-Jun-2026 10:15:26 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[21-Jun-2026 10:22:05 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[21-Jun-2026 10:23:42 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[21-Jun-2026 10:34:10 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'

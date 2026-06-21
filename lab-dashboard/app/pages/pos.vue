@@ -1607,6 +1607,7 @@ function printReceipt() {
                 QR
               </UButton>
               <UButton
+                v-if="auth.role !== 'cajero'"
                 :color="payMethod === 'credito' ? 'primary' : 'neutral'"
                 variant="soft"
                 icon="i-lucide-credit-card"

@@ -29,7 +29,7 @@ $stmt2 = $db->prepare("
     WHERE o.status_order = 'Pendiente Aprobacion Almacen' 
       AND (
           o.id_office_order = :office 
-          OR a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_office_warehouse = :office)
+          OR a.id_warehouse_admin IN (SELECT id_warehouse FROM warehouses WHERE id_sucursal_warehouse = :office)
       )
 ");
 $stmt2->execute([':office' => $id_office]);

@@ -267,6 +267,9 @@ async function loadRelationOptions(matrixTable: string) {
       if (props.moduleName === 'compras' && matrixTable === 'suppliers') {
         rawResults = rawResults.filter((r: any) => r.type_supplier !== 'materias_primas')
       }
+      if (matrixTable === 'offices') {
+        rawResults = rawResults.filter((r: any) => r.type_office === 'sucursal' || !r.type_office)
+      }
 
       const mapped = rawResults
         .filter((r: any) => {
@@ -588,7 +591,7 @@ watch(() => props.initialData, () => {
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && ['utility_purchase', 'price_purchase', 'id_office_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client') && !(moduleConfig?.title_module === 'products' && col.title_column === 'id_office_product')">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && ['utility_purchase', 'price_purchase', 'id_office_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client') && !(moduleConfig?.title_module === 'products' && col.title_column === 'id_office_product') && !(moduleConfig?.title_module === 'bills' && col.title_column === 'id_cash_bill' && auth.role === 'cajero')">
 
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
               {{ col.alias_column || col.title_column }}

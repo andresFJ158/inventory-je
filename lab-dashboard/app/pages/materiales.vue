@@ -389,7 +389,7 @@ function getSupplierName(id: number | string) {
 
     <UModal v-model:open="isModalOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900">
+        <div class="w-full p-6 space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto">
           <div class="flex justify-between items-center border-b border-slate-200 pb-3">
             <h3 class="text-lg font-bold text-slate-800 tracking-wide">
               {{ modalTitle }}
@@ -506,8 +506,8 @@ function getSupplierName(id: number | string) {
 
             <!-- Proveedor -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Proveedor (Opcional)</label>
-              <select v-model="form.id_supplier" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Proveedor</label>
+              <select v-model="form.id_supplier" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500" required>
                 <option value="">Seleccionar Proveedor</option>
                 <option v-for="s in suppliers" :key="s.id_supplier" :value="String(s.id_supplier)">
                   {{ decodeURIComponent(s.supplier_name || '').replace(/\+/g, ' ') }}

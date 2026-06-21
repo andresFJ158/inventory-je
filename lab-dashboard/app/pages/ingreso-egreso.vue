@@ -711,7 +711,7 @@ onMounted(() => {
     <!-- Modal REGISTRAR INGRESO (UModal v-model:open) -->
     <UModal v-model:open="isCreateOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 bg-white rounded-xl border border-slate-200">
+        <div class="w-full p-6 space-y-4 text-slate-900 bg-white rounded-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
           <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-green-600">
             <h3 class="text-lg font-bold tracking-wide flex items-center gap-2">
               <UIcon name="i-lucide-plus" class="w-5 h-5" /> Registrar Ingreso de Stock (Entrada)

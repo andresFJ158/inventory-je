@@ -298,7 +298,11 @@ const calculatedEnvases = computed(() => {
 watch([pkgVolumeInput.raw, () => pkgForm.value.unit, () => pkgForm.value.recipe_name], () => {
   if (pkgVolumeInput.raw.value > 0 && pkgForm.value.recipe_name) {
     const base = pkgForm.value.recipe_name.replace(/a granel/ig, '').trim()
-    pkgForm.value.final_name = `${base} ${pkgVolumeInput.raw.value}${pkgForm.value.unit}`
+    if ((pkgForm.value.unit === 'und' || pkgForm.value.unit === 'u') && pkgVolumeInput.raw.value === 1) {
+      pkgForm.value.final_name = base
+    } else {
+      pkgForm.value.final_name = `${base} ${pkgVolumeInput.raw.value}${pkgForm.value.unit}`
+    }
   }
 })
 
