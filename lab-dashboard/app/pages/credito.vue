@@ -133,21 +133,52 @@ async function addPayment() {
 const totalBalance = computed(() => credits.value.filter(c => c.status_credit !== 'pagado' && c.status_credit !== 'anulado').reduce((a, c) => a + parseFloat(c.balance_credit || 0), 0))
 const overdue = computed(() => credits.value.filter(c => c.status_credit !== 'pagado' && c.status_credit !== 'anulado' && c.due_date_credit && daysDiff(c.due_date_credit)! < 0))
 
-async function cancelCredit(credit: any) {
-  if (!confirm('¿Estás seguro de que deseas cancelar este crédito?\n\nSi proviene de una venta, se devolverá el stock pero se mantendrán los abonos registrados como dinero ingresado.')) return
-  
-  if (credit.id_order_credit && credit.id_order_credit !== '0') {
-    const fd = new FormData()
-    fd.append('cancelCreditOrder', String(credit.id_order_credit))
-    const d = await api.ajaxForm(fd)
-    if (d?.status === 200) {
-      toast.add({ title: 'Crédito cancelado y stock devuelto', color: 'success' })
-      detailModal.value = false
-      await fetchCredits()
-    } else {
-      toast.add({ title: 'Error al cancelar la orden', color: 'error' })
-    }
+const cancelModal = ref(false)
+const returnItems = ref<any[]>([])
+const cancelling = ref(false)
+
+function openCancelCredit(credit: any) {
+  if (credit.id_order_credit && credit.id_order_credit !== '0' && salesDetails.value.length > 0) {
+    returnItems.value = salesDetails.value.map(s => ({
+      ...s,
+      qty_return: s.qty_sale, // por defecto devuelve todo
+      product_name: products.value.find(p => p.id_product == s.id_product_sale)?.title_product || 'Producto'
+    }))
+    cancelModal.value = true
   } else {
+    // Para créditos sin orden o manuales, anular directamente con confirmación
+    if (!confirm('¿Estás seguro de que deseas anular este crédito manual?')) return
+    executeCancelManual(credit)
+  }
+}
+
+const totalReturnAmount = computed(() => {
+  return returnItems.value.reduce((total, item) => {
+    const unitPrice = parseFloat(item.subtotal_sale) / parseFloat(item.qty_sale)
+    return total + (unitPrice * (parseFloat(item.qty_return) || 0))
+  }, 0)
+})
+
+async function executeCancelPartial() {
+  if (!selectedCredit.value) return
+  cancelling.value = true
+  const fd = new FormData()
+  fd.append('partialCancelCreditOrder', String(selectedCredit.value.id_order_credit))
+  fd.append('returns', JSON.stringify(returnItems.value.map(i => ({ id_sale: i.id_sale, qty_return: i.qty_return }))))
+  
+  const d = await api.ajaxForm(fd)
+  if (d?.status === 200) {
+    toast.add({ title: 'Crédito actualizado y stock devuelto', color: 'success' })
+    cancelModal.value = false
+    detailModal.value = false
+    await fetchCredits()
+  } else {
+    toast.add({ title: d?.message || 'Error al cancelar la orden', color: 'error' })
+  }
+  cancelling.value = false
+}
+
+async function executeCancelManual(credit: any) {
     try {
       const res = await $fetch<any>(`/api/credits?id=${credit.id_credit}&nameId=id_credit&token=${auth.token}&table=admins&suffix=admin`, {
         method: 'PUT',
@@ -164,7 +195,6 @@ async function cancelCredit(credit: any) {
     } catch {
       toast.add({ title: 'Error de conexión', color: 'error' })
     }
-  }
 }
 
 onMounted(async () => { await Promise.all([fetchClients(), fetchProducts(), fetchCredits()]) })
@@ -426,7 +456,7 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchProducts(), fetc
             color="error" 
             variant="soft" 
             icon="i-lucide-x-circle" 
-            @click="cancelCredit(selectedCredit)"
+            @click="openCancelCredit(selectedCredit)"
           >
             Cancelar Crédito
           </UButton>
@@ -435,5 +465,43 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchProducts(), fetc
         </div>
       </template>
     </UModal>
+    <!-- Modal: Cancelación Parcial -->
+    <UModal v-model:open="cancelModal" title="Devolver Productos y Cancelar Crédito">
+      <template #body>
+        <div class="flex flex-col gap-4 p-1">
+          <UAlert title="Devolución Selectiva" description="Selecciona cuántas unidades de cada producto deseas devolver al stock. Solo el monto de los productos devueltos se restará del total." color="warning" variant="soft" icon="i-lucide-info" class="shrink-0" />
+          
+          <div class="space-y-2 overflow-y-auto flex-1 pr-1" style="max-height: 40vh;">
+            <div v-for="(item, i) in returnItems" :key="item.id_sale" class="bg-slate-50 border border-slate-200 rounded-lg p-3 shrink-0">
+              <div class="flex justify-between mb-2">
+                <span class="font-bold text-slate-800 text-sm line-clamp-1">{{ decode(item.product_name) }}</span>
+                <span class="text-xs text-slate-500">Compró: {{ item.qty_sale }} unid.</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <UFormField label="Cant. a Devolver" class="flex-1">
+                  <UInput v-model="item.qty_return" type="number" step="any" min="0" :max="item.qty_sale" class="w-full" size="sm" />
+                </UFormField>
+                <div class="text-right flex-1">
+                  <p class="text-[10px] text-slate-500 uppercase font-semibold">Monto Restado</p>
+                  <p class="font-mono text-sm font-bold text-rose-600">-{{ fmt((parseFloat(item.subtotal_sale) / parseFloat(item.qty_sale)) * (parseFloat(item.qty_return) || 0)) }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex justify-between items-center shrink-0">
+            <span class="text-amber-800 font-semibold text-sm">Total a Restar del Crédito:</span>
+            <span class="text-amber-700 font-black text-lg">{{ fmt(totalReturnAmount) }}</span>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-3 w-full">
+          <UButton color="neutral" variant="ghost" @click="cancelModal = false">Cerrar</UButton>
+          <UButton color="error" :loading="cancelling" @click="executeCancelPartial" icon="i-lucide-undo-2">Confirmar Devolución</UButton>
+        </div>
+      </template>
+    </UModal>
+
   </div>
 </template>

@@ -156,6 +156,22 @@ if(isset($_POST["cancelCreditOrder"])){
 }
 
 /*=============================================
+Cancelar Orden a Crédito Parcial
+=============================================*/
+if(isset($_POST["partialCancelCreditOrder"])){
+	$ajax = new PosController();
+	$ajax -> idOrderCancel = $_POST["partialCancelCreditOrder"];
+	$ajax -> partialReturns = $_POST["returns"] ?? '';
+	$ajax -> token = $_POST["token"] ?? null;
+
+	if (empty($ajax->idOrderCancel)) {
+		echo json_encode(['status' => 400, 'message' => 'ID de orden vacío']);
+	} else {
+		$ajax -> partialCancelCreditOrder();
+	}
+}
+
+/*=============================================
 Aprobar Entrada de Materia Prima
 =============================================*/
 if(isset($_POST["requestWarehouseApproval"])){

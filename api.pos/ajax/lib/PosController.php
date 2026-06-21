@@ -716,4 +716,130 @@ class PosController{
 		}
 	}
 
+	public $partialReturns;
+
+	public function partialCancelCreditOrder(){
+		try {
+			$db = LocalConnection::connect();
+			$returns = json_decode($this->partialReturns, true);
+			if (!is_array($returns) || empty($returns)) {
+				echo json_encode(['status' => 400, 'message' => 'No hay productos a devolver']);
+				return;
+			}
+
+			// Verificar orden
+			$stmt = $db->prepare("SELECT status_order, method_order FROM orders WHERE id_order = :id LIMIT 1");
+			$stmt->execute([':id' => $this->idOrderCancel]);
+			$order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+			if (!$order) {
+				echo json_encode(['status' => 404, 'message' => 'Orden no encontrada']);
+				return;
+			}
+
+			if (!in_array($order['status_order'], ['Completada', 'Venta Confirmada', 'Pendiente Despacho']) || $order['method_order'] !== 'credito') {
+				echo json_encode(['status' => 400, 'message' => 'Solo se pueden cancelar ventas a crédito completadas, confirmadas o pendientes']);
+				return;
+			}
+
+			$db->beginTransaction();
+
+			$totalReturnedAmount = 0;
+			$allFullyReturned = true;
+
+			// Procesar cada devolucion
+			foreach($returns as $ret) {
+				$idSale = intval($ret['id_sale']);
+				$qtyReturn = floatval($ret['qty_return']);
+				if ($qtyReturn <= 0) {
+					$allFullyReturned = false;
+					continue;
+				}
+
+				$stmtS = $db->prepare("SELECT * FROM sales WHERE id_sale = :ids AND id_order_sale = :ido");
+				$stmtS->execute([':ids' => $idSale, ':ido' => $this->idOrderCancel]);
+				$sale = $stmtS->fetch(PDO::FETCH_ASSOC);
+				if (!$sale) continue;
+
+				if ($qtyReturn > floatval($sale['qty_sale'])) {
+					$qtyReturn = floatval($sale['qty_sale']);
+				}
+
+				if ($qtyReturn < floatval($sale['qty_sale'])) {
+					$allFullyReturned = false;
+				}
+
+				$unitPrice = floatval($sale['subtotal_sale']) / floatval($sale['qty_sale']);
+				$returnedAmount = $unitPrice * $qtyReturn;
+				$totalReturnedAmount += $returnedAmount;
+
+				// Update sale
+				$newQty = floatval($sale['qty_sale']) - $qtyReturn;
+				$newSubtotal = floatval($sale['subtotal_sale']) - $returnedAmount;
+
+				$stmtUS = $db->prepare("UPDATE sales SET qty_sale = :nq, subtotal_sale = :ns WHERE id_sale = :ids");
+				$stmtUS->execute([':nq' => $newQty, ':ns' => $newSubtotal, ':ids' => $idSale]);
+
+				// Devolver stock
+				$stmtProd = $db->prepare("SELECT is_combo_product FROM products WHERE id_product = :id");
+				$stmtProd->execute([':id' => $sale['id_product_sale']]);
+				$isCombo = $stmtProd->fetchColumn();
+
+				if ($isCombo) {
+					$db->exec("UPDATE product_inventory pi INNER JOIN combo_items ci ON pi.id_product_inventory = ci.id_product_ci SET pi.stock_inventory = COALESCE(pi.stock_inventory, 0) + (ci.qty_ci * {$qtyReturn}) WHERE ci.id_combo_ci = {$sale['id_product_sale']} AND pi.id_office_inventory = {$sale['id_office_sale']}");
+					$db->exec("UPDATE products p INNER JOIN combo_items ci ON p.id_product = ci.id_product_ci SET p.stock_product = (SELECT COALESCE(SUM(pi2.stock_inventory), 0) FROM product_inventory pi2 WHERE pi2.id_product_inventory = p.id_product AND pi2.status_inventory = 1) WHERE ci.id_combo_ci = {$sale['id_product_sale']}");
+				} else {
+					$db->exec("UPDATE product_inventory SET stock_inventory = COALESCE(stock_inventory, 0) + {$qtyReturn} WHERE id_product_inventory = {$sale['id_product_sale']} AND id_office_inventory = {$sale['id_office_sale']} AND status_inventory = 1");
+					$db->exec("UPDATE products SET stock_product = (SELECT COALESCE(SUM(stock_inventory), 0) FROM product_inventory WHERE id_product_inventory = {$sale['id_product_sale']} AND status_inventory = 1) WHERE id_product = {$sale['id_product_sale']}");
+				}
+				$db->exec("INSERT INTO stock_movements (id_product_movement, id_office_movement, qty_movement, type_movement, id_admin_movement, notes_movement, date_created_movement) VALUES ({$sale['id_product_sale']}, {$sale['id_office_sale']}, {$qtyReturn}, 'devolucion_parcial', 0, 'Devolución parcial Orden #{$this->idOrderCancel}', NOW())");
+			}
+
+			if ($allFullyReturned) {
+				// Cancelar toda la orden si se devolvió 100% de todo
+				$stmtUpdateOrder = $db->prepare("UPDATE orders SET status_order = 'Cancelada', subtotal_order = 0, total_order = 0 WHERE id_order = :id");
+				$stmtUpdateOrder->execute([':id' => $this->idOrderCancel]);
+
+				$stmtUpdateSales = $db->prepare("UPDATE sales SET status_sale = 'Cancelada' WHERE id_order_sale = :id");
+				$stmtUpdateSales->execute([':id' => $this->idOrderCancel]);
+
+				$stmtCredit = $db->prepare("UPDATE credits SET status_credit = 'anulado', amount_credit = 0, balance_credit = 0 WHERE id_order_credit = :id");
+				$stmtCredit->execute([':id' => $this->idOrderCancel]);
+			} else {
+				// Actualizar totales de la orden
+				$db->exec("UPDATE orders SET subtotal_order = subtotal_order - {$totalReturnedAmount}, total_order = total_order - {$totalReturnedAmount} WHERE id_order = {$this->idOrderCancel}");
+				
+				// Actualizar crédito
+				$stmtCr = $db->prepare("SELECT * FROM credits WHERE id_order_credit = :id LIMIT 1");
+				$stmtCr->execute([':id' => $this->idOrderCancel]);
+				$credit = $stmtCr->fetch(PDO::FETCH_ASSOC);
+
+				if ($credit) {
+					$newAmount = floatval($credit['amount_credit']) - $totalReturnedAmount;
+					$newBalance = floatval($credit['balance_credit']) - $totalReturnedAmount;
+					// Si por alguna razon pagaron más de lo que quedaba en balance, el balance sería negativo (favor)
+					$status_credit = $credit['status_credit'];
+					if ($newBalance <= 0) {
+						$status_credit = 'pagado';
+						$newBalance = 0;
+					}
+
+					$stmtUpdateCr = $db->prepare("UPDATE credits SET amount_credit = :a, balance_credit = :b, status_credit = :s WHERE id_credit = :id");
+					$stmtUpdateCr->execute([':a' => $newAmount, ':b' => $newBalance, ':s' => $status_credit, ':id' => $credit['id_credit']]);
+				}
+			}
+
+			$db->commit();
+			echo json_encode(['status' => 200, 'message' => 'ok']);
+			exit;
+
+		} catch (Throwable $e) {
+			if (isset($db) && $db->inTransaction()) {
+				$db->rollBack();
+			}
+			echo json_encode(['status' => 500, 'message' => 'Error de servidor al cancelar parcialmente']);
+			exit;
+		}
+	}
+
 }
