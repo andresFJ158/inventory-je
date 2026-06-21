@@ -125,7 +125,8 @@ async function fetchRows() {
     let url = `/api/${config.title_module}`
     const params: Record<string, any> = {
       orderBy: idKey,
-      orderMode: 'DESC'
+      orderMode: 'DESC',
+      token: auth.token
     }
 
     // Apply office/warehouse filter if needed

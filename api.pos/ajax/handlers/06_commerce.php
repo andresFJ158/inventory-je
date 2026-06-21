@@ -746,109 +746,394 @@ if (isset($_POST['getCreditPayments'])) {
 }
 
 //=====================================
-// CONSIGNACIONES
+// CONSIGNACIONES v2 (pagos progresivos)
 //=====================================
+
+/**
+ * Recalcula total_consignment de una consignación y actualiza su status.
+ * Llamar dentro de una transacción ya abierta.
+ */
+function consignment_recalculate(PDO $db, int $id): void {
+    $stmt = $db->prepare("
+        SELECT SUM((ci.qty_assigned - ci.qty_returned - COALESCE(ci.qty_reponed,0)) * ci.price_consignment) as total
+        FROM consignment_items ci
+        WHERE ci.id_consignment = :id
+    ");
+    $stmt->execute([':id' => $id]);
+    $total = floatval($stmt->fetchColumn());
+
+    $stmtP = $db->prepare('SELECT COALESCE(SUM(amount_payment),0) FROM consignment_payments WHERE id_consignment=:id');
+    $stmtP->execute([':id' => $id]);
+    $paid = floatval($stmtP->fetchColumn());
+
+    $status = 'activa';
+    if ($paid >= $total && $total > 0) {
+        $status = 'completada';
+    } elseif ($paid > 0) {
+        $status = 'parcial';
+    }
+
+    $db->prepare("UPDATE consignments SET total_consignment=:t, paid_consignment=:p, status_consignment=:s WHERE id_consignment=:id")
+       ->execute([':t' => $total, ':p' => $paid, ':s' => $status, ':id' => $id]);
+}
+
 if (isset($_POST['getConsignments'])) {
     $db = LocalConnection::connect();
-    $stmt = $db->prepare("SELECT c.*, a.name_admin FROM consignments c LEFT JOIN admins a ON c.id_admin_consignment=a.id_admin WHERE c.id_office_consignment=:o ORDER BY c.id_consignment DESC");
-    $stmt->execute([':o' => intval($_POST['id_office'] ?? 0)]);
+    $idOffice = intval($_POST['id_office'] ?? 0);
+    $status   = $_POST['status'] ?? '';
+    $idAdmin  = intval($_POST['id_admin'] ?? 0);
+
+    $where = 'WHERE c.id_office_consignment=:o';
+    $params = [':o' => $idOffice];
+
+    if ($status && $status !== 'todos') {
+        $where .= ' AND c.status_consignment=:s';
+        $params[':s'] = $status;
+    }
+    if ($idAdmin > 0) {
+        $where .= ' AND c.id_admin_consignment=:ad';
+        $params[':ad'] = $idAdmin;
+    }
+
+    $stmt = $db->prepare("
+        SELECT c.*,
+               a.name_admin,
+               CONCAT(cl.name_client,' ',COALESCE(cl.surname_client,'')) AS client_name,
+               cl.phone_client,
+               (c.total_consignment - c.paid_consignment) AS balance_consignment
+        FROM consignments c
+        LEFT JOIN admins a ON c.id_admin_consignment = a.id_admin
+        LEFT JOIN clients cl ON c.id_client_consignment = cl.id_client
+        $where
+        ORDER BY c.id_consignment DESC
+    ");
+    $stmt->execute($params);
     echo json_encode(['status' => 200, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     exit;
 }
+
 if (isset($_POST['createConsignment'])) {
-    $db      = LocalConnection::connect();
-    $idAdmin = pos_int('id_admin');
-    $idOffice= pos_int('id_office');
-    $notes   = $_POST['notes'] ?? '';
-    $items   = json_decode($_POST['items'] ?? '[]', true);
+    $db       = LocalConnection::connect();
+    $idAdmin  = pos_int('id_admin');
+    $idOffice = pos_int('id_office');
+    $idClient = intval($_POST['id_client'] ?? 0);
+    $notes    = $_POST['notes'] ?? '';
+    $items    = json_decode($_POST['items'] ?? '[]', true);
     if (!is_array($items) || count($items) === 0) { pos_fail(400, 'Debe incluir al menos un producto'); }
 
     try {
-        $id = pos_transaction($db, function(PDO $db) use ($idAdmin, $idOffice, $notes, $items) {
-            $stmt = $db->prepare("INSERT INTO consignments (id_admin_consignment, id_office_consignment, notes_consignment, date_created_consignment) VALUES (:ad, :of, :nt, CURDATE())");
-            $stmt->execute([':ad' => $idAdmin, ':of' => $idOffice, ':nt' => $notes]);
+        $newId = pos_transaction($db, function(PDO $db) use ($idAdmin, $idOffice, $idClient, $notes, $items) {
+            $total = 0;
+            foreach ($items as $item) {
+                $total += floatval($item['qty'] ?? 0) * floatval($item['price'] ?? 0);
+            }
+
+            $stmt = $db->prepare("INSERT INTO consignments
+                (id_admin_consignment, id_office_consignment, id_client_consignment, notes_consignment,
+                 total_consignment, paid_consignment, status_consignment, date_created_consignment)
+                VALUES (:ad, :of, :cl, :nt, :total, 0, 'activa', CURDATE())");
+            $stmt->execute([':ad' => $idAdmin, ':of' => $idOffice, ':cl' => $idClient ?: null, ':nt' => $notes, ':total' => $total]);
             $id = $db->lastInsertId();
 
-            $stmtI   = $db->prepare("INSERT INTO consignment_items (id_consignment, id_product_consignment, qty_assigned, price_consignment) VALUES (:c, :p, :q, :pr)");
-            $stmtInv = $db->prepare("UPDATE product_inventory SET stock_inventory = stock_inventory - :q WHERE id_product_inventory=:p AND id_office_inventory=:o AND stock_inventory >= :min_qty");
+            $stmtI   = $db->prepare("INSERT INTO consignment_items
+                (id_consignment, id_product_consignment, qty_assigned, price_consignment)
+                VALUES (:c, :p, :q, :pr)");
+            $stmtInv = $db->prepare("UPDATE product_inventory
+                SET stock_inventory = stock_inventory - :q
+                WHERE id_product_inventory=:p AND id_office_inventory=:o AND stock_inventory >= :min");
 
             foreach ($items as $item) {
                 $pid = intval($item['id_product'] ?? 0);
                 $qty = floatval($item['qty'] ?? 0);
+                $price = floatval($item['price'] ?? 0);
                 if ($pid <= 0 || $qty <= 0) { throw new RuntimeException('ITEM_INVALID'); }
-                // Descontar inventario primero; si no afect� filas, no hab�a stock suficiente
-                $stmtInv->execute([':q' => $qty, ':p' => $pid, ':o' => $idOffice, ':min_qty' => $qty]);
-                if ($stmtInv->rowCount() === 0) {
-                    throw new RuntimeException('NO_STOCK:' . $pid);
-                }
-                $stmtI->execute([':c' => $id, ':p' => $pid, ':q' => $qty, ':pr' => floatval($item['price'] ?? 0)]);
+                $stmtInv->execute([':q' => $qty, ':p' => $pid, ':o' => $idOffice, ':min' => $qty]);
+                if ($stmtInv->rowCount() === 0) { throw new RuntimeException('NO_STOCK:' . $pid); }
+                $stmtI->execute([':c' => $id, ':p' => $pid, ':q' => $qty, ':pr' => $price]);
             }
             return $id;
         });
     } catch (RuntimeException $e) {
         $msg = $e->getMessage();
-        if (strpos($msg, 'NO_STOCK:') === 0) {
-            pos_fail(409, 'Stock insuficiente para el producto #' . substr($msg, 9) . '. Consignaci�n cancelada.');
-        }
-        if ($msg === 'ITEM_INVALID') { pos_fail(400, 'Producto o cantidad inv�lidos'); }
+        if (strpos($msg, 'NO_STOCK:') === 0) { pos_fail(409, 'Stock insuficiente para el producto #' . substr($msg, 9)); }
+        if ($msg === 'ITEM_INVALID') { pos_fail(400, 'Producto o cantidad inválidos'); }
         throw $e;
     }
-
-    pos_ok(['id' => $id], 'Consignaci�n creada');
+    pos_ok(['id' => $newId], 'Consignación creada');
 }
+
+if (isset($_POST['getConsignmentFull'])) {
+    $db = LocalConnection::connect();
+    $id = intval($_POST['id_consignment'] ?? 0);
+
+    $stmtC = $db->prepare("
+        SELECT c.*,
+               a.name_admin,
+               CONCAT(cl.name_client,' ',COALESCE(cl.surname_client,'')) AS client_name,
+               cl.phone_client, cl.dni_client,
+               (c.total_consignment - c.paid_consignment) AS balance_consignment
+        FROM consignments c
+        LEFT JOIN admins a ON c.id_admin_consignment = a.id_admin
+        LEFT JOIN clients cl ON c.id_client_consignment = cl.id_client
+        WHERE c.id_consignment = :id
+    ");
+    $stmtC->execute([':id' => $id]);
+    $consignment = $stmtC->fetch(PDO::FETCH_ASSOC);
+    if (!$consignment) { pos_fail(404, 'Consignación no encontrada'); }
+
+    $stmtItems = $db->prepare("
+        SELECT ci.*, p.title_product, p.sku_product, p.unit_product, p.price_product,
+               (ci.qty_assigned - ci.qty_returned - COALESCE(ci.qty_reponed, 0)) AS qty_active,
+               ((ci.qty_assigned - ci.qty_returned - COALESCE(ci.qty_reponed, 0)) - COALESCE(ci.qty_sold, 0)) AS qty_pending
+        FROM consignment_items ci
+        JOIN products p ON ci.id_product_consignment = p.id_product
+        WHERE ci.id_consignment = :id
+        ORDER BY ci.id_consignment_item ASC
+    ");
+    $stmtItems->execute([':id' => $id]);
+    $items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmtPay = $db->prepare("
+        SELECT cp.*, a.name_admin AS admin_name
+        FROM consignment_payments cp
+        LEFT JOIN admins a ON cp.id_admin_payment = a.id_admin
+        WHERE cp.id_consignment = :id
+        ORDER BY cp.id_payment ASC
+    ");
+    $stmtPay->execute([':id' => $id]);
+    $payments = $stmtPay->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmtRep = $db->prepare("
+        SELECT cr.*,
+               p_out.title_product AS product_out_name,
+               p_in.title_product AS product_in_name
+        FROM consignment_replacements cr
+        LEFT JOIN consignment_items ci_out ON cr.id_item_out = ci_out.id_consignment_item
+        LEFT JOIN consignment_items ci_in  ON cr.id_item_in  = ci_in.id_consignment_item
+        LEFT JOIN products p_out ON ci_out.id_product_consignment = p_out.id_product
+        LEFT JOIN products p_in  ON ci_in.id_product_consignment  = p_in.id_product
+        WHERE cr.id_consignment = :id
+        ORDER BY cr.id_replacement ASC
+    ");
+    $stmtRep->execute([':id' => $id]);
+    $replacements = $stmtRep->fetchAll(PDO::FETCH_ASSOC);
+
+    pos_ok([
+        'results' => [
+            'consignment' => $consignment,
+            'items'       => $items,
+            'payments'    => $payments,
+            'replacements'=> $replacements
+        ]
+    ]);
+}
+
 if (isset($_POST['getConsignmentItems'])) {
     $db = LocalConnection::connect();
-    $stmt = $db->prepare("SELECT ci.*, p.title_product, p.sku_product, p.unit_product FROM consignment_items ci JOIN products p ON ci.id_product_consignment=p.id_product WHERE ci.id_consignment=:id");
+    $stmt = $db->prepare("
+        SELECT ci.*, p.title_product, p.sku_product, p.unit_product,
+               ((ci.qty_assigned - ci.qty_returned - COALESCE(ci.qty_reponed, 0)) - COALESCE(ci.qty_sold,0)) AS qty_pending
+        FROM consignment_items ci
+        JOIN products p ON ci.id_product_consignment = p.id_product
+        WHERE ci.id_consignment = :id
+    ");
     $stmt->execute([':id' => intval($_POST['id_consignment'])]);
     echo json_encode(['status' => 200, 'results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     exit;
 }
-if (isset($_POST['liquidateConsignment'])) {
+
+if (isset($_POST['addConsignmentPayment'])) {
     $db       = LocalConnection::connect();
-    $items    = json_decode($_POST['items'] ?? '[]', true);
     $id       = pos_int('id_consignment');
     $idOffice = pos_int('id_office');
+    $amount   = floatval($_POST['amount'] ?? 0);
+    $method   = $_POST['method'] ?? 'efectivo';
     $ref      = $_POST['reference'] ?? '';
-    if (!$id) { pos_fail(400, 'Consignaci�n inv�lida'); }
-    if (!is_array($items)) { $items = []; }
+    $notes    = $_POST['notes_payment'] ?? '';
+    $idAdmin  = pos_int('id_admin');
 
-    // Comprobante fuera de la transacci�n (I/O de filesystem)
+    if ($amount <= 0) { pos_fail(400, 'El monto debe ser mayor a 0'); }
+
+    // File upload outside transaction
     $filePath = null; $fileWarning = null;
-    try {
-        $filePath = posStoreSalePaymentFile($_FILES['proof'] ?? null);
-    } catch (Exception $e) {
-        $fileWarning = $e->getMessage();
-    }
+    try { $filePath = posStoreSalePaymentFile($_FILES['proof'] ?? null); }
+    catch (Exception $e) { $fileWarning = $e->getMessage(); }
 
     try {
-        pos_transaction($db, function(PDO $db) use ($id, $idOffice, $items, $filePath, $ref) {
-            // Bloquear y verificar estado: evita liquidar dos veces (doble devoluci�n de stock)
-            $stmtS = $db->prepare("SELECT status_consignment FROM consignments WHERE id_consignment=:id FOR UPDATE");
-            $stmtS->execute([':id' => $id]);
-            $status = $stmtS->fetchColumn();
-            if ($status === false)        { throw new RuntimeException('NOT_FOUND'); }
-            if ($status === 'liquidada')  { throw new RuntimeException('ALREADY'); }
+        pos_transaction($db, function(PDO $db) use ($id, $idOffice, $amount, $method, $ref, $notes, $filePath, $idAdmin) {
+            $stmtC = $db->prepare('SELECT total_consignment, paid_consignment, status_consignment FROM consignments WHERE id_consignment=:id FOR UPDATE');
+            $stmtC->execute([':id' => $id]);
+            $c = $stmtC->fetch(PDO::FETCH_ASSOC);
+            if (!$c) { throw new RuntimeException('Consignación no encontrada.'); }
+            if ($c['status_consignment'] === 'completada') { throw new RuntimeException('La consignación ya está pagada.'); }
 
-            $stmtItem = $db->prepare("UPDATE consignment_items SET qty_sold=:s, qty_returned=:r WHERE id_consignment_item=:id AND id_consignment=:cid");
-            $stmtBack = $db->prepare("UPDATE product_inventory SET stock_inventory = stock_inventory + :q WHERE id_product_inventory=:p AND id_office_inventory=:o");
-            foreach ($items as $item) {
-                $sold     = floatval($item['qty_sold'] ?? 0);
-                $returned = floatval($item['qty_returned'] ?? 0);
-                $stmtItem->execute([':s' => $sold, ':r' => $returned, ':id' => intval($item['id_consignment_item'] ?? 0), ':cid' => $id]);
-                if ($returned > 0) {
-                    $stmtBack->execute([':q' => $returned, ':p' => intval($item['id_product_consignment'] ?? 0), ':o' => $idOffice]);
+            $balance = round(floatval($c['total_consignment']) - floatval($c['paid_consignment']), 2);
+            if ($amount > $balance + 0.001) { throw new RuntimeException('El monto excede el saldo pendiente (Saldo: ' . $balance . ').'); }
+
+            // Register payment
+            $db->prepare("INSERT INTO consignment_payments
+                (id_consignment, amount_payment, method_payment, reference_payment, file_payment, id_admin_payment, notes_payment, date_created_payment)
+                VALUES (:id, :am, :me, :re, :f, :ad, :nt, CURDATE())"
+            )->execute([':id' => $id, ':am' => $amount, ':me' => $method, ':re' => $ref, ':f' => $filePath, ':ad' => $idAdmin, ':nt' => $notes]);
+
+            // Recalculate
+            consignment_recalculate($db, $id);
+
+            // If now completada, generate order
+            $stmtCheck = $db->prepare('SELECT status_consignment FROM consignments WHERE id_consignment=:id');
+            $stmtCheck->execute([':id' => $id]);
+            if ($stmtCheck->fetchColumn() === 'completada') {
+                // Build order from consignment items sold
+                $stmtItems = $db->prepare("
+                    SELECT ci.id_product_consignment AS id_product,
+                           COALESCE(ci.qty_sold, (ci.qty_assigned - ci.qty_returned - COALESCE(ci.qty_reponed,0))) AS qty,
+                           ci.price_consignment AS price
+                    FROM consignment_items ci
+                    WHERE ci.id_consignment = :id AND (ci.qty_assigned - ci.qty_returned - COALESCE(ci.qty_reponed,0)) > 0
+                ");
+                $stmtItems->execute([':id' => $id]);
+                $soldItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+
+                $stmtCons = $db->prepare('SELECT id_admin_consignment, id_office_consignment, id_client_consignment, total_consignment FROM consignments WHERE id_consignment=:id');
+                $stmtCons->execute([':id' => $id]);
+                $cons = $stmtCons->fetch(PDO::FETCH_ASSOC);
+
+                $total = floatval($cons['total_consignment']);
+                $txn   = 'CONS-' . $id . '-' . date('YmdHis');
+
+                $stmtOrd = $db->prepare("INSERT INTO orders
+                    (id_admin_order, id_office_order, id_client_order, transaction_order,
+                     subtotal_order, total_order, discount_order, tax_order, method_order,
+                     status_order, date_order, date_created_order)
+                    VALUES (:ad, :of, :cl, :txn, :sub, :tot, 0, 0, 'consignacion',
+                     'Completada', CURDATE(), NOW())");
+                $stmtOrd->execute([
+                    ':ad' => $cons['id_admin_consignment'],
+                    ':of' => $cons['id_office_consignment'],
+                    ':cl' => $cons['id_client_consignment'],
+                    ':txn'=> $txn,
+                    ':sub'=> $total,
+                    ':tot'=> $total
+                ]);
+                $orderId = $db->lastInsertId();
+
+                $stmtSale = $db->prepare("INSERT INTO sales
+                    (id_order_sale, id_product_sale, qty_sale, subtotal_sale, status_sale)
+                    VALUES (:ord, :prod, :qty, :sub, 'Completada')");
+                foreach ($soldItems as $si) {
+                    $sub = floatval($si['qty']) * floatval($si['price']);
+                    $stmtSale->execute([':ord' => $orderId, ':prod' => $si['id_product'], ':qty' => $si['qty'], ':sub' => $sub]);
                 }
+
+                $db->prepare('UPDATE consignments SET id_order_consignment=:ord WHERE id_consignment=:id')
+                   ->execute([':ord' => $orderId, ':id' => $id]);
             }
-            $db->prepare("UPDATE consignments SET status_consignment='liquidada', file_consignment=COALESCE(:f, file_consignment), reference_consignment=COALESCE(NULLIF(:r,''), reference_consignment) WHERE id_consignment=:id")
-               ->execute([':f' => $filePath, ':r' => $ref, ':id' => $id]);
         });
-    } catch (RuntimeException $e) {
-        if ($e->getMessage() === 'NOT_FOUND') { pos_fail(404, 'Consignaci�n no encontrada'); }
-        if ($e->getMessage() === 'ALREADY')   { pos_fail(409, 'Esta consignaci�n ya fue liquidada'); }
-        throw $e;
+    } catch (Throwable $e) {
+        pos_fail(400, $e->getMessage());
     }
 
-    pos_ok(['file_consignment' => $filePath, 'file_warning' => $fileWarning], 'Liquidaci�n completada');
+    pos_ok(['file_warning' => $fileWarning], 'Pago registrado correctamente');
+}
+
+if (isset($_POST['addConsignmentReturn'])) {
+    $db       = LocalConnection::connect();
+    $id       = pos_int('id_consignment');
+    $itemId   = pos_int('id_consignment_item');
+    $qty      = floatval($_POST['qty'] ?? 0);
+    $idOffice = pos_int('id_office');
+    $idAdmin  = pos_int('id_admin');
+
+    if ($qty <= 0) { pos_fail(400, 'La cantidad a devolver debe ser mayor a 0'); }
+
+    pos_transaction($db, function(PDO $db) use ($id, $itemId, $qty, $idOffice, $idAdmin) {
+        $stmtI = $db->prepare('SELECT * FROM consignment_items WHERE id_consignment_item=:id AND id_consignment=:cid FOR UPDATE');
+        $stmtI->execute([':id' => $itemId, ':cid' => $id]);
+        $item = $stmtI->fetch(PDO::FETCH_ASSOC);
+        if (!$item) { throw new RuntimeException('ITEM_NOT_FOUND'); }
+
+        $active = intval($item['qty_assigned']) - intval($item['qty_returned']) - intval($item['qty_reponed'] ?? 0);
+        if ($qty > $active) { throw new RuntimeException('QTY_EXCEEDS:' . $active); }
+
+        // Update returned qty
+        $db->prepare('UPDATE consignment_items SET qty_returned = qty_returned + :q WHERE id_consignment_item=:id')
+           ->execute([':q' => $qty, ':id' => $itemId]);
+
+        // Return stock
+        $db->prepare("INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
+            VALUES (:p, :o, :q, 1, CURDATE())
+            ON DUPLICATE KEY UPDATE stock_inventory = stock_inventory + :q")
+           ->execute([':p' => $item['id_product_consignment'], ':o' => $idOffice, ':q' => $qty]);
+
+        consignment_recalculate($db, $id);
+    });
+
+    pos_ok([], 'Devolución registrada');
+}
+
+if (isset($_POST['addConsignmentReplacement'])) {
+    $db          = LocalConnection::connect();
+    $id          = pos_int('id_consignment');
+    $itemOutId   = pos_int('id_item_out');
+    $productInId = pos_int('id_product_in');
+    $qty         = intval($_POST['qty'] ?? 0);
+    $price       = floatval($_POST['price_in'] ?? 0);
+    $idOffice    = pos_int('id_office');
+    $idAdmin     = pos_int('id_admin');
+    $notes       = $_POST['notes'] ?? '';
+
+    if ($qty <= 0) { pos_fail(400, 'La cantidad debe ser mayor a 0'); }
+    if ($productInId <= 0) { pos_fail(400, 'Producto de reposición inválido'); }
+
+    pos_transaction($db, function(PDO $db) use ($id, $itemOutId, $productInId, $qty, $price, $idOffice, $idAdmin, $notes) {
+        // Lock and validate item out
+        $stmtI = $db->prepare('SELECT * FROM consignment_items WHERE id_consignment_item=:id AND id_consignment=:cid FOR UPDATE');
+        $stmtI->execute([':id' => $itemOutId, ':cid' => $id]);
+        $itemOut = $stmtI->fetch(PDO::FETCH_ASSOC);
+        if (!$itemOut) { throw new RuntimeException('ITEM_NOT_FOUND'); }
+
+        $active = intval($itemOut['qty_assigned']) - intval($itemOut['qty_returned']) - intval($itemOut['qty_reponed'] ?? 0);
+        if ($qty > $active) { throw new RuntimeException('QTY_EXCEEDS:' . $active); }
+
+        // Mark as reponed on item out
+        $db->prepare('UPDATE consignment_items SET qty_reponed = COALESCE(qty_reponed,0) + :q WHERE id_consignment_item=:id')
+           ->execute([':q' => $qty, ':id' => $itemOutId]);
+
+        // Return product out to inventory
+        $db->prepare("INSERT INTO product_inventory (id_product_inventory, id_office_inventory, stock_inventory, status_inventory, date_created_inventory)
+            VALUES (:p, :o, :q, 1, CURDATE())
+            ON DUPLICATE KEY UPDATE stock_inventory = stock_inventory + :q")
+           ->execute([':p' => $itemOut['id_product_consignment'], ':o' => $idOffice, ':q' => $qty]);
+
+        // Check stock for product in
+        $stmtSt = $db->prepare('SELECT stock_inventory FROM product_inventory WHERE id_product_inventory=:p AND id_office_inventory=:o FOR UPDATE');
+        $stmtSt->execute([':p' => $productInId, ':o' => $idOffice]);
+        $stock = floatval($stmtSt->fetchColumn());
+        if ($stock < $qty) { throw new RuntimeException('NO_STOCK_IN:' . $productInId); }
+
+        // Deduct product in from inventory
+        $db->prepare('UPDATE product_inventory SET stock_inventory = stock_inventory - :q WHERE id_product_inventory=:p AND id_office_inventory=:o')
+           ->execute([':q' => $qty, ':p' => $productInId, ':o' => $idOffice]);
+
+        // Add new consignment item for product in
+        $db->prepare('INSERT INTO consignment_items (id_consignment, id_product_consignment, qty_assigned, price_consignment) VALUES (:c, :p, :q, :pr)')
+           ->execute([':c' => $id, ':p' => $productInId, ':q' => $qty, ':pr' => $price]);
+        $newItemId = $db->lastInsertId();
+
+        // Log replacement
+        $db->prepare('INSERT INTO consignment_replacements (id_consignment, id_item_out, id_item_in, qty_replacement, notes_replacement, id_admin_replacement, date_created_replacement)
+            VALUES (:c, :out, :in, :q, :nt, :ad, CURDATE())')
+           ->execute([':c' => $id, ':out' => $itemOutId, ':in' => $newItemId, ':q' => $qty, ':nt' => $notes, ':ad' => $idAdmin]);
+
+        consignment_recalculate($db, $id);
+    });
+
+    pos_ok([], 'Reposición registrada');
+}
+
+// Legacy liquidation kept for backward compat
+if (isset($_POST['liquidateConsignment'])) {
+    pos_fail(410, 'Use addConsignmentPayment para registrar pagos progresivos');
 }
 
 //=====================================

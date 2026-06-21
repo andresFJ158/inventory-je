@@ -15,6 +15,10 @@ const canApprove = computed(() => {
   return ['superadmin', 'admin', 'lab_admin'].includes(auth.role) || auth.permissions.aprobar_entradas === 'on'
 })
 
+const canRegisterEntry = computed(() => {
+  return ['superadmin', 'admin', 'lab_admin', 'lab_worker'].includes(auth.role) || auth.permissions.entradas === 'on' || canApprove.value
+})
+
 const confirmDialog = ref({ open: false, title: '', message: '' })
 const confirmResolve = ref<((v: boolean) => void) | null>(null)
 function confirmAction(title: string, message: string): Promise<boolean> {
@@ -315,7 +319,7 @@ async function submitApprovalPrice() {
 }
 
 async function handleOpenCreateModal() {
-  if (!canApprove.value) {
+  if (!canRegisterEntry.value) {
     toast.add({ title: 'No tiene permisos para registrar ingresos.', color: 'error' })
     return
   }
@@ -344,7 +348,7 @@ function onMaterialChange() {
 }
 
 async function handleSaveEntry() {
-  if (!canApprove.value) {
+  if (!canRegisterEntry.value) {
     toast.add({ title: 'No tiene permisos para registrar ingresos.', color: 'error' })
     return
   }
@@ -540,7 +544,7 @@ onMounted(() => {
       
       <div class="flex items-center gap-2 w-full md:w-auto">
         <UButton
-          v-if="canApprove"
+          v-if="canRegisterEntry"
           icon="i-lucide-plus"
           color="success"
           size="md"

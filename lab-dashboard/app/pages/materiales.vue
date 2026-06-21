@@ -285,6 +285,9 @@ function getSupplierName(id: number | string) {
                 Tipo
               </th>
               <th class="px-6 py-4">
+                Precio Unit.
+              </th>
+              <th class="px-6 py-4">
                 Stock Actual
               </th>
               <th class="px-6 py-4">
@@ -348,6 +351,10 @@ function getSupplierName(id: number | string) {
                     class="w-3.5 h-3.5"
                   /> Unidad
                 </span>
+              </td>
+              <td class="px-6 py-4 font-mono font-bold text-slate-800">
+                <span v-if="item.price > 0">Bs. {{ item.price.toFixed(2) }}</span>
+                <span v-else class="text-slate-400">Bs. 0.00</span>
               </td>
               <td class="px-6 py-4 font-bold font-mono text-slate-800">
                 <span v-if="!item.no_stock">{{ item.stock.toFixed(2) }}</span>

@@ -345,8 +345,8 @@ if(isset($_POST["approveRawMaterialEntry"])){
 			$stmtEntry = $db->prepare("UPDATE lab_supply_entries SET unit_price_entry = :price, total_cost_entry = :total, status_entry = 'aprobado', id_approved_by_entry = :admin, date_approved_entry = CURRENT_DATE() WHERE id_ls_entry = :id");
 			$stmtEntry->execute([':price' => $price, ':total' => $total, ':admin' => $id_admin, ':id' => $real_entry_id]);
 
-			$stmtStock = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply + :qty WHERE id_supply = :id_raw");
-			$stmtStock->execute([':qty' => $qty, ':id_raw' => $real_supply_id]);
+			$stmtStock = $db->prepare("UPDATE lab_supplies SET stock_supply = stock_supply + :qty, price_supply = GREATEST(COALESCE(price_supply, 0), :price) WHERE id_supply = :id_raw");
+			$stmtStock->execute([':qty' => $qty, ':price' => $price, ':id_raw' => $real_supply_id]);
 
 			if($db->inTransaction()) {
 				$db->commit();
@@ -368,9 +368,9 @@ if(isset($_POST["approveRawMaterialEntry"])){
 		$stmtEntry = $db->prepare("UPDATE raw_material_entries SET unit_price_entry = :price, total_cost_entry = :total, status_entry = 'aprobado', id_approved_by_entry = :admin, date_approved_entry = CURRENT_DATE() WHERE id_entry = :id");
 		$stmtEntry->execute([':price' => $price, ':total' => $total, ':admin' => $id_admin, ':id' => $id_entry]);
 
-		// Update stock
-		$stmtStock = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty WHERE id_raw_material = :id_raw");
-		$stmtStock->execute([':qty' => $qty, ':id_raw' => $id_raw_material]);
+		// Update stock and price (keeping the highest historical price)
+		$stmtStock = $db->prepare("UPDATE raw_materials SET stock_raw_material = stock_raw_material + :qty, price_raw_material = GREATEST(COALESCE(price_raw_material, 0), :price) WHERE id_raw_material = :id_raw");
+		$stmtStock->execute([':qty' => $qty, ':price' => $price, ':id_raw' => $id_raw_material]);
 
 		$db->commit();
 		echo "ok";

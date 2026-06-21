@@ -44,7 +44,7 @@ export function useApi() {
       body,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       credentials: 'include'
-    }).catch((e: any) => ({ status: 0, message: e?.message || 'Error de red' }))
+    }).catch((e: any) => ({ status: e?.response?.status || 0, message: e?.response?._data?.message || e?.message || 'Error de red' }))
     return parse(res)
   }
 
@@ -53,7 +53,7 @@ export function useApi() {
       method: 'POST',
       body: fd,
       credentials: 'include'
-    }).catch((e: any) => ({ status: 0, message: e?.message || 'Error de red' }))
+    }).catch((e: any) => ({ status: e?.response?.status || 0, message: e?.response?._data?.message || e?.message || 'Error de red' }))
     return parse(res)
   }
 

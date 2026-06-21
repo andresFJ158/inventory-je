@@ -285,6 +285,7 @@ const sidebarItems = computed(() => {
     if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
     if (role !== 'cajero' && role !== 'vendedor' && hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
     if (hasPerm('creditos') || role === 'superadmin' || role === 'admin') items.push({ label: 'Créditos', to: '/credito', icon: 'i-lucide-credit-card' })
+    if (hasPerm('consignacion') || role === 'superadmin' || role === 'admin' || role === 'vendedor') items.push({ label: 'Consignaciones', to: '/consignacion', icon: 'i-lucide-package-check' })
     if (role !== 'vendedor' && hasPerm('caja')) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })
     if (hasPerm('gastos')) items.push({ label: 'Gastos', to: '/gastos', icon: 'i-lucide-receipt' })
     if (role !== 'despachador' && hasPerm('proveedores')) items.push({ label: 'Proveedores', to: '/proveedores', icon: 'i-lucide-truck' })

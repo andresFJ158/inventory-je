@@ -135,8 +135,10 @@ if(isset($_POST)){
 						return;
 					}
 
-					// Store the creator's admin ID
-					$_POST['id_admin_client'] = $adminRow->id_admin;
+					// Store the creator's admin ID only if not explicitly provided or empty
+					if (!isset($_POST['id_admin_client']) || $_POST['id_admin_client'] === '') {
+						$_POST['id_admin_client'] = $adminRow->id_admin;
+					}
 
 
 					$dni = trim($_POST['dni_client'] ?? '');

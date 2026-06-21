@@ -192,7 +192,7 @@ if(isset($_POST["saveLabEntry"])){
 		if ($adminInfo) {
 			$rolReq = $adminInfo['rol_admin'];
 			$permsReq = json_decode(urldecode($adminInfo['permissions_admin'] ?? '{}'), true);
-			$isAllowed = in_array($rolReq, ["superadmin", "admin", "lab_admin"]) || (isset($permsReq['aprobar_entradas']) && $permsReq['aprobar_entradas'] === 'on');
+			$isAllowed = in_array($rolReq, ["superadmin", "admin", "lab_admin", "lab_worker"]) || (isset($permsReq['entradas']) && $permsReq['entradas'] === 'on') || (isset($permsReq['aprobar_entradas']) && $permsReq['aprobar_entradas'] === 'on');
 			if (!$isAllowed) {
 				echo json_encode(["status" => 403, "message" => "No tiene permisos para registrar entradas de insumos o materia prima."]);
 				exit;
@@ -781,38 +781,75 @@ if(isset($_POST["getLabDashboardMetrics"])){
 	$id_office = intval($_POST["id_office"]);
 
 	// Count raw materials
-	$stmt1 = $db->prepare("SELECT COUNT(*) FROM raw_materials WHERE id_office_raw_material = :office");
-	$stmt1->execute([':office' => $id_office]);
+	if ($id_office === 0) {
+		$stmt1 = $db->prepare("SELECT COUNT(*) FROM raw_materials");
+		$stmt1->execute();
+	} else {
+		$stmt1 = $db->prepare("SELECT COUNT(*) FROM raw_materials WHERE id_office_raw_material = :office");
+		$stmt1->execute([':office' => $id_office]);
+	}
 	$totalMaterials = intval($stmt1->fetchColumn());
 
 	// Count in-process productions
-	$stmt2 = $db->prepare("SELECT COUNT(*) FROM productions WHERE id_office_production = :office AND status_production IN ('proceso', 'pendiente', 'en_proceso')");
-	$stmt2->execute([':office' => $id_office]);
+	if ($id_office === 0) {
+		$stmt2 = $db->prepare("SELECT COUNT(*) FROM productions WHERE status_production IN ('proceso', 'pendiente', 'en_proceso')");
+		$stmt2->execute();
+	} else {
+		$stmt2 = $db->prepare("SELECT COUNT(*) FROM productions WHERE id_office_production = :office AND status_production IN ('proceso', 'pendiente', 'en_proceso')");
+		$stmt2->execute([':office' => $id_office]);
+	}
 	$totalInProcess = intval($stmt2->fetchColumn());
 
 	// Count quality checks
-	$stmt3 = $db->prepare("SELECT COUNT(*) FROM quality_checks WHERE id_office_qc = :office");
-	$stmt3->execute([':office' => $id_office]);
+	if ($id_office === 0) {
+		$stmt3 = $db->prepare("SELECT COUNT(*) FROM quality_checks");
+		$stmt3->execute();
+	} else {
+		$stmt3 = $db->prepare("SELECT COUNT(*) FROM quality_checks WHERE id_office_qc = :office");
+		$stmt3->execute([':office' => $id_office]);
+	}
 	$qualityChecks = intval($stmt3->fetchColumn());
 
+	$id_warehouse = isset($_POST["id_warehouse"]) ? intval($_POST["id_warehouse"]) : 0;
 	// Final products stock
-	$stmt4 = $db->prepare("SELECT SUM(stock_product) FROM products WHERE is_compound_product = 1 AND origin_office_product = :office");
-	$stmt4->execute([':office' => $id_office]);
+	$stmt4 = $db->prepare("
+		SELECT SUM(pi.stock_inventory) 
+		FROM product_inventory pi
+		JOIN products p ON pi.id_product_inventory = p.id_product
+		WHERE p.status_product = 1
+		  AND pi.id_office_inventory = :office
+		  AND (pi.id_warehouse_inventory = :wh OR (:wh2 = 0 AND pi.id_warehouse_inventory = 0))
+	");
+	$stmt4->execute([':office' => $id_office, ':wh' => $id_warehouse, ':wh2' => $id_warehouse]);
 	$finalProductsStock = floatval($stmt4->fetchColumn());
 
 	// Recent activity
-	$stmt5 = $db->prepare("
-		SELECT p.id_production, p.status_production, p.total_qty_production,
-			   p.date_updated_production, pr.title_product AS name_product,
-			   a.name_admin
-		FROM productions p
-		JOIN products pr ON p.id_product_production = pr.id_product
-		LEFT JOIN admins a ON p.id_admin_production = a.id_admin
-		WHERE p.id_office_production = :office
-		ORDER BY p.id_production DESC
-		LIMIT 5
-	");
-	$stmt5->execute([':office' => $id_office]);
+	if ($id_office === 0) {
+		$stmt5 = $db->prepare("
+			SELECT p.id_production, p.status_production, p.total_qty_production,
+				   p.date_updated_production, pr.title_product AS name_product,
+				   a.name_admin
+			FROM productions p
+			JOIN products pr ON p.id_product_production = pr.id_product
+			LEFT JOIN admins a ON p.id_admin_production = a.id_admin
+			ORDER BY p.id_production DESC
+			LIMIT 5
+		");
+		$stmt5->execute();
+	} else {
+		$stmt5 = $db->prepare("
+			SELECT p.id_production, p.status_production, p.total_qty_production,
+				   p.date_updated_production, pr.title_product AS name_product,
+				   a.name_admin
+			FROM productions p
+			JOIN products pr ON p.id_product_production = pr.id_product
+			LEFT JOIN admins a ON p.id_admin_production = a.id_admin
+			WHERE p.id_office_production = :office
+			ORDER BY p.id_production DESC
+			LIMIT 5
+		");
+		$stmt5->execute([':office' => $id_office]);
+	}
 	$recentActivity = $stmt5->fetchAll(PDO::FETCH_ASSOC);
 
 	echo json_encode([
@@ -850,7 +887,7 @@ if(isset($_POST['updateLabSupplyStock'])) {
 		if ($adminInfo) {
 			$rolReq = $adminInfo['rol_admin'];
 			$permsReq = json_decode(urldecode($adminInfo['permissions_admin'] ?? '{}'), true);
-			$isAllowed = in_array($rolReq, ["superadmin", "admin", "lab_admin"]) || (isset($permsReq['aprobar_entradas']) && $permsReq['aprobar_entradas'] === 'on');
+			$isAllowed = in_array($rolReq, ["superadmin", "admin", "lab_admin", "lab_worker"]) || (isset($permsReq['entradas']) && $permsReq['entradas'] === 'on') || (isset($permsReq['aprobar_entradas']) && $permsReq['aprobar_entradas'] === 'on');
 			if (!$isAllowed) {
 				echo json_encode(["status" => 403, "message" => "No tiene permisos para registrar entradas de insumos o materia prima."]);
 				exit;

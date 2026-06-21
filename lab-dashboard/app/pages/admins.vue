@@ -66,10 +66,13 @@ const permForm = ref<Record<string, boolean>>({
   despachos: false,
   mi_inventario: false,
 
+  creditos: false,
+
   reportes: false,
   reportes_empresa: false,
   qrs: false,
   gestionar_clientes: false,
+  consignacion: false,
 
   // Laboratorio
   dashboard_lab: false,
@@ -751,7 +754,7 @@ onMounted(async () => {
               <option value="lab_calidad">Control Calidad</option>
             </select>
           </UFormField>
-          <UFormField v-if="!['despachador', 'despachador_laboratorio', 'lab_admin'].includes(formModel.rol_admin)" label="Sucursal Asignada">
+          <UFormField v-if="!['despachador', 'despachador_laboratorio', 'lab_admin', 'lab_worker', 'lab_calidad'].includes(formModel.rol_admin)" label="Sucursal Asignada">
             <select v-model="formModel.id_office_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="">Todas (Super)</option>
               <option v-for="o in sucursalOptions" :key="o.id_office" :value="String(o.id_office)">
@@ -760,7 +763,7 @@ onMounted(async () => {
             </select>
           </UFormField>
 
-          <div v-if="['lab_admin', 'despachador_laboratorio'].includes(formModel.rol_admin)" class="p-3 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-100 flex items-center gap-2">
+          <div v-if="['lab_admin', 'lab_worker', 'lab_calidad', 'despachador_laboratorio'].includes(formModel.rol_admin)" class="p-3 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg border border-indigo-100 flex items-center gap-2">
             <UIcon name="i-lucide-info" class="w-5 h-5 shrink-0" />
             Este usuario pertenece al Laboratorio Principal, no requiere asignación manual de sucursal ni almacén.
           </div>
@@ -810,7 +813,7 @@ onMounted(async () => {
               <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos POS</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'consignacion', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"

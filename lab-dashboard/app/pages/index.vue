@@ -68,6 +68,7 @@ async function fetchLabMetrics() {
     body: new URLSearchParams({
       getLabDashboardMetrics: 'ok',
       id_office: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
+      id_warehouse: String(auth.warehouseId || 0),
       token: auth.token || ''
     }),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
