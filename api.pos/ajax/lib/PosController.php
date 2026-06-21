@@ -645,4 +645,75 @@ class PosController{
 
 	}
 
+	/*=============================================
+	Cancelar Orden a Crédito
+	=============================================*/
+	public $idOrderCancel;
+
+	public function cancelCreditOrder(){
+		try {
+			$db = LocalConnection::connect();
+
+			// Verificar que la orden exista y sea crédito
+			$stmt = $db->prepare("SELECT status_order, method_order FROM orders WHERE id_order = :id LIMIT 1");
+			$stmt->execute([':id' => $this->idOrderCancel]);
+			$order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+			if (!$order) {
+				echo json_encode(['status' => 404, 'message' => 'Orden no encontrada']);
+				return;
+			}
+
+			if (!in_array($order['status_order'], ['Completada', 'Venta Confirmada', 'Pendiente Despacho']) || $order['method_order'] !== 'credito') {
+				echo json_encode(['status' => 400, 'message' => 'Solo se pueden cancelar ventas a crédito completadas, confirmadas o pendientes']);
+				return;
+			}
+
+			$db->beginTransaction();
+
+			// 1. Marcar la orden como 'Cancelada'
+			$stmtUpdateOrder = $db->prepare("UPDATE orders SET status_order = 'Cancelada' WHERE id_order = :id");
+			$stmtUpdateOrder->execute([':id' => $this->idOrderCancel]);
+
+			// 2. Marcar las ventas de esta orden como 'Cancelada'
+			$stmtUpdateSales = $db->prepare("UPDATE sales SET status_sale = 'Cancelada' WHERE id_order_sale = :id");
+			$stmtUpdateSales->execute([':id' => $this->idOrderCancel]);
+
+			// 3. Devolver el stock
+			$stmtSales = $db->prepare("SELECT id_product_sale, id_office_sale, qty_sale FROM sales WHERE id_order_sale = :id");
+			$stmtSales->execute([':id' => $this->idOrderCancel]);
+			$sales = $stmtSales->fetchAll(PDO::FETCH_ASSOC);
+
+			foreach($sales as $sale) {
+				$stmtProd = $db->prepare("SELECT is_combo_product FROM products WHERE id_product = :id");
+				$stmtProd->execute([':id' => $sale['id_product_sale']]);
+				$isCombo = $stmtProd->fetchColumn();
+
+				if ($isCombo) {
+					$db->exec("UPDATE product_inventory pi INNER JOIN combo_items ci ON pi.id_product_inventory = ci.id_product_ci SET pi.stock_inventory = COALESCE(pi.stock_inventory, 0) + (ci.qty_ci * {$sale['qty_sale']}) WHERE ci.id_combo_ci = {$sale['id_product_sale']} AND pi.id_office_inventory = {$sale['id_office_sale']}");
+					$db->exec("UPDATE products p INNER JOIN combo_items ci ON p.id_product = ci.id_product_ci SET p.stock_product = (SELECT COALESCE(SUM(pi2.stock_inventory), 0) FROM product_inventory pi2 WHERE pi2.id_product_inventory = p.id_product AND pi2.status_inventory = 1) WHERE ci.id_combo_ci = {$sale['id_product_sale']}");
+				} else {
+					$db->exec("UPDATE product_inventory SET stock_inventory = COALESCE(stock_inventory, 0) + {$sale['qty_sale']} WHERE id_product_inventory = {$sale['id_product_sale']} AND id_office_inventory = {$sale['id_office_sale']} AND status_inventory = 1");
+					$db->exec("UPDATE products SET stock_product = (SELECT COALESCE(SUM(stock_inventory), 0) FROM product_inventory WHERE id_product_inventory = {$sale['id_product_sale']} AND status_inventory = 1) WHERE id_product = {$sale['id_product_sale']}");
+				}
+                $db->exec("INSERT INTO stock_movements (id_product_movement, id_office_movement, qty_movement, type_movement, id_admin_movement, notes_movement, date_created_movement) VALUES ({$sale['id_product_sale']}, {$sale['id_office_sale']}, {$sale['qty_sale']}, 'devolucion_cancelacion', 0, 'Cancelacion Orden #{$this->idOrderCancel}', NOW())");
+			}
+
+			// 4. Marcar el crédito como 'anulado'
+			$stmtCredit = $db->prepare("UPDATE credits SET status_credit = 'anulado' WHERE id_order_credit = :id");
+			$stmtCredit->execute([':id' => $this->idOrderCancel]);
+
+			$db->commit();
+			echo json_encode(['status' => 200, 'message' => 'ok']);
+			exit;
+
+		} catch (Throwable $e) {
+			if (isset($db) && $db->inTransaction()) {
+				$db->rollBack();
+			}
+			echo json_encode(['status' => 500, 'message' => 'Error de servidor al cancelar']);
+			exit;
+		}
+	}
+
 }

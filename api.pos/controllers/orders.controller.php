@@ -56,6 +56,45 @@ class OrdersController{
 			$stmtSales = $db->prepare("UPDATE sales SET status_sale = 'Completada' WHERE id_order_sale = :id");
 			$stmtSales->execute([':id' => $orderId]);
 
+			// Creación del Crédito si el método es 'credito'
+			if ($methodPay === 'credito') {
+				$creditInitialPayment = floatval($_POST["creditInitialPayment"] ?? 0);
+				$creditEndDate = $_POST["creditEndDate"] ?? '';
+				$totalOrderAmount = floatval($order->total_order ?? 0);
+				
+				$balanceCredit = max(0, $totalOrderAmount - $creditInitialPayment);
+				$statusCredit = $balanceCredit > 0 ? 'activo' : 'pagado';
+				
+				$stmtCredit = $db->prepare("
+					INSERT INTO credits (id_client_credit, id_office_credit, id_admin_credit, amount_credit, balance_credit, due_date_credit, status_credit, id_order_credit, date_created_credit)
+					VALUES (:client, :office, :admin, :amount, :balance, :due_date, :status, :order_id, CURDATE())
+				");
+				$stmtCredit->execute([
+					':client' => $order->id_client_order,
+					':office' => $order->id_office_order,
+					':admin'  => $order->id_admin_order,
+					':amount' => $totalOrderAmount,
+					':balance'=> $balanceCredit,
+					':due_date'=> $creditEndDate ?: null,
+					':status' => $statusCredit,
+					':order_id'=> $orderId
+				]);
+				$idCredit = $db->lastInsertId();
+
+				// Si hubo un pago inicial, registrarlo en credit_payments
+				if ($creditInitialPayment > 0) {
+					$stmtPay = $db->prepare("
+						INSERT INTO credit_payments (id_credit_payment, amount_payment, method_payment, id_admin_payment)
+						VALUES (:credit, :amount, 'efectivo', :admin)
+					");
+					$stmtPay->execute([
+						':credit' => $idCredit,
+						':amount' => $creditInitialPayment,
+						':admin'  => $order->id_admin_order
+					]);
+				}
+			}
+
 			$db->commit();
 
 			// Sincronizar caja fuera de la transacción (no es crítico)

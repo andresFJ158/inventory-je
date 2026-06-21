@@ -81,3 +81,210 @@
 [16-Jun-2026 22:13:05 America/La_Paz] warehouse error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_request_transfer' in 'INSERT INTO'
 [16-Jun-2026 22:19:02 America/La_Paz] [STOCK_MOVEMENT] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.stock_movements' doesn't exist
 [16-Jun-2026 22:19:13 America/La_Paz] [STOCK_MOVEMENT] SQLSTATE[42S02]: Base table or view not found: 1146 Table 'u228744577_pos.stock_movements' doesn't exist
+[18-Jun-2026 07:09:17 America/La_Paz] [AUTH_ERROR] Mismatch authorization token: received 'NULL', expected 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
+[18-Jun-2026 07:22:04 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 11:32:26 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 12:23:20 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 13:47:42 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 14:05:04 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 14:06:19 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 14:16:41 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 14:20:04 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 14:29:44 America/La_Paz] [SQL_ERROR] {"type":"pdo_exception","timestamp":"2026-06-18 14:29:44","model":"PutModel::putData","table":"orders","sql":"UPDATE orders SET id_order = :id_order,qr_ref_order = :qr_ref_order WHERE id_order = :id_order","params":{"id_order":"146","qr_ref_order":"http://localhost:8081/uploads/img_1781807384_6a34391819e24.png"},"id":"146","nameId":"id_order","message":"SQLSTATE[HY093]: Invalid parameter number","code":"HY093","file":"D:\\Unitech2.0\\api.pos\\models\\put.model.php","line":61}
+[18-Jun-2026 14:37:03 America/La_Paz] [SQL_ERROR] {"type":"pdo_exception","timestamp":"2026-06-18 14:37:03","model":"PutModel::putData","table":"orders","sql":"UPDATE orders SET id_order = :id_order,qr_ref_order = :qr_ref_order WHERE id_order = :id_order","params":{"id_order":"146","qr_ref_order":"http://localhost:8081/uploads/img_1781807823_6a343acf2072f.png"},"id":"146","nameId":"id_order","message":"SQLSTATE[HY093]: Invalid parameter number","code":"HY093","file":"D:\\Unitech2.0\\api.pos\\models\\put.model.php","line":61}
+[18-Jun-2026 14:40:01 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 14:40:11 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 14:40:21 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 14:40:26 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 14:40:30 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 16:17:12 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 16:17:15 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 16:18:11 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 16:18:28 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 16:25:02 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_admin_client' in 'WHERE' in D:\Unitech2.0\api.pos\routes\services\get.php:63
+Stack trace:
+#0 D:\Unitech2.0\api.pos\routes\services\get.php(63): PDO->prepare('SELECT * FROM c...')
+#1 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#2 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#3 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#4 {main}
+  thrown in D:\Unitech2.0\api.pos\routes\services\get.php on line 63
+[18-Jun-2026 16:25:02 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_admin_client' in 'WHERE' in D:\Unitech2.0\api.pos\routes\services\get.php:63
+Stack trace:
+#0 D:\Unitech2.0\api.pos\routes\services\get.php(63): PDO->prepare('SELECT * FROM c...')
+#1 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#2 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#3 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#4 {main}
+  thrown in D:\Unitech2.0\api.pos\routes\services\get.php on line 63
+[18-Jun-2026 16:25:02 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_admin_client' in 'WHERE' in D:\Unitech2.0\api.pos\routes\services\get.php:63
+Stack trace:
+#0 D:\Unitech2.0\api.pos\routes\services\get.php(63): PDO->prepare('SELECT * FROM c...')
+#1 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#2 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#3 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#4 {main}
+  thrown in D:\Unitech2.0\api.pos\routes\services\get.php on line 63
+[18-Jun-2026 16:25:02 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_admin_client' in 'WHERE' in D:\Unitech2.0\api.pos\routes\services\get.php:63
+Stack trace:
+#0 D:\Unitech2.0\api.pos\routes\services\get.php(63): PDO->prepare('SELECT * FROM c...')
+#1 D:\Unitech2.0\api.pos\routes\routes.php(102): include('D:\\Unitech2.0\\a...')
+#2 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#3 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#4 {main}
+  thrown in D:\Unitech2.0\api.pos\routes\services\get.php on line 63
+[18-Jun-2026 16:50:56 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 17:15:33 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 17:21:49 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 17:22:12 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'oe.charge_to_client_expense' in 'WHERE' at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:966
+[18-Jun-2026 17:26:34 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 17:28:32 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 17:52:16 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:16 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:16 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:17 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:17 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:17 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:17 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:17 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:17 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:17 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:20 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:20 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:20 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:20 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:20 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:20 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:21 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:21 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:21 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:21 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:21 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:21 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:22 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:22 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:25 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:25 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:28 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:28 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:50 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:52:50 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:07 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:07 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:22 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:22 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:23 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:23 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:23 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:23 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:23 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:23 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:24 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:26 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:27 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:27 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:27 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:27 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:27 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:27 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:27 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:28 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:28 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:29 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:29 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:29 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:29 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:29 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:29 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:32 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:32 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:32 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:32 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:33 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:33 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:33 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:33 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:35 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:35 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:35 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:35 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:35 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:35 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:37 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:53:38 America/La_Paz] PHP Parse error:  Unclosed '{' on line 46 in D:\Unitech2.0\api.pos\routes\services\get.php on line 254
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:54:29 America/La_Paz] PHP Parse error:  syntax error, unexpected token "catch" in D:\Unitech2.0\api.pos\routes\services\get.php on line 110
+[18-Jun-2026 17:57:49 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 18:11:46 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 18:12:29 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 22:18:21 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 22:21:36 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[18-Jun-2026 22:22:31 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 00:17:00 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 09:30:10 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 09:40:20 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 09:42:35 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 10:06:54 America/La_Paz] recipes_production error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_supply_mat_cost' in 'INSERT INTO'
+[19-Jun-2026 10:07:02 America/La_Paz] recipes_production error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_supply_mat_cost' in 'INSERT INTO'
+[19-Jun-2026 10:24:31 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 10:30:13 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[19-Jun-2026 14:39:54 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[20-Jun-2026 12:28:51 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [2002] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión at D:\Unitech2.0\api.pos\ajax\lib\LocalConnection.php:13
+[20-Jun-2026 12:28:56 America/La_Paz] EXCEPTION in pos.ajax.php: SQLSTATE[HY000] [2002] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión at D:\Unitech2.0\api.pos\ajax\lib\LocalConnection.php:13
+[20-Jun-2026 22:51:46 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[20-Jun-2026 22:52:18 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[20-Jun-2026 23:48:41 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[20-Jun-2026 23:59:14 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[21-Jun-2026 00:04:17 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[21-Jun-2026 08:23:47 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'
+[21-Jun-2026 08:34:24 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse' in 'WHERE' in D:\Unitech2.0\api.pos\routes\services\delete.php:58
+Stack trace:
+#0 D:\Unitech2.0\api.pos\routes\services\delete.php(58): PDO->prepare('SELECT type_off...')
+#1 D:\Unitech2.0\api.pos\routes\routes.php(132): include('D:\\Unitech2.0\\a...')
+#2 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#3 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#4 {main}
+  thrown in D:\Unitech2.0\api.pos\routes\services\delete.php on line 58
+[21-Jun-2026 08:34:44 America/La_Paz] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id_warehouse' in 'WHERE' in D:\Unitech2.0\api.pos\routes\services\delete.php:58
+Stack trace:
+#0 D:\Unitech2.0\api.pos\routes\services\delete.php(58): PDO->prepare('SELECT type_off...')
+#1 D:\Unitech2.0\api.pos\routes\routes.php(132): include('D:\\Unitech2.0\\a...')
+#2 D:\Unitech2.0\api.pos\controllers\routes.controller.php(13): include('D:\\Unitech2.0\\a...')
+#3 D:\Unitech2.0\api.pos\index.php(49): RoutesController->index()
+#4 {main}
+  thrown in D:\Unitech2.0\api.pos\routes\services\delete.php on line 58

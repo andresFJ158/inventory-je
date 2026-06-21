@@ -78,6 +78,7 @@ const permForm = ref<Record<string, boolean>>({
   proveedores_lab: false,
   inventario_mp: false,
   entradas: false,
+  aprobar_entradas: false,
   recetas: false,
   produccion: false,
   calidad: false,
@@ -330,7 +331,6 @@ watch(() => formModel.value.rol_admin, (newRole) => {
   } else if (newRole === 'despachador') {
     permForm.value.compras = true
     permForm.value.almacen = true
-    permForm.value.proveedores = true
     permForm.value.mi_inventario = true
   } else if (newRole === 'lab_admin') {
     permForm.value.productos = true
@@ -344,6 +344,7 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     permForm.value.insumos_lab = true
     permForm.value.inventario_mp = true
     permForm.value.entradas = true
+    permForm.value.aprobar_entradas = true
     permForm.value.recetas = true
     permForm.value.produccion = true
     permForm.value.calidad = true
@@ -802,7 +803,7 @@ onMounted(async () => {
               <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos POS</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"
@@ -853,7 +854,7 @@ onMounted(async () => {
               <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos Laboratorio</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'proveedores_lab', 'inventario_mp', 'entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'proveedores_lab', 'inventario_mp', 'entradas', 'aprobar_entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"

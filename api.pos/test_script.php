@@ -2,6 +2,4 @@
 require_once __DIR__ . '/load_env.php';
 require_once __DIR__ . '/ajax/lib/LocalConnection.php';
 $db = LocalConnection::connect();
-$stmt = $db->query("SELECT * FROM admins WHERE id_admin = 24");
-$res = $stmt->fetch(PDO::FETCH_ASSOC);
-print_r($res);
+print_r($db->query("DESCRIBE warehouses")->fetchAll(PDO::FETCH_COLUMN));

@@ -182,6 +182,22 @@ if(isset($_POST["saveLabEntry"])){
 		$date = $_POST['date_entry'];
 		$id_admin = intval($_POST['id_admin_entry']);
 
+		$stmtAdmin = $db->prepare("SELECT rol_admin, permissions_admin FROM admins WHERE id_admin = :id LIMIT 1");
+		$stmtAdmin->execute([':id' => $id_admin]);
+		$adminInfo = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+		if ($adminInfo) {
+			$rolReq = $adminInfo['rol_admin'];
+			$permsReq = json_decode(urldecode($adminInfo['permissions_admin'] ?? '{}'), true);
+			$isAllowed = in_array($rolReq, ["superadmin", "admin", "lab_admin"]) || (isset($permsReq['aprobar_entradas']) && $permsReq['aprobar_entradas'] === 'on');
+			if (!$isAllowed) {
+				echo json_encode(["status" => 403, "message" => "No tiene permisos para registrar entradas de insumos o materia prima."]);
+				exit;
+			}
+		} else {
+			echo json_encode(["status" => 403, "message" => "Usuario no encontrado."]);
+			exit;
+		}
+
 		$stmt = $db->prepare("INSERT INTO raw_material_entries (id_raw_material_entry, qty_entry, lot_number_entry, supplier_entry, date_entry, id_admin_entry, status_entry, type_entry, date_created_entry) VALUES (:id_raw, :qty, :lot, :supplier, :date, :id_admin, 'pendiente', 'ingreso', NOW())");
 		$stmt->execute([
 			':id_raw' => $id_raw_material,
@@ -714,6 +730,22 @@ if(isset($_POST['updateLabSupplyStock'])) {
 		$lot_number  = trim($_POST['lot_number'] ?? '');
 		$supplier    = trim($_POST['supplier'] ?? '');
 		$id_admin    = intval($_POST['id_admin'] ?? 0);
+
+		$stmtAdmin = $db->prepare("SELECT rol_admin, permissions_admin FROM admins WHERE id_admin = :id LIMIT 1");
+		$stmtAdmin->execute([':id' => $id_admin]);
+		$adminInfo = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+		if ($adminInfo) {
+			$rolReq = $adminInfo['rol_admin'];
+			$permsReq = json_decode(urldecode($adminInfo['permissions_admin'] ?? '{}'), true);
+			$isAllowed = in_array($rolReq, ["superadmin", "admin", "lab_admin"]) || (isset($permsReq['aprobar_entradas']) && $permsReq['aprobar_entradas'] === 'on');
+			if (!$isAllowed) {
+				echo json_encode(["status" => 403, "message" => "No tiene permisos para registrar entradas de insumos o materia prima."]);
+				exit;
+			}
+		} else {
+			echo json_encode(["status" => 403, "message" => "Usuario no encontrado."]);
+			exit;
+		}
 
 		if ($id_supply <= 0 || $qty <= 0) {
 			echo json_encode(['status' => 400, 'message' => 'Datos inválidos']);

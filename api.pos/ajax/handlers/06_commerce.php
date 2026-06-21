@@ -329,7 +329,7 @@ function posStoreSalePaymentFile($file) {
             throw new Exception('El archivo no parece ser un PDF válido.');
         }
     }
-    $dir = __DIR__ . '/../views/assets/files/comprobantes';
+    $dir = __DIR__ . '/../../views/assets/files/comprobantes';
     if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
     $fileName = 'comp_' . uniqid() . '_' . time() . '.' . $ext;
     if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $fileName)) {
@@ -699,6 +699,10 @@ if (isset($_POST['addCreditPayment'])) {
             $stmtC->execute([':id' => $idCredit]);
             $credit = $stmtC->fetch(PDO::FETCH_OBJ);
             if (!$credit) { throw new RuntimeException('CREDIT_NOT_FOUND'); }
+
+            if ($amount > $credit->balance_credit) {
+                throw new RuntimeException('El abono no puede ser mayor al saldo pendiente');
+            }
 
             $newBalance = max(0, round($credit->balance_credit - $amount, 2));
             $newStatus  = $newBalance <= 0 ? 'pagado' : 'activo';

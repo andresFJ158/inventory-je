@@ -23,6 +23,7 @@ const productions = ref<any[]>([])
 const offices = ref<any[]>([])
 const admins = ref<any[]>([])
 const statsByOffice = ref<any[]>([])
+const creditsList = ref<any[]>([])
 
 const loading = ref(true)
 
@@ -66,6 +67,7 @@ async function fetchReportData() {
   sales.value = []
   productions.value = []
   statsByOffice.value = []
+  creditsList.value = []
   
   try {
     const isSuperAdmin = auth.officeId === 0 || auth.role === 'superadmin'
@@ -144,11 +146,12 @@ async function fetchReportData() {
 
     // Fetch in parallel
     const adminFilter = isSuperAdmin ? '' : `?linkTo=id_office_admin&equalTo=${myOfficeId}`
-    const [ordersData, salesData, prodsData, adminsRes] = await Promise.all([
+    const [ordersData, salesData, prodsData, adminsRes, creditsRes] = await Promise.all([
       api.rest<any>(`/api/relations?${orderParams.toString()}`),
       api.rest<any>(`/api/relations?${saleParams.toString()}`),
       api.rest<any>(`/api/relations?${prodParams.toString()}`),
-      api.rest<any>(`/api/admins${adminFilter}`)
+      api.rest<any>(`/api/admins${adminFilter}`),
+      api.ajax({ getCredits: 'ok', id_office: isSuperAdmin ? 0 : myOfficeId })
     ])
 
     if (ordersData && ordersData.status === 200 && ordersData.results) {
@@ -173,6 +176,10 @@ async function fetchReportData() {
 
     if (adminsRes && adminsRes.status === 200 && adminsRes.results) {
       admins.value = adminsRes.results
+    }
+
+    if (creditsRes && creditsRes.status === 200 && creditsRes.results) {
+      creditsList.value = creditsRes.results
     }
 
     // If superadmin, calculate stats by office
@@ -222,11 +229,61 @@ function applyFilter() {
 // KPIs & Calculated Stats
 // ----------------------------------------
 
-const totalVentasBs = computed(() => orders.value.reduce((acc, o) => acc + parseFloat(o.total_order || 0), 0))
-const sumSubtotal = computed(() => orders.value.reduce((acc, o) => acc + parseFloat(o.subtotal_order || 0), 0))
-const sumDiscount = computed(() => orders.value.reduce((acc, o) => acc + parseFloat(o.discount_order || 0), 0))
-const totalProductsQty = computed(() => sales.value.reduce((acc, s) => acc + parseInt(s.qty_sale || 0), 0))
-const avgOrder = computed(() => orders.value.length > 0 ? (totalVentasBs.value / orders.value.length) : 0)
+const totalVentasBs = computed(() => orders.value.reduce((acc, o) => {
+  if (o.status_order === 'Cancelada' || o.status_order === 'anulada') {
+    if (o.method_order === 'credito') {
+      const credit = creditsList.value.find(c => String(c.id_order_credit) === String(o.id_order))
+      if (credit) return acc + (parseFloat(credit.amount_credit || 0) - parseFloat(credit.balance_credit || 0))
+    }
+    return acc
+  }
+  return acc + parseFloat(o.total_order || 0)
+}, 0))
+
+const totalRecibidoBs = computed(() => {
+  let total = 0
+  orders.value.forEach(o => {
+    if (o.status_order === 'Cancelada' || o.status_order === 'anulada') {
+      if (o.method_order === 'credito') {
+        const credit = creditsList.value.find(c => String(c.id_order_credit) === String(o.id_order))
+        if (credit) total += (parseFloat(credit.amount_credit || 0) - parseFloat(credit.balance_credit || 0))
+      }
+    } else if (o.method_order === 'credito') {
+      const credit = creditsList.value.find(c => String(c.id_order_credit) === String(o.id_order))
+      if (credit) {
+        total += (parseFloat(credit.amount_credit || 0) - parseFloat(credit.balance_credit || 0))
+      }
+    } else {
+      total += parseFloat(o.total_order || 0)
+    }
+  })
+  return total
+})
+
+const sumSubtotal = computed(() => orders.value.reduce((acc, o) => {
+  if (o.status_order === 'Cancelada' || o.status_order === 'anulada') {
+    if (o.method_order === 'credito') {
+      const credit = creditsList.value.find(c => String(c.id_order_credit) === String(o.id_order))
+      if (credit) return acc + (parseFloat(credit.amount_credit || 0) - parseFloat(credit.balance_credit || 0))
+    }
+    return acc
+  }
+  return acc + parseFloat(o.subtotal_order || 0)
+}, 0))
+
+const sumDiscount = computed(() => orders.value.reduce((acc, o) => {
+  if (o.status_order === 'Cancelada' || o.status_order === 'anulada') return acc
+  return acc + parseFloat(o.discount_order || 0)
+}, 0))
+
+const validOrdersList = computed(() => orders.value.filter(o => o.status_order !== 'Cancelada' && o.status_order !== 'anulada'))
+const totalProductsQty = computed(() => sales.value.reduce((acc, s) => {
+  const o = orders.value.find(x => String(x.id_order) === String(s.id_order_sale))
+  if (o && (o.status_order === 'Cancelada' || o.status_order === 'anulada')) return acc
+  return acc + parseInt(s.qty_sale || 0)
+}, 0))
+
+const avgOrder = computed(() => validOrdersList.value.length > 0 ? (totalVentasBs.value / validOrdersList.value.length) : 0)
 
 const sellersStats = computed(() => {
   if (orders.value.length === 0) return []
@@ -444,6 +501,25 @@ const sellerCols = [
   { accessorKey: 'pct_commission', header: '% Comisión' },
   { accessorKey: 'commission_earned', header: 'Comisión Ganada (Bs)' }
 ]
+
+// Cancel Credit Order
+const cancelingId = ref<number | null>(null)
+
+async function cancelCreditOrder(idOrder: number) {
+  if (!confirm('¿Estás seguro de que deseas cancelar esta venta a crédito? Se devolverá el stock, pero el dinero inicial se mantendrá como ingreso en caja.')) return
+  cancelingId.value = idOrder
+  const fd = new FormData()
+  fd.append('cancelCreditOrder', String(idOrder))
+  
+  const d = await api.ajaxForm(fd, { endpoint: '/ajax/pos.ajax.php' })
+  if (d === 'ok') {
+    toast.add({ title: 'Venta a crédito cancelada y stock devuelto', color: 'success' })
+    await fetchReportData() // recargar la tabla
+  } else {
+    toast.add({ title: 'Error al cancelar la orden', description: d || 'Error desconocido', color: 'error' })
+  }
+  cancelingId.value = null
+}
 </script>
 
 <template>
@@ -468,22 +544,26 @@ const sellerCols = [
     </div>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
       <UCard>
-        <div class="text-slate-500 text-sm font-semibold">Total Ventas (Bs)</div>
-        <div class="text-2xl font-bold text-green-600">{{ formatCurrency(totalVentasBs) }}</div>
+        <div class="text-slate-500 text-xs font-semibold">Total Vendido (Bs)</div>
+        <div class="text-xl font-bold text-green-600">{{ formatCurrency(totalVentasBs) }}</div>
+      </UCard>
+      <UCard class="bg-emerald-50 border-emerald-200">
+        <div class="text-emerald-700 text-xs font-bold">Total Recibido (Bs)</div>
+        <div class="text-xl font-black text-emerald-600">{{ formatCurrency(totalRecibidoBs) }}</div>
       </UCard>
       <UCard>
-        <div class="text-slate-500 text-sm font-semibold">Órdenes</div>
-        <div class="text-2xl font-bold text-blue-600">{{ orders.length }}</div>
+        <div class="text-slate-500 text-xs font-semibold">Órdenes</div>
+        <div class="text-xl font-bold text-blue-600">{{ validOrdersList.length }}</div>
       </UCard>
       <UCard>
-        <div class="text-slate-500 text-sm font-semibold">Ticket Promedio</div>
-        <div class="text-2xl font-bold text-amber-600">{{ formatCurrency(avgOrder) }}</div>
+        <div class="text-slate-500 text-xs font-semibold">Ticket Promedio</div>
+        <div class="text-xl font-bold text-amber-600">{{ formatCurrency(avgOrder) }}</div>
       </UCard>
       <UCard>
-        <div class="text-slate-500 text-sm font-semibold">Productos Vendidos</div>
-        <div class="text-2xl font-bold text-purple-600">{{ totalProductsQty }}</div>
+        <div class="text-slate-500 text-xs font-semibold">Productos</div>
+        <div class="text-xl font-bold text-purple-600">{{ totalProductsQty }}</div>
       </UCard>
     </div>
 
@@ -501,8 +581,12 @@ const sellerCols = [
             <span class="font-medium text-red-500">{{ formatCurrency(sumDiscount) }}</span>
           </div>
           <div class="flex justify-between text-lg font-bold border-t pt-2 mt-2">
-            <span>Total General:</span>
+            <span>Total Vendido:</span>
             <span>{{ formatCurrency(totalVentasBs) }}</span>
+          </div>
+          <div class="flex justify-between text-lg font-bold text-emerald-600 mt-1">
+            <span>Total Recibido:</span>
+            <span>{{ formatCurrency(totalRecibidoBs) }}</span>
           </div>
         </div>
       </UCard>
@@ -550,12 +634,24 @@ const sellerCols = [
                <span class="font-bold text-green-600">{{ formatCurrency(parseFloat(row.original.total_order)) }}</span>
              </template>
              <template #status_order-cell="{ row }">
-               <UBadge :color="row.original.status_order === 'Completada' ? 'success' : 'warning'" variant="subtle">
+               <UBadge :color="row.original.status_order === 'Completada' ? 'success' : (row.original.status_order === 'Cancelada' ? 'error' : 'warning')" variant="subtle">
                  {{ row.original.status_order }}
                </UBadge>
              </template>
              <template #actions-cell="{ row }">
-               <UButton color="neutral" variant="ghost" icon="i-lucide-file-text" size="sm" @click="viewPdf(row.original.id_order)">PDF</UButton>
+               <div class="flex items-center gap-1">
+                 <UButton color="neutral" variant="ghost" icon="i-lucide-file-text" size="sm" @click="viewPdf(row.original.id_order)" title="Ver Factura/Recibo" />
+                 <UButton 
+                   v-if="row.original.method_order === 'credito' && row.original.status_order === 'Completada'" 
+                   color="error" 
+                   variant="ghost" 
+                   icon="i-lucide-x-circle" 
+                   size="sm" 
+                   title="Cancelar Venta y Devolver Stock"
+                   :loading="cancelingId === row.original.id_order"
+                   @click="cancelCreditOrder(row.original.id_order)" 
+                 />
+               </div>
              </template>
            </UTable>
         </UCard>

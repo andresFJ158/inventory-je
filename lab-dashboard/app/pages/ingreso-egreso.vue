@@ -11,6 +11,10 @@ function getLocalDate(): string {
 const auth = useAuthStore()
 const toast = useToast()
 
+const canApprove = computed(() => {
+  return ['superadmin', 'admin', 'lab_admin'].includes(auth.role) || auth.permissions.aprobar_entradas === 'on'
+})
+
 const confirmDialog = ref({ open: false, title: '', message: '' })
 const confirmResolve = ref<((v: boolean) => void) | null>(null)
 function confirmAction(title: string, message: string): Promise<boolean> {
@@ -256,7 +260,7 @@ const approvalTotal = computed(() => {
 })
 
 function confirmEntry(entry: any) {
-  if (auth.role !== 'lab_admin') {
+  if (!canApprove.value) {
     toast.add({ title: 'Solo el administrador puede aprobar y asignar precios a los ingresos.', color: 'error' })
     return
   }
@@ -266,6 +270,10 @@ function confirmEntry(entry: any) {
 }
 
 async function submitApprovalPrice() {
+  if (!canApprove.value) {
+    toast.add({ title: 'Solo el administrador puede aprobar y asignar precios a los ingresos.', color: 'error' })
+    return
+  }
   if (!selectedEntryForApproval.value) return
   const price = priceInput.raw.value
   if (price <= 0) {
@@ -306,6 +314,10 @@ async function submitApprovalPrice() {
 }
 
 async function handleOpenCreateModal() {
+  if (!canApprove.value) {
+    toast.add({ title: 'No tiene permisos para registrar ingresos.', color: 'error' })
+    return
+  }
   await Promise.all([fetchMaterials(), fetchSuppliers()])
   entryType.value = 'mp'
   newEntry.value = {
@@ -319,6 +331,10 @@ async function handleOpenCreateModal() {
 }
 
 async function handleSaveEntry() {
+  if (!canApprove.value) {
+    toast.add({ title: 'No tiene permisos para registrar ingresos.', color: 'error' })
+    return
+  }
   const qty = qtyInput.raw.value
   if (!newEntry.value.id_raw_material || qty <= 0 || !newEntry.value.date) {
     toast.add({ title: 'Completa los campos obligatorios. La cantidad debe ser mayor a 0.', color: 'error' })
@@ -511,6 +527,7 @@ onMounted(() => {
       
       <div class="flex items-center gap-2 w-full md:w-auto">
         <UButton
+          v-if="canApprove"
           icon="i-lucide-plus"
           color="success"
           size="md"
@@ -589,7 +606,7 @@ onMounted(() => {
               <th class="px-6 py-4">Cantidad</th>
               <th class="px-6 py-4">Fecha</th>
               <th class="px-6 py-4">Estado / Concepto</th>
-              <th v-if="auth.role === 'lab_admin'" class="px-6 py-4 text-center">Acciones</th>
+              <th v-if="canApprove" class="px-6 py-4 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200">
@@ -661,7 +678,7 @@ onMounted(() => {
               </td>
 
               <!-- Acciones Administrador -->
-              <td v-if="auth.role === 'lab_admin'" class="px-6 py-4 text-center">
+              <td v-if="canApprove" class="px-6 py-4 text-center">
                 <div v-if="entry.type === 'ingreso' && entry.status === 'pendiente'">
                   <UButton label="Confirmar Ingreso" color="success" size="xs" class="font-bold!" @click="confirmEntry(entry)" />
                 </div>

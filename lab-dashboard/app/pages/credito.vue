@@ -9,6 +9,7 @@ const api = useApi()
 
 const credits = ref<any[]>([])
 const clients = ref<any[]>([])
+const products = ref<any[]>([])
 const loading = ref(true)
 const tab = ref<'activos' | 'pagados'>('activos')
 
@@ -22,7 +23,9 @@ const detailModal = ref(false)
 const selectedCredit = ref<any>(null)
 const payments = ref<any[]>([])
 const loadingPayments = ref(false)
-const newPayment = ref({ amount: '', method: 'efectivo', reference: '' })
+const salesDetails = ref<any[]>([])
+const orderDetails = ref<any>(null)
+const newPayment = ref({ amount: '', method: 'efectivo' })
 const proofFile = ref<File | null>(null)
 const paying = ref(false)
 
@@ -40,11 +43,16 @@ function daysDiff(dateStr: string) {
   return diff
 }
 
-const filteredCredits = computed(() => credits.value.filter(c => tab.value === 'activos' ? c.status_credit !== 'pagado' : c.status_credit === 'pagado'))
+const filteredCredits = computed(() => credits.value.filter(c => tab.value === 'activos' ? (c.status_credit !== 'pagado' && c.status_credit !== 'anulado') : (c.status_credit === 'pagado' || c.status_credit === 'anulado')))
 
 async function fetchClients() {
   const d = await api.rest<any>('/api/clients')
   if (d?.status === 200) clients.value = d.results || []
+}
+
+async function fetchProducts() {
+  const d = await api.rest<any>('/api/products')
+  if (d?.status === 200) products.value = d.results || []
 }
 
 async function fetchCredits() {
@@ -75,6 +83,18 @@ async function openDetail(credit: any) {
   selectedCredit.value = credit
   detailModal.value = true
   loadingPayments.value = true
+  
+  if (credit.id_order_credit && credit.id_order_credit !== '0') {
+    const o = await api.rest<any>(`/api/orders?linkTo=id_order&equalTo=${credit.id_order_credit}`)
+    orderDetails.value = (o?.status === 200 && o.results && o.results.length > 0) ? o.results[0] : null
+
+    const s = await api.rest<any>(`/api/sales?linkTo=id_order_sale&equalTo=${credit.id_order_credit}`)
+    salesDetails.value = s?.status === 200 ? s.results : []
+  } else {
+    orderDetails.value = null
+    salesDetails.value = []
+  }
+
   const d = await api.ajax({ getCreditPayments: 'ok', id_credit: credit.id_credit })
   payments.value = d?.status === 200 ? d.results : []
   loadingPayments.value = false
@@ -82,6 +102,10 @@ async function openDetail(credit: any) {
 
 async function addPayment() {
   if (!newPayment.value.amount || !selectedCredit.value) return
+  if (parseFloat(newPayment.value.amount) > parseFloat(selectedCredit.value.balance_credit)) {
+    toast.add({ title: `El abono no puede ser mayor al saldo pendiente (Bs. ${selectedCredit.value.balance_credit})`, color: 'error' })
+    return
+  }
   paying.value = true
   // FormData para adjuntar el comprobante del abono
   const fd = new FormData()
@@ -89,14 +113,14 @@ async function addPayment() {
   fd.append('id_credit', String(selectedCredit.value.id_credit))
   fd.append('amount', newPayment.value.amount)
   fd.append('method', newPayment.value.method)
-  fd.append('reference', newPayment.value.reference)
+  fd.append('reference', '')
   fd.append('id_admin', String(auth.user?.id_admin || 0))
   if (proofFile.value) fd.append('proof', proofFile.value)
   const d = await api.ajaxForm(fd)
   if (d?.status === 200) {
     selectedCredit.value.balance_credit = d.new_balance
     selectedCredit.value.status_credit = d.new_status
-    newPayment.value = { amount: '', method: 'efectivo', reference: '' }
+    newPayment.value = { amount: '', method: 'efectivo' }
     proofFile.value = null
     await openDetail(selectedCredit.value)
     await fetchCredits()
@@ -106,10 +130,44 @@ async function addPayment() {
   paying.value = false
 }
 
-const totalBalance = computed(() => credits.value.filter(c => c.status_credit !== 'pagado').reduce((a, c) => a + parseFloat(c.balance_credit || 0), 0))
-const overdue = computed(() => credits.value.filter(c => c.status_credit !== 'pagado' && c.due_date_credit && daysDiff(c.due_date_credit)! < 0))
+const totalBalance = computed(() => credits.value.filter(c => c.status_credit !== 'pagado' && c.status_credit !== 'anulado').reduce((a, c) => a + parseFloat(c.balance_credit || 0), 0))
+const overdue = computed(() => credits.value.filter(c => c.status_credit !== 'pagado' && c.status_credit !== 'anulado' && c.due_date_credit && daysDiff(c.due_date_credit)! < 0))
 
-onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
+async function cancelCredit(credit: any) {
+  if (!confirm('¿Estás seguro de que deseas cancelar este crédito?\n\nSi proviene de una venta, se devolverá el stock pero se mantendrán los abonos registrados como dinero ingresado.')) return
+  
+  if (credit.id_order_credit && credit.id_order_credit !== '0') {
+    const fd = new FormData()
+    fd.append('cancelCreditOrder', String(credit.id_order_credit))
+    const d = await api.ajaxForm(fd)
+    if (d?.status === 200) {
+      toast.add({ title: 'Crédito cancelado y stock devuelto', color: 'success' })
+      detailModal.value = false
+      await fetchCredits()
+    } else {
+      toast.add({ title: 'Error al cancelar la orden', color: 'error' })
+    }
+  } else {
+    try {
+      const res = await $fetch<any>(`/api/credits?id=${credit.id_credit}&nameId=id_credit&token=${auth.token}&table=admins&suffix=admin`, {
+        method: 'PUT',
+        body: new URLSearchParams({ status_credit: 'anulado' }).toString(),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy' }
+      })
+      if (res.status === 200) {
+        toast.add({ title: 'Crédito anulado', color: 'success' })
+        detailModal.value = false
+        await fetchCredits()
+      } else {
+        toast.add({ title: 'Error al anular', color: 'error' })
+      }
+    } catch {
+      toast.add({ title: 'Error de conexión', color: 'error' })
+    }
+  }
+}
+
+onMounted(async () => { await Promise.all([fetchClients(), fetchProducts(), fetchCredits()]) })
 </script>
 
 <template>
@@ -163,9 +221,9 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
               <p v-if="c.nit_client" class="text-xs text-slate-400">NIT: {{ c.nit_client }}</p>
             </div>
             <UBadge
-              :color="c.status_credit === 'pagado' ? 'success' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'error' : 'warning'"
+              :color="c.status_credit === 'pagado' ? 'success' : c.status_credit === 'anulado' ? 'neutral' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'error' : 'warning'"
               variant="subtle" size="xs"
-            >{{ c.status_credit === 'pagado' ? 'Pagado' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'Vencido' : 'Activo' }}</UBadge>
+            >{{ c.status_credit === 'pagado' ? 'Pagado' : c.status_credit === 'anulado' ? 'Anulado' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'Vencido' : 'Activo' }}</UBadge>
           </div>
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div><p class="text-xs text-slate-400">Monto</p><p class="font-mono font-semibold">{{ fmt(parseFloat(c.amount_credit)) }}</p></div>
@@ -208,8 +266,8 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
                 <span v-else class="text-slate-400">—</span>
               </td>
               <td class="px-4 py-3">
-                <UBadge :color="c.status_credit === 'pagado' ? 'success' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'error' : 'warning'" variant="subtle" size="xs">
-                  {{ c.status_credit === 'pagado' ? 'Pagado' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'Vencido' : 'Activo' }}
+                <UBadge :color="c.status_credit === 'pagado' ? 'success' : c.status_credit === 'anulado' ? 'neutral' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'error' : 'warning'" variant="subtle" size="xs">
+                  {{ c.status_credit === 'pagado' ? 'Pagado' : c.status_credit === 'anulado' ? 'Anulado' : (c.due_date_credit && daysDiff(c.due_date_credit)! < 0) ? 'Vencido' : 'Activo' }}
                 </UBadge>
               </td>
               <td class="px-4 py-3 text-right">
@@ -260,6 +318,52 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
             </div>
           </div>
 
+          <!-- Detalles Completos del Crédito y Cliente -->
+          <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
+            <div class="flex justify-between border-b border-slate-200 pb-1">
+              <span class="text-slate-500 text-xs font-semibold uppercase">Cliente</span>
+              <span class="font-bold text-slate-800">{{ decode(selectedCredit.name_client) }} {{ decode(selectedCredit.surname_client || '') }}</span>
+            </div>
+            <div v-if="selectedCredit.nit_client" class="flex justify-between border-b border-slate-200 pb-1">
+              <span class="text-slate-500 text-xs font-semibold uppercase">NIT / CI</span>
+              <span class="text-slate-700">{{ selectedCredit.nit_client }}</span>
+            </div>
+            <div v-if="selectedCredit.phone_client || clients.find(c => c.id_client == selectedCredit.id_client_credit)?.phone_client" class="flex justify-between border-b border-slate-200 pb-1">
+              <span class="text-slate-500 text-xs font-semibold uppercase">Teléfono</span>
+              <span class="text-slate-700">{{ selectedCredit.phone_client || clients.find(c => c.id_client == selectedCredit.id_client_credit)?.phone_client }}</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-200 pb-1">
+              <span class="text-slate-500 text-xs font-semibold uppercase">Fecha Registro</span>
+              <span class="text-slate-700">{{ selectedCredit.date_created_credit }}</span>
+            </div>
+            <div v-if="selectedCredit.due_date_credit" class="flex justify-between border-b border-slate-200 pb-1">
+              <span class="text-slate-500 text-xs font-semibold uppercase">Vencimiento</span>
+              <span :class="(daysDiff(selectedCredit.due_date_credit)! < 0 && selectedCredit.status_credit !== 'pagado') ? 'text-rose-600 font-bold' : 'text-slate-700'">{{ selectedCredit.due_date_credit }}</span>
+            </div>
+            <div v-if="orderDetails" class="flex justify-between border-b border-slate-200 pb-1">
+              <span class="text-slate-500 text-xs font-semibold uppercase">Orden / Transacción</span>
+              <span class="font-mono text-slate-700">{{ orderDetails.transaction_order }}</span>
+            </div>
+            <div v-if="selectedCredit.notes_credit" class="pt-1">
+              <span class="text-slate-500 text-xs font-semibold uppercase block mb-1">Notas</span>
+              <p class="text-slate-700 italic text-xs bg-white p-2 rounded border border-slate-200">{{ selectedCredit.notes_credit }}</p>
+            </div>
+          </div>
+
+          <!-- Productos (Si aplica) -->
+          <div v-if="salesDetails.length > 0">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Productos Vendidos</p>
+            <div class="space-y-1 max-h-48 overflow-y-auto pr-1">
+              <div v-for="s in salesDetails" :key="s.id_sale" class="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-sm">
+                <div>
+                  <p class="font-semibold text-slate-700 text-xs line-clamp-1">{{ decode(products.find(p => p.id_product == s.id_product_sale)?.title_product || 'Producto') }}</p>
+                  <p class="text-[10px] text-slate-400 font-mono">{{ s.qty_sale }} unid.</p>
+                </div>
+                <div class="font-mono font-bold text-slate-700 text-xs shrink-0">Bs. {{ parseFloat(s.subtotal_sale).toFixed(2) }}</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Historial de abonos -->
           <div>
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Historial de Abonos</p>
@@ -282,20 +386,17 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
           </div>
 
           <!-- Agregar abono -->
-          <div v-if="selectedCredit.status_credit !== 'pagado'" class="border-t border-slate-200 pt-4 space-y-3">
+          <div v-if="selectedCredit.status_credit !== 'pagado' && selectedCredit.status_credit !== 'anulado'" class="border-t border-slate-200 pt-4 space-y-3">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Registrar Abono</p>
             <div class="grid grid-cols-2 gap-2">
               <UFormField label="Monto (Bs.) *">
                 <UInput v-model="newPayment.amount" type="number" step="any" min="0" :max="selectedCredit.balance_credit" class="w-full" />
               </UFormField>
               <UFormField label="Método">
-                <USelect v-model="newPayment.method" :items="[{value:'efectivo',label:'Efectivo'},{value:'qr',label:'QR'},{value:'transferencia',label:'Transferencia'}]" class="w-full" />
+                <USelect v-model="newPayment.method" :items="[{value:'efectivo',label:'Efectivo'},{value:'qr',label:'QR'}]" class="w-full" />
               </UFormField>
             </div>
-            <UFormField label="Referencia / N° de operación">
-              <UInput v-model="newPayment.reference" placeholder="Número de operación..." class="w-full" />
-            </UFormField>
-            <UFormField label="Comprobante de pago (imagen/PDF)" help="Respaldo del abono. Máx 5MB.">
+            <UFormField v-if="newPayment.method === 'qr'" label="Comprobante de pago (imagen/PDF)" help="Respaldo del abono. Máx 5MB.">
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,application/pdf"
@@ -303,19 +404,35 @@ onMounted(async () => { await Promise.all([fetchClients(), fetchCredits()]) })
                 @change="onProofChange"
               >
             </UFormField>
-            <p v-if="proofFile" class="text-xs text-green-600 flex items-center gap-1">
+            <p v-if="proofFile && newPayment.method === 'qr'" class="text-xs text-green-600 flex items-center gap-1">
               <UIcon name="i-lucide-paperclip" class="w-3.5 h-3.5" /> {{ proofFile.name }}
             </p>
             <UButton color="primary" block :loading="paying" icon="i-lucide-plus" @click="addPayment">Registrar Abono</UButton>
           </div>
-          <div v-else class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+          <div v-else-if="selectedCredit.status_credit === 'pagado'" class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
             <UIcon name="i-lucide-check-circle" class="w-7 h-7 text-emerald-500 mx-auto mb-1" />
             <p class="text-sm font-semibold text-emerald-700">Crédito completamente pagado</p>
+          </div>
+          <div v-else class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-center">
+            <UIcon name="i-lucide-x-circle" class="w-7 h-7 text-slate-500 mx-auto mb-1" />
+            <p class="text-sm font-semibold text-slate-700">Crédito anulado / cancelado</p>
           </div>
         </div>
       </template>
       <template #footer>
-        <UButton color="neutral" variant="ghost" @click="detailModal = false">Cerrar</UButton>
+        <div class="flex justify-between w-full">
+          <UButton 
+            v-if="selectedCredit?.status_credit !== 'anulado' && selectedCredit?.status_credit !== 'pagado'" 
+            color="error" 
+            variant="soft" 
+            icon="i-lucide-x-circle" 
+            @click="cancelCredit(selectedCredit)"
+          >
+            Cancelar Crédito
+          </UButton>
+          <div v-else></div>
+          <UButton color="neutral" variant="ghost" @click="detailModal = false">Cerrar</UButton>
+        </div>
       </template>
     </UModal>
   </div>

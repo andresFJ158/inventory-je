@@ -62,6 +62,8 @@ if(isset($_POST["payPosOrder"])){
 	$_POST["transferPay"] = $_POST["transfer"] ?? "";
 	$_POST["clientInvoice"] = $_POST["invoice"] ?? "no";
 	$_POST["qrRefOrder"] = $_POST["qrRefOrder"] ?? "";
+	$_POST["creditInitialPayment"] = $_POST["creditInitialPayment"] ?? 0;
+	$_POST["creditEndDate"] = $_POST["creditEndDate"] ?? "";
 	
 	// Handle file upload for proof (QR)
 	if (isset($_FILES['proof']) && $_FILES['proof']['error'] === UPLOAD_ERR_OK) {

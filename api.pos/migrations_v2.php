@@ -343,7 +343,9 @@ $queries = [
       KEY `idx_audit_table` (`table_audit`,`record_audit`),
       KEY `idx_audit_admin` (`id_admin_audit`),
       KEY `idx_audit_date` (`created_at_audit`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    "ALTER TABLE credits ADD COLUMN id_order_credit INT DEFAULT 0"
 ];
 
 // Normalización de charset: unificar tablas legacy utf8mb3 → utf8mb4

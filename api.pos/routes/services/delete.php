@@ -51,7 +51,7 @@ if(isset($_GET["id"]) && isset($_GET["nameId"])){
 			}
 
 			// Proteger almacén/sucursal central de ser eliminada
-			if($table === "offices" || $table === "warehouses"){
+			if($table === "offices"){
 				$db = Connection::connect();
 				$nameIdCol = $_GET["nameId"];
 				$idVal = intval($_GET["id"]);

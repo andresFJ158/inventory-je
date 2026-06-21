@@ -38,6 +38,10 @@ const wantInvoice = ref(false)
 const checkoutSuccess = ref(false)
 const lastOrderReceipt = ref<any>(null)
 
+// Credit variables
+const creditInitialPayment = ref<number | null>(null)
+const creditEndDate = ref<string>('')
+
 // Expense Modal
 const isExpenseModalOpen = ref(false)
 const expenseModel = ref({ description: '', amount: 0 })
@@ -995,6 +999,19 @@ async function handleCheckout() {
     if (payMethod.value === 'QR' && qrFile.value) {
       formData.append('proof', qrFile.value)
     }
+    
+    if (payMethod.value === 'credito') {
+      if (!creditEndDate.value) {
+        toast.add({ title: 'Ingresa la fecha de finalización del crédito.', color: 'error' })
+        return
+      }
+      if (creditInitialPayment.value === null || creditInitialPayment.value < 0) {
+        toast.add({ title: 'El dinero inicial no puede ser negativo.', color: 'error' })
+        return
+      }
+      formData.append('creditInitialPayment', String(creditInitialPayment.value))
+      formData.append('creditEndDate', creditEndDate.value)
+    }
 
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
@@ -1566,7 +1583,6 @@ function printReceipt() {
                 QR
               </UButton>
               <UButton
-                v-if="auth.role === 'vendedor' || auth.user?.type_seller === 'vendedor' || auth.user?.type_seller === 'calle' || auth.user?.type_seller === 'tienda'"
                 :color="payMethod === 'credito' ? 'primary' : 'neutral'"
                 variant="soft"
                 icon="i-lucide-credit-card"
@@ -1625,9 +1641,29 @@ function printReceipt() {
             </div>
           </div>
 
-          <!-- Credit message hint -->
-          <div v-if="payMethod === 'credito'" class="text-center py-2 text-xs text-slate-400">
-            Esta orden se registrará como crédito para el vendedor.
+          <!-- Credit details form -->
+          <div v-if="payMethod === 'credito'" class="space-y-3">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Dinero Inicial (Bs.) *</label>
+              <UInput
+                v-model.number="creditInitialPayment"
+                type="number"
+                step="any"
+                placeholder="Bs. 0.00"
+                min="0"
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Fecha de Finalización *</label>
+              <UInput
+                v-model="creditEndDate"
+                type="date"
+                required
+              />
+            </div>
+            <div class="text-center py-2 text-xs text-slate-400">
+              Esta orden se registrará como crédito para el cliente. El monto inicial se registrará como el primer pago.
+            </div>
           </div>
 
           <!-- Invoice switch checkbox -->

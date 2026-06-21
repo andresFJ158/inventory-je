@@ -138,6 +138,24 @@ if(isset($_POST["idOrderDelete"])){
 }
 
 /*=============================================
+Cancelar Orden a Crédito
+=============================================*/
+
+if(isset($_POST["cancelCreditOrder"])){
+
+	$ajax = new PosController();
+	$ajax -> idOrderCancel = $_POST["cancelCreditOrder"];
+	$ajax -> token = $_POST["token"] ?? null;
+
+	if (empty($ajax->idOrderCancel)) {
+		echo "error|ID de orden vacío";
+	} else {
+		$ajax -> cancelCreditOrder();
+	}
+
+}
+
+/*=============================================
 Aprobar Entrada de Materia Prima
 =============================================*/
 if(isset($_POST["requestWarehouseApproval"])){
@@ -270,11 +288,19 @@ if(isset($_POST["approveRawMaterialEntry"])){
 	$db = LocalConnection::connect();
 	$id_admin_req = intval($_POST['id_admin'] ?? 0);
 	if ($id_admin_req > 0) {
-		$stmtRole = $db->prepare("SELECT rol_admin FROM admins WHERE id_admin = :id LIMIT 1");
-		$stmtRole->execute([':id' => $id_admin_req]);
-		$rolReq = $stmtRole->fetchColumn();
-		if (!in_array($rolReq, ["superadmin", "admin", "lab_admin"])) {
-			echo "error|No tiene permisos para aprobar o costear entradas.";
+		$stmtAdmin = $db->prepare("SELECT rol_admin, permissions_admin FROM admins WHERE id_admin = :id LIMIT 1");
+		$stmtAdmin->execute([':id' => $id_admin_req]);
+		$adminInfo = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+		if ($adminInfo) {
+			$rolReq = $adminInfo['rol_admin'];
+			$permsReq = json_decode(urldecode($adminInfo['permissions_admin'] ?? '{}'), true);
+			$isAllowed = in_array($rolReq, ["superadmin", "admin", "lab_admin"]) || (isset($permsReq['aprobar_entradas']) && $permsReq['aprobar_entradas'] === 'on');
+			if (!$isAllowed) {
+				echo "error|No tiene permisos para aprobar o costear entradas.";
+				exit;
+			}
+		} else {
+			echo "error|Usuario no encontrado.";
 			exit;
 		}
 	}
