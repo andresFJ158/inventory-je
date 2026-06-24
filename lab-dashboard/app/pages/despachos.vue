@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '~/stores/auth'
 import { getImageUrl } from '~/utils/image'
 
 const auth = useAuthStore()
 const api = useApi()
 const toast = useToast()
+const route = useRoute()
 
 function blockNegative(e: KeyboardEvent) {
   if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault()
@@ -49,7 +51,7 @@ const filteredDispatchedOrders = computed(() => {
 const historyRequests = ref<any[]>([])
 const loadingPending = ref(true)
 const loadingHistory = ref(true)
-const activeTab = ref(0)
+const activeTab = ref(route.query.tab ? parseInt(String(route.query.tab), 10) : 0)
 
 // Dispatch Dialog
 const isDispatchOpen = ref(false)

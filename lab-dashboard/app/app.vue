@@ -281,7 +281,7 @@ const sidebarItems = computed(() => {
   // Módulos de Administración y POS
   if (hasPerm('pos', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Punto de Venta POS', to: '/pos', icon: 'i-lucide-shopping-cart' })
   if (hasPerm('sucursales', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Sucursales', to: '/sucursales', icon: 'i-lucide-store' })
-  if (hasPerm('qrs', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Códigos QR', to: '/qrs', icon: 'i-lucide-qr-code' })
+
   if (hasPerm('admins', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Administradores', to: '/admins', icon: 'i-lucide-user-cog' })
   if (hasPerm('clientes', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
   if (hasPerm('categorias', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-grid-2x2' })
@@ -366,7 +366,7 @@ const sidebarItems = computed(() => {
 
           <div class="p-4 border-t border-slate-200 bg-white flex items-center gap-3">
             <UAvatar
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
+              :src="auth.user?.img_admin ? decodeURIComponent(auth.user.img_admin) : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'"
               alt="Usuario"
               size="md"
             />

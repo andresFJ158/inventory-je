@@ -371,3 +371,4 @@ Stack trace:
 [21-Jun-2026 11:54:58 America/La_Paz] EXCEPTION in pos.ajax.php: El abono no puede ser mayor al saldo pendiente at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:720
 [21-Jun-2026 11:55:00 America/La_Paz] EXCEPTION in pos.ajax.php: El abono no puede ser mayor al saldo pendiente at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:720
 [21-Jun-2026 11:55:01 America/La_Paz] EXCEPTION in pos.ajax.php: El abono no puede ser mayor al saldo pendiente at D:\Unitech2.0\api.pos\ajax\handlers\06_commerce.php:720
+[24-Jun-2026 19:32:54 America/La_Paz] syncCashTotals error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'income_cash' in 'SET'

@@ -105,7 +105,7 @@ async function loadFormMetadata() {
           continue
         }
 
-        if (isEdit.value && ['stock_product', 'stock_raw_material', 'initial_stock_raw_material', 'initial_stock_product'].includes(col.title_column)) {
+        if (['stock_product', 'stock_raw_material', 'initial_stock_raw_material', 'initial_stock_product'].includes(col.title_column)) {
           continue
         }
 
@@ -467,6 +467,34 @@ async function handleSubmit() {
     // Construct url-encoded form body
     const body = new URLSearchParams()
     
+    // Upload any pending images first
+    for (const [colName, file] of Object.entries(selectedImageFiles.value)) {
+      if (file) {
+        uploadingImage.value[colName] = true
+        const formData = new FormData()
+        formData.append('imageFile', file)
+        formData.append('uploadImage', 'ok')
+
+        try {
+          const res = await $fetch<any>('/ajax/pos.ajax.php', {
+            method: 'POST',
+            body: formData
+          })
+          const data = typeof res === 'string' ? JSON.parse(res) : res
+          if (data.status === 200 && data.url) {
+            formModel.value[colName] = data.url
+          } else {
+            toast.add({ title: 'Aviso', description: `Error al subir imagen para ${colName}.`, color: 'warning' })
+          }
+        } catch (e) {
+          console.error('Upload error:', e)
+          toast.add({ title: 'Aviso', description: `Fallo de conexión al subir imagen para ${colName}.`, color: 'warning' })
+        } finally {
+          uploadingImage.value[colName] = false
+        }
+      }
+    }
+    
     // Bind all fields in formModel
     Object.entries(formModel.value).forEach(([key, val]) => {
       let finalVal = val
@@ -582,39 +610,20 @@ function formatNumber(num: number): string {
 
 // Image upload state
 const uploadingImage = ref<Record<string, boolean>>({})
+const selectedImageFiles = ref<Record<string, File>>({})
+const localImagePreviews = ref<Record<string, string>>({})
 
-async function handleImageUpload(colName: string, event: Event) {
+function handleImageSelect(colName: string, event: Event) {
   const fileInput = event.target as HTMLInputElement
   const file = fileInput.files?.[0]
-  if (!file) return
-
-  uploadingImage.value[colName] = true
-  const formData = new FormData()
-  formData.append('imageFile', file)
-  formData.append('uploadImage', 'ok')
-
-  try {
-    const res = await $fetch<any>('/ajax/pos.ajax.php', {
-      method: 'POST',
-      body: formData
-    })
-    
-    // Convert string response to JSON if necessary
-    const data = typeof res === 'string' ? JSON.parse(res) : res
-    
-    if (data.status === 200 && data.url) {
-      formModel.value[colName] = data.url
-      toast.add({ title: 'Imagen subida exitosamente', color: 'success' })
-    } else {
-      toast.add({ title: 'Error al subir la imagen', color: 'error' })
-    }
-  } catch (e) {
-    console.error('Upload error:', e)
-    toast.add({ title: 'Fallo la conexión al subir imagen', color: 'error' })
-  } finally {
-    uploadingImage.value[colName] = false
-    fileInput.value = '' // reset input
+  if (!file) {
+    delete selectedImageFiles.value[colName]
+    delete localImagePreviews.value[colName]
+    return
   }
+
+  selectedImageFiles.value[colName] = file
+  localImagePreviews.value[colName] = URL.createObjectURL(file)
 }
 
 // Watcher for auto-calculating investment in purchases
@@ -634,6 +643,8 @@ onMounted(() => {
 })
 
 watch(() => props.initialData, () => {
+  selectedImageFiles.value = {}
+  localImagePreviews.value = {}
   loadFormMetadata()
 })
 </script>
@@ -735,16 +746,16 @@ watch(() => props.initialData, () => {
                     file:text-sm file:font-semibold
                     file:bg-emerald-50 file:text-emerald-700
                     hover:file:bg-emerald-100 cursor-pointer"
-                  @change="handleImageUpload(col.title_column, $event)"
+                  @change="handleImageSelect(col.title_column, $event)"
                   :disabled="uploadingImage[col.title_column]"
                 />
                 <div v-if="uploadingImage[col.title_column]" class="absolute right-3 top-2 flex items-center gap-2 text-xs text-emerald-600 font-medium">
                   <UIcon name="i-heroicons-arrow-path" class="animate-spin w-4 h-4" /> Subiendo...
                 </div>
               </div>
-              <div v-if="formModel[col.title_column]" class="mt-2 flex flex-col gap-2 border border-slate-200 rounded-lg p-2 bg-slate-50 w-max">
-                <img :src="formModel[col.title_column]" class="w-24 h-24 rounded-lg object-cover ring-1 ring-slate-200" alt="Vista previa">
-                <button type="button" class="text-xs text-red-500 hover:text-red-700 font-medium text-left" @click="formModel[col.title_column] = ''">Quitar imagen</button>
+              <div v-if="localImagePreviews[col.title_column] || formModel[col.title_column]" class="mt-2 flex flex-col gap-2 border border-slate-200 rounded-lg p-2 bg-slate-50 w-max">
+                <img :src="localImagePreviews[col.title_column] || formModel[col.title_column]" class="w-24 h-24 rounded-lg object-cover ring-1 ring-slate-200" alt="Vista previa">
+                <button type="button" class="text-xs text-red-500 hover:text-red-700 font-medium text-left" @click="delete selectedImageFiles[col.title_column]; delete localImagePreviews[col.title_column]; formModel[col.title_column] = ''">Quitar imagen</button>
               </div>
             </div>
 

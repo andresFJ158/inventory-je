@@ -184,6 +184,9 @@ async function fetchRows() {
 
       // Aplicar filtros adicionales de privacidad por rol
       if (config.title_module === 'orders') {
+        // Solo mostrar órdenes completadas
+        fetchedRows = fetchedRows.filter((r: any) => String(r.status_order) === '1')
+
         if (auth.role === 'vendedor' || auth.role === 'cajero') {
            // Solo ver sus propias órdenes
            fetchedRows = fetchedRows.filter((r: any) => String(r.id_admin_order) === String(auth.user?.id_admin))

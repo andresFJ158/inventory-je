@@ -55,6 +55,7 @@ if(isset($_POST["name_client"])){
 	$ajax -> email_client = $_POST["email_client"];
 	$ajax -> phone_client = $_POST["phone_client"];
 	$ajax -> address_client = $_POST["address_client"];
+	$ajax -> id_admin_client = $_POST["id_admin_client"] ?? null;
 	$ajax -> idOffice = $_POST["idOffice"];
 	$ajax -> token = $_POST["token"];
 	$ajax -> newClient();

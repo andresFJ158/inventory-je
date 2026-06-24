@@ -51,7 +51,8 @@ if(isset($_POST["getLoggedUser"])){
 				'id_office_admin' => intval($_SESSION["admin"]->id_office_admin),
 				'id_warehouse_admin' => isset($_SESSION["admin"]->id_warehouse_admin) ? intval($_SESSION["admin"]->id_warehouse_admin) : 0,
 				'warehouse_office_id' => $warehouse_office_id,
-				'permissions_admin' => $permissions
+				'permissions_admin' => $permissions,
+				'img_admin' => $_SESSION["admin"]->img_admin ?? ''
 			],
 			'office' => $office,
 			'token' => $_SESSION["admin"]->token_admin
@@ -211,7 +212,8 @@ if(isset($_POST["loginLabUser"])){
 					'id_office_admin' => intval($admin->id_office_admin),
 					'id_warehouse_admin' => isset($admin->id_warehouse_admin) ? intval($admin->id_warehouse_admin) : 0,
 					'warehouse_office_id' => $warehouse_office_id,
-					'permissions_admin' => $permissions
+					'permissions_admin' => $permissions,
+					'img_admin' => $admin->img_admin ?? ''
 				],
 				'office' => $office,
 				'token' => $jwt

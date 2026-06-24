@@ -15,8 +15,16 @@ const loadingInventory = ref(true)
 const loadingMovements = ref(true)
 const loadingInbound = ref(true)
 const receivingTransferId = ref<number | null>(null)
-const canDispatchFromInventory = computed(() => ['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || '')))
-const canReceiveInbound = computed(() => ['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || '')))
+const canDispatchFromInventory = computed(() => {
+  if (['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || ''))) return true
+  if (auth.role === 'cajero' && auth.permissions?.cajero_despachador === 'on') return true
+  return false
+})
+const canReceiveInbound = computed(() => {
+  if (['despachador', 'admin', 'superadmin', 'lab_admin', 'despachador_laboratorio'].includes(String(auth.role || ''))) return true
+  if (auth.role === 'cajero' && auth.permissions?.cajero_despachador === 'on') return true
+  return false
+})
 
 // Assignment modal state
 const assignModalOpen = ref(false)

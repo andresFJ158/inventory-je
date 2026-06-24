@@ -108,11 +108,13 @@ const rawMaterialsList = computed(() => materials.value.filter(m => !m.is_insumo
 const insumosList = computed(() => materials.value.filter(m => m.is_insumo === 1 || m.is_insumo === '1'))
 
 const filteredEntryMaterials = computed(() => {
-  return entryType.value === 'mp' ? rawMaterialsList.value : insumosList.value
+  const list = entryType.value === 'mp' ? rawMaterialsList.value : insumosList.value
+  return list.filter(m => m.no_stock_raw_material !== 1 && m.no_stock_raw_material !== '1')
 })
 
 const filteredAdjMaterials = computed(() => {
-  return adjType.value === 'mp' ? rawMaterialsList.value : insumosList.value
+  const list = adjType.value === 'mp' ? rawMaterialsList.value : insumosList.value
+  return list.filter(m => m.no_stock_raw_material !== 1 && m.no_stock_raw_material !== '1')
 })
 
 const selectedMaterialForEntry = computed(() => {

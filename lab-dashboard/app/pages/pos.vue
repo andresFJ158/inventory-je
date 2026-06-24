@@ -235,13 +235,61 @@ const newClient = ref({
   dni: '',
   email: '',
   phone: '',
-  address: ''
+  address: '',
+  id_admin_client: '0' // se sobreescribe en openClientModal
 })
+
+function openClientModal() {
+  newClient.value = {
+    name: '',
+    surname: '',
+    dni: '',
+    email: '',
+    phone: '',
+    address: '',
+    id_admin_client: String(auth.user?.id_admin || '0')
+  }
+  isClientModalOpen.value = true
+}
 
 const apiHeaders = {
   Authorization: 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy'
 }
 
+const canManageClients = computed(() => {
+  const r = auth.role
+  let p: Record<string, string> = {}
+  try {
+    const raw = auth.permissions
+    p = typeof raw === 'string' ? JSON.parse(decodeURIComponent(raw)) : (raw || {})
+  } catch {}
+  return ['superadmin', 'admin'].includes(r) || (r === 'vendedor' && p.gestionar_clientes === 'on')
+})
+
+const vendedoresList = ref<Array<{ value: string; label: string }>>([])
+
+async function loadVendedores() {
+  try {
+    const data = await $fetch<any>('/api/admins?select=id_admin,name_admin,surname_admin,email_admin,rol_admin,status_admin', {
+      headers: apiHeaders
+    })
+    if (data.status === 200 && data.results) {
+      const allowedRoles = ['vendedor']
+      const vendors = data.results.filter((a: any) => 
+        allowedRoles.includes(String(a.rol_admin).toLowerCase()) && String(a.status_admin) === '1'
+      )
+      vendedoresList.value = vendors.map((a: any) => ({
+        value: String(a.id_admin),
+        label: [
+          decodeURIComponent(a.name_admin || '').replace(/\+/g, ' '), 
+          decodeURIComponent(a.surname_admin || '').replace(/\+/g, ' ')
+        ].filter(Boolean).join(' ') || decodeURIComponent(a.email_admin || '').replace(/\+/g, ' ')
+      }))
+    }
+  } catch (e) {
+    console.error('Error loading vendedores:', e)
+  }
+}
 // Fetch categories
 async function fetchCategories() {
   try {
@@ -445,6 +493,9 @@ async function selectOrder(index: number) {
     transactionOrder.value = order.transaction_order
     selectedClient.value = (order.id_client_order && String(order.id_client_order) !== '0') ? String(order.id_client_order) : ''
     await fetchCart()
+    await fetchOrderExpenses()
+  } else {
+    orderExpenses.value = []
   }
 }
 
@@ -545,6 +596,10 @@ onMounted(async () => {
   await fetchCatalog()
   await fetchClients()
   
+  if (canManageClients.value) {
+    await loadVendedores()
+  }
+  
   if (isCashRegisterOpen.value) {
     await fetchPendingOrders()
     if (pendingOrders.value.length > 0) {
@@ -603,6 +658,7 @@ async function handleNewOrder() {
            selectedClient.value = ''
         }
         cartItems.value = []
+        orderExpenses.value = []
         checkoutSuccess.value = false
       }
     } else {
@@ -874,6 +930,7 @@ async function handleRegisterClient() {
         email_client: newClient.value.email || '',
         phone_client: newClient.value.phone || '',
         address_client: newClient.value.address || '',
+        id_admin_client: newClient.value.id_admin_client || '0',
         idOffice: String(officeId),
         token: auth.token || ''
       }).toString(),
@@ -884,7 +941,7 @@ async function handleRegisterClient() {
       await fetchClients()
       selectedClient.value = String(response) // backend returns client ID
       isClientModalOpen.value = false
-      newClient.value = { name: '', surname: '', dni: '', email: '', phone: '', address: '' }
+      newClient.value = { name: '', surname: '', dni: '', email: '', phone: '', address: '', id_admin_client: String(auth.user?.id_admin || '0') }
     } else {
       toast.add({ title: 'Error al registrar cliente.', color: 'error' })
     }
@@ -1277,7 +1334,7 @@ function printReceipt() {
                 {{ prod.sku_product }}
               </span>
               <span
-                v-if="parseInt(prod.is_compound_product ?? 0) === 1"
+                v-if="parseInt(prod.is_combo_product ?? 0) === 1"
                 class="absolute top-1 left-1 text-[8px] font-bold bg-purple-600 text-white px-1 py-0.5 rounded z-10 tracking-wide"
               >
                 COMBO
@@ -1411,7 +1468,8 @@ function printReceipt() {
               icon="i-lucide-user-plus"
               color="neutral"
               variant="soft"
-              @click="isClientModalOpen = true"
+              title="Añadir Cliente"
+              @click="openClientModal"
             />
           </div>
 
@@ -1566,22 +1624,34 @@ function printReceipt() {
               <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Apellido</label>
               <UInput v-model="newClient.surname" placeholder="Ej: Perez" />
             </div>
-          </div>
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">DNI / Documento *</label>
-            <UInput v-model="newClient.dni" placeholder="Ej: 1234567" required />
-          </div>
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Correo Electrónico</label>
-            <UInput v-model="newClient.email" type="email" placeholder="Ej: juan@perez.com" />
-          </div>
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Teléfono</label>
-            <UInput v-model="newClient.phone" placeholder="Ej: 79008000" />
-          </div>
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Dirección</label>
-            <UInput v-model="newClient.address" placeholder="Ej: Zona Central Calle Sucre #123" />
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">CI / NIT *</label>
+              <UInput v-model="newClient.dni" @update:model-value="val => newClient.dni = val ? String(val).replace(/[^0-9]/g, '') : ''" placeholder="Ej: 1234567" required />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Correo Electrónico</label>
+              <UInput v-model="newClient.email" type="email" placeholder="Ej: juan@perez.com" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Teléfono</label>
+              <UInput v-model="newClient.phone" @update:model-value="val => newClient.phone = val ? String(val).replace(/[^0-9+]/g, '') : ''" placeholder="Ej: 79008000" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Dirección</label>
+              <UInput v-model="newClient.address" placeholder="Ej: Zona Central Calle Sucre #123" />
+            </div>
+            <div v-if="canManageClients" class="col-span-2">
+              <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Vendedor Asignado</label>
+              <USelectMenu
+                v-model="newClient.id_admin_client"
+                :items="vendedoresList"
+                class="w-full"
+                placeholder="Seleccione un vendedor"
+                :ui="{ content: 'z-[100]' }"
+                value-key="value"
+                label-key="label"
+              />
+            </div>
           </div>
 
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
@@ -1657,17 +1727,13 @@ function printReceipt() {
           </div>
 
           <!-- QR details form -->
-          <div v-if="payMethod === 'QR'">
-            
-            <div v-if="qrImage" class="flex justify-center my-6">
-              <img :src="getImageUrl(qrImage)" alt="Código QR" class="max-w-[350px] w-full border-4 border-white rounded-xl shadow-xl" />
-            </div>
-            <div v-else class="text-center text-xs text-slate-400 my-4 italic">
-              No hay código QR configurado para esta sucursal.
-            </div>
+          <div v-if="payMethod === 'QR'" class="my-4 text-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <UIcon name="i-lucide-qr-code" class="w-8 h-8 text-indigo-500 mx-auto mb-2" />
+            <h3 class="text-sm font-bold text-slate-700">Pago por QR</h3>
+            <p class="text-xs text-slate-500 mt-1">El cliente debe realizar la transferencia. Puedes subir el comprobante en este momento o hacerlo después desde el módulo de Órdenes.</p>
           </div>
           
-          <div v-if="payMethod === 'QR' && (auth.role === 'vendedor' || auth.user?.type_seller)">
+          <div v-if="payMethod === 'QR'">
             <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Imagen / Comprobante (Opcional)</label>
             <input
               type="file"

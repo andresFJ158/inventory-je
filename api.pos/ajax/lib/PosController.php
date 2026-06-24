@@ -294,11 +294,12 @@ class PosController{
 	public $email_client;
 	public $phone_client;
 	public $address_client;
+	public $id_admin_client;
 	
 	public function newClient(){
 
 		$db = LocalConnection::connect();
-		$idAdmin = function_exists('pos_current_admin_id') ? pos_current_admin_id() : 0;
+		$idAdmin = (!empty($this->id_admin_client) && $this->id_admin_client !== '0') ? intval($this->id_admin_client) : (function_exists('pos_current_admin_id') ? pos_current_admin_id() : 0);
 		$stmt = $db->prepare("
 			INSERT INTO clients
 				(name_client, surname_client, dni_client, email_client,

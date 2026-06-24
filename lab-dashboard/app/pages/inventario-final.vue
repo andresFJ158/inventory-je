@@ -77,6 +77,10 @@ const warehouseOptions = computed(() => {
   }))
 })
 
+const filteredItems = computed(() => {
+  return items.value.filter(item => item.stock > 0)
+})
+
 function openDispatchModal(item: any) {
   dispatchForm.value = {
     id_product: String(item.id),
@@ -164,7 +168,7 @@ onMounted(() => {
           <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin mx-auto text-green-500 mb-2" />
           Cargando inventario final desde la base de datos...
         </div>
-        <div v-else-if="items.length === 0" class="text-center p-8 text-slate-500">
+        <div v-else-if="filteredItems.length === 0" class="text-center p-8 text-slate-500">
           No hay productos finalizados disponibles en el Almacén Central.
         </div>
         <table v-else class="w-full text-left text-sm text-slate-700">
@@ -192,7 +196,7 @@ onMounted(() => {
           </thead>
           <tbody class="divide-y divide-slate-200 font-mono">
             <tr
-              v-for="item in items"
+              v-for="item in filteredItems"
               :key="item.id"
               class="hover:bg-slate-50 transition-all duration-150"
             >

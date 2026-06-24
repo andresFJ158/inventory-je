@@ -65,6 +65,7 @@ const permForm = ref<Record<string, boolean>>({
   almacen: false,
   despachos: false,
   mi_inventario: false,
+  cajero_despachador: false,
 
   creditos: false,
 
@@ -101,7 +102,8 @@ const formModel = ref({
   id_warehouse_admin: '',
   id_inventory_admin: '',
   pct_commission_admin: 0,
-  status_admin: true
+  status_admin: true,
+  img_admin: ''
 })
 const savingAdmin = ref(false)
 
@@ -374,10 +376,29 @@ watch(() => formModel.value.rol_admin, (newRole) => {
   }
 })
 
-// Add / Edit logic
+// Image Upload State
+const selectedImageFile = ref<File | null>(null)
+const localImagePreview = ref<string>('')
+const uploadingImage = ref(false)
+
+function handleImageSelect(event: Event) {
+  const fileInput = event.target as HTMLInputElement
+  const file = fileInput.files?.[0]
+  if (!file) {
+    selectedImageFile.value = null
+    localImagePreview.value = ''
+    return
+  }
+
+  selectedImageFile.value = file
+  localImagePreview.value = URL.createObjectURL(file)
+}
+
 function openCreate() {
   ignoreRoleWatch.value = true
   selectedAdmin.value = null
+  selectedImageFile.value = null
+  localImagePreview.value = ''
   formModel.value = {
     name_admin: '',
     surname_admin: '',
@@ -388,7 +409,8 @@ function openCreate() {
     id_warehouse_admin: '',
     id_inventory_admin: '',
     pct_commission_admin: 0,
-    status_admin: true
+    status_admin: true,
+    img_admin: ''
   }
   // Reset permissions form
   Object.keys(permForm.value).forEach(k => {
@@ -408,6 +430,8 @@ function openCreate() {
 function openEdit(admin: any) {
   ignoreRoleWatch.value = true
   selectedAdmin.value = admin
+  selectedImageFile.value = null
+  localImagePreview.value = admin.img_admin ? decode(admin.img_admin) : ''
   formModel.value = {
     name_admin: decode(admin.name_admin),
     surname_admin: decode(admin.surname_admin),
@@ -418,7 +442,8 @@ function openEdit(admin: any) {
     id_warehouse_admin: admin.id_warehouse_admin ? String(admin.id_warehouse_admin) : '',
     id_inventory_admin: admin.id_inventory_admin ? String(admin.id_inventory_admin) : '',
     pct_commission_admin: admin.pct_commission_admin ? parseFloat(admin.pct_commission_admin) : 0,
-    status_admin: admin.status_admin == 1
+    status_admin: admin.status_admin == 1,
+    img_admin: admin.img_admin ? decode(admin.img_admin) : ''
   }
   // Load permissions form
   let perms: any = {}
@@ -445,8 +470,9 @@ async function handleSaveAdmin() {
     return
   }
   const emailStr = String(formModel.value.email_admin).trim()
-  if (!emailStr.includes('@')) {
-    toast.add({ title: 'Correo inválido', description: 'El correo electrónico debe contener un "@".', color: 'error' })
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(emailStr)) {
+    toast.add({ title: 'Correo inválido', description: 'Por favor, ingrese un correo electrónico válido.', color: 'error' })
     return
   }
   const isEdit = !!selectedAdmin.value
@@ -456,6 +482,35 @@ async function handleSaveAdmin() {
   }
 
   savingAdmin.value = true
+  
+  let finalImageUrl = formModel.value.img_admin
+  
+  if (selectedImageFile.value) {
+    uploadingImage.value = true
+    const formData = new FormData()
+    formData.append('imageFile', selectedImageFile.value)
+    formData.append('uploadImage', 'ok')
+
+    try {
+      const res = await $fetch<any>('/ajax/pos.ajax.php', {
+        method: 'POST',
+        body: formData
+      })
+      const data = typeof res === 'string' ? JSON.parse(res) : res
+      if (data.status === 200 && data.url) {
+        finalImageUrl = data.url
+      } else {
+        toast.add({ title: 'Aviso', description: 'Error al subir la imagen, se guardará sin ella.', color: 'warning' })
+      }
+    } catch (e) {
+      console.error('Upload error:', e)
+      toast.add({ title: 'Aviso', description: 'Fallo de conexión al subir la imagen.', color: 'warning' })
+    }
+    uploadingImage.value = false
+  }
+  
+  formModel.value.img_admin = finalImageUrl || ''
+
   try {
     const body = new URLSearchParams()
     body.append('name_admin', formModel.value.name_admin)
@@ -470,6 +525,7 @@ async function handleSaveAdmin() {
     body.append('id_inventory_admin', formModel.value.id_inventory_admin || '0')
     body.append('pct_commission_admin', String(formModel.value.pct_commission_admin || 0))
     body.append('status_admin', formModel.value.status_admin ? '1' : '0')
+    body.append('img_admin', formModel.value.img_admin || '')
 
     // Append visual permissions directly
     const resultObj: Record<string, string> = {}
@@ -745,6 +801,31 @@ onMounted(async () => {
           <UFormField :label="selectedAdmin ? 'Contraseña (Dejar en blanco para mantener)' : 'Contraseña *'">
             <UInput v-model="formModel.password_admin" type="password" placeholder="••••••••" class="w-full text-sm" />
           </UFormField>
+          <UFormField label="Imagen de Perfil (Opcional)">
+            <div class="space-y-2">
+              <div class="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="block w-full text-sm text-slate-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-emerald-50 file:text-emerald-700
+                    hover:file:bg-emerald-100 cursor-pointer"
+                  @change="handleImageSelect($event)"
+                  :disabled="uploadingImage"
+                />
+                <div v-if="uploadingImage" class="absolute right-3 top-2 flex items-center gap-2 text-xs text-emerald-600 font-medium">
+                  <UIcon name="i-heroicons-arrow-path" class="animate-spin w-4 h-4" /> Subiendo...
+                </div>
+              </div>
+              <div v-if="localImagePreview" class="mt-2 flex flex-col gap-2 border border-slate-200 rounded-lg p-2 bg-slate-50 w-max">
+                <img :src="localImagePreview" class="w-24 h-24 rounded-lg object-cover ring-1 ring-slate-200" alt="Vista previa">
+                <button type="button" class="text-xs text-red-500 hover:text-red-700 font-medium text-left" @click="localImagePreview = ''; selectedImageFile = null; formModel.img_admin = ''">Quitar imagen</button>
+              </div>
+            </div>
+          </UFormField>
           <UFormField label="Rol del Sistema">
             <select v-model="formModel.rol_admin" class="block w-full text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500">
               <option value="" disabled>Selecciona un rol...</option>
@@ -818,7 +899,7 @@ onMounted(async () => {
               <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos POS</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['pos', 'sucursales', 'qrs', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'consignacion', 'reportes', 'reportes_empresa']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div v-for="key in ['pos', 'sucursales', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'consignacion', 'reportes', 'reportes_empresa', 'cajero_despachador']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"

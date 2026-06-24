@@ -88,7 +88,9 @@ async function handleLogin() {
         }
 
         if (!hasPerm('pos')) {
-          if (role === 'despachador' || hasPerm('almacen')) {
+          if (role === 'despachador') {
+            redirectUrl = '/despachos?tab=2'
+          } else if (hasPerm('almacen')) {
             redirectUrl = '/almacen'
           } else {
             // Find first permitted module
@@ -108,9 +110,11 @@ async function handleLogin() {
               { key: 'almacenes', path: '/almacenes' }
             ]
             const matched = possibleRoutes.find(r => hasPerm(r.key))
-            if (matched) {
+            if (role === 'despachador') {
+              redirectUrl = '/despachos?tab=2'
+            } else if (matched) {
               redirectUrl = matched.path
-            } else if (role === 'despachador' || hasPerm('despachos')) {
+            } else if (hasPerm('despachos')) {
               redirectUrl = '/despachos'
             } else if (hasPerm('mi_inventario')) {
               redirectUrl = '/mi-inventario'

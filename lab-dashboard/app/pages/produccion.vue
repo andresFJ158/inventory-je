@@ -354,14 +354,29 @@ async function submitPackaging() {
   const final_name = pkgForm.value.final_name.trim()
   const final_qty = calculatedEnvases.value
 
-  if (!final_name || final_qty <= 0) {
-    toast.add({ title: 'Ingresa el volumen por envase (mayor a 0) y el nombre del producto final.', color: 'error' })
+  if (!final_name) {
+    toast.add({ title: 'Error', description: 'Debes ingresar un nombre para el producto final.', color: 'error' })
+    return
+  }
+
+  if (pkgVolumeInput.raw.value <= 0) {
+    toast.add({ title: 'Error', description: 'Debes ingresar una capacidad de envase mayor a 0.', color: 'error' })
+    return
+  }
+
+  if (final_qty <= 0) {
+    toast.add({ title: 'Validación', description: 'La capacidad del envase no puede ser superior al total producido a granel.', color: 'error' })
     return
   }
 
   const extra_mats = pkgForm.value.extra_mats
     .filter(m => m.id_raw && parseInt(m.qty) > 0)
     .map(m => ({ id_raw: m.id_raw, qty: String(parseInt(m.qty)) }))
+
+  if (extra_mats.length === 0) {
+    toast.add({ title: 'Validación de Envases', description: 'Debes añadir y seleccionar al menos un material de envasado (ej. botellas, frascos).', color: 'error' })
+    return
+  }
 
   try {
     const isYieldDiff = pkgForm.value.yield_type === 'diff'
@@ -794,9 +809,9 @@ onMounted(() => {
             </div>
 
             <div v-if="pkgForm.yield_type === 'diff'" class="pt-2 border-t border-slate-200 space-y-4">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cantidad Real Obtenida</label>
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div class="md:col-span-4 min-w-0">
+                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 truncate" title="Cantidad Real Obtenida">Cantidad Real Obtenida</label>
                   <div class="relative rounded-lg shadow-sm">
                     <input
                       :value="pkgRealBulkInput.display.value"
@@ -813,8 +828,8 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <div>
-                  <label class="block text-xs font-bold text-rose-500 uppercase tracking-wider mb-2">Merma Envasada (L/kg)</label>
+                <div class="md:col-span-5 min-w-0">
+                  <label class="block text-xs font-bold text-rose-500 uppercase tracking-wider mb-2 truncate" title="Merma Envasada (L/kg)">Merma Envasada (L/kg)</label>
                   <div class="flex gap-2">
                     <input
                       v-model="pkgForm.waste_packaged_qty"
@@ -831,8 +846,8 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <div>
-                  <label class="block text-xs font-bold text-rose-500 uppercase tracking-wider mb-2">Merma Desperdicio (L/kg)</label>
+                <div class="md:col-span-3 min-w-0">
+                  <label class="block text-xs font-bold text-rose-500 uppercase tracking-wider mb-2 truncate" title="Desperdicio (L/kg)">Desperdicio (L/kg)</label>
                   <input
                     v-model="pkgForm.waste_loss_qty"
                     type="number"
