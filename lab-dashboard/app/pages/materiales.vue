@@ -103,7 +103,8 @@ const form = ref({
   desc: '',
   no_stock: false,
   price: 0,
-  id_supplier: ''
+  id_supplier: '',
+  stock: 0
 })
 
 const unitOptions = {
@@ -118,7 +119,7 @@ function handleMeasureTypeChange(type: 'unit' | 'weight' | 'volume') {
 }
 
 function openCreateModal() {
-  form.value = { id: null, name: '', type: 'unit', unit: 'und', desc: '', no_stock: false, price: 0, id_supplier: '' }
+  form.value = { id: null, name: '', type: 'unit', unit: 'und', desc: '', no_stock: false, price: 0, id_supplier: '', stock: 0 }
   modalTitle.value = 'Registrar Materia Prima'
   isModalOpen.value = true
 }
@@ -163,6 +164,7 @@ async function saveMaterial() {
           description_raw_material: form.value.desc,
           no_stock_raw_material: form.value.no_stock ? '1' : '0',
           price_raw_material: String(form.value.price),
+          initial_stock_raw_material: String(form.value.stock),
           id_office_raw_material: String(auth.effectiveOfficeId ?? auth.officeId ?? 0),
           id_admin_raw_material: String(auth.user?.id_admin || 1),
           id_supplier_raw_material: form.value.id_supplier || '0'
@@ -441,6 +443,17 @@ function getSupplierName(id: number | string) {
                 step="0.01"
                 min="0"
                 required
+              />
+            </div>
+
+            <!-- Stock Inicial (Sólo creación y con stock) -->
+            <div v-if="form.id === null && !form.no_stock" class="space-y-1.5">
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Stock Inicial</label>
+              <UInput
+                v-model.number="form.stock"
+                type="number"
+                step="0.01"
+                min="0"
               />
             </div>
 

@@ -328,38 +328,17 @@ if(isset($_POST["completeProduction"])){
 		$id_packaged_product = 0;
 
 		// 5. Inventario de Productos Finales (is_compound_product = 1)
-		if($pkg_final_name && $pkg_final_qty > 0) {
-			// Buscar si existe el producto por nombre en cat�logo global
-			$stmtFind = $db->prepare("SELECT id_product, rte_product FROM products WHERE title_product = :name LIMIT 1");
-			$stmtFind->execute([':name' => $pkg_final_name]);
-			$existing_product = $stmtFind->fetch(PDO::FETCH_ASSOC);
-
-			if($existing_product) {
-				// Solo actualizamos la unidad, el stock se mantiene hasta pasar QC
-				$stmtUpdProd = $db->prepare("
-					UPDATE products
-					SET unit_product = :unit,
-						is_compound_product = 1,
-						origin_office_product = CASE WHEN COALESCE(origin_office_product, 0) = 0 THEN :office ELSE origin_office_product END
-					WHERE id_product = :id
-				");
-				$stmtUpdProd->execute([':unit' => $pkg_envase_type, ':office' => $id_office, ':id' => $existing_product['id_product']]);
-				$id_packaged_product = $existing_product['id_product'];
-			} else {
-				// Insertar nuevo producto final global con stock 0 temporalmente.
-				$stmtInsProd = $db->prepare("
-					INSERT INTO products
-						(title_product, unit_product, stock_product, rte_product, is_compound_product, id_office_product, origin_office_product, status_product)
-					VALUES
-						(:name, :unit, 0, 0, 1, 0, :office, 1)
-				");
-				$stmtInsProd->execute([
-					':name' => $pkg_final_name,
-					':unit' => $pkg_envase_type,
-					':office' => $id_office
-				]);
-				$id_packaged_product = $db->lastInsertId();
-			}
+		if($id_product > 0 && $pkg_final_qty > 0) {
+			// Solo actualizamos la unidad, el stock se mantiene hasta pasar QC
+			$stmtUpdProd = $db->prepare("
+				UPDATE products
+				SET unit_product = :unit,
+					is_compound_product = 1,
+					origin_office_product = CASE WHEN COALESCE(origin_office_product, 0) = 0 THEN :office ELSE origin_office_product END
+				WHERE id_product = :id
+			");
+			$stmtUpdProd->execute([':unit' => $pkg_envase_type, ':office' => $id_office, ':id' => $id_product]);
+			$id_packaged_product = $id_product;
 		}
 
 		// BUG-04, BUG-05 fix: Se elimina el segundo UPDATE del producto base

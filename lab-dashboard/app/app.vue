@@ -259,96 +259,69 @@ watch(() => route.path, () => {
   fetchNotifications()
 })
 
-// Mapeo exacto de los títulos del dashboard adaptado por roles
 const sidebarItems = computed(() => {
   const role = auth.role
   const perms = auth.permissions || {}
 
-  // Helper to verify permissions
-  const hasPerm = (pageUrl: string) => {
+  // Helper to verify permissions explicitly before role fallbacks
+  const hasPerm = (pageUrl: string, defaultRoles: string[] = []) => {
     if (role === 'superadmin' || role === 'admin') return true
-    return perms[pageUrl] === 'on'
+    
+    // Explicit permission stored in the DB overrides role defaults
+    if (perms && perms[pageUrl] !== undefined) {
+      return perms[pageUrl] === 'on' || (pageUrl === 'reportes' && perms['reports'] === 'on')
+    }
+    
+    // Fallback to defaults if no explicit permission is found
+    return defaultRoles.includes(role)
   }
 
   const items: any[] = []
 
   // Módulos de Administración y POS
-  if (role === 'superadmin' || role === 'admin' || role === 'cajero' || role === 'vendedor' || role === 'editor' || role === 'despachador') {
-    if (hasPerm('pos')) items.push({ label: 'Punto de Venta POS', to: '/pos', icon: 'i-lucide-shopping-cart' })
-    if (hasPerm('sucursales')) items.push({ label: 'Sucursales', to: '/sucursales', icon: 'i-lucide-store' })
-    if (hasPerm('qrs')) items.push({ label: 'Códigos QR', to: '/qrs', icon: 'i-lucide-qr-code' })
-    if (hasPerm('admins')) items.push({ label: 'Administradores', to: '/admins', icon: 'i-lucide-user-cog' })
-    if (hasPerm('clientes')) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
-    if (hasPerm('categorias')) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-grid-2x2' })
-    if (hasPerm('productos')) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
-    if (role !== 'vendedor' && hasPerm('compras')) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
-    if (hasPerm('ordenes')) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
-    if (role !== 'cajero' && role !== 'vendedor' && hasPerm('ventas')) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
-    if (hasPerm('creditos') || role === 'superadmin' || role === 'admin') items.push({ label: 'Créditos', to: '/credito', icon: 'i-lucide-credit-card' })
-    if (hasPerm('consignacion') || role === 'superadmin' || role === 'admin' || role === 'vendedor') items.push({ label: 'Consignaciones', to: '/consignacion', icon: 'i-lucide-package-check' })
-    if (role !== 'vendedor' && hasPerm('caja')) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })
-    if (hasPerm('gastos')) items.push({ label: 'Gastos', to: '/gastos', icon: 'i-lucide-receipt' })
-    if (role !== 'despachador' && hasPerm('proveedores')) items.push({ label: 'Proveedores', to: '/proveedores', icon: 'i-lucide-truck' })
-    if (hasPerm('almacenes')) items.push({ label: 'Almacenes', to: '/almacenes', icon: 'i-lucide-warehouse' })
-    
-    // Vistas de Almacén/Distribución
-    if (role === 'despachador' || role === 'superadmin' || role === 'admin' || hasPerm('almacen')) {
-      items.push({ label: 'Almacén Principal', to: '/almacen', icon: 'i-lucide-warehouse' })
-    }
-    if (role === 'despachador' || role === 'superadmin' || role === 'admin' || hasPerm('despachos')) {
-      items.push({ label: 'Centro Despachos', to: '/despachos', icon: 'i-lucide-truck' })
-      items.push({ label: 'Gastos Almacén', to: '/gastos-almacen', icon: 'i-lucide-receipt' })
-    }
-    if (hasPerm('mi_inventario') || role === 'cajero' || role === 'vendedor') {
-      items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
-    }
-
-  }
-
-  // Módulos de Despachador de Laboratorio
-  if (role === 'despachador_laboratorio') {
-    items.push({ label: 'Almacén Central Lab', to: '/almacen', icon: 'i-lucide-warehouse' })
-    items.push({ label: 'Despacho Lab', to: '/despachos', icon: 'i-lucide-truck' })
+  if (hasPerm('pos', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Punto de Venta POS', to: '/pos', icon: 'i-lucide-shopping-cart' })
+  if (hasPerm('sucursales', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Sucursales', to: '/sucursales', icon: 'i-lucide-store' })
+  if (hasPerm('qrs', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Códigos QR', to: '/qrs', icon: 'i-lucide-qr-code' })
+  if (hasPerm('admins', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Administradores', to: '/admins', icon: 'i-lucide-user-cog' })
+  if (hasPerm('clientes', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Clientes', to: '/clientes', icon: 'i-lucide-users' })
+  if (hasPerm('categorias', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Categorías', to: '/categorias', icon: 'i-lucide-grid-2x2' })
+  if (hasPerm('productos', ['cajero', 'vendedor', 'editor', 'despachador', 'lab_admin'])) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
+  if (hasPerm('compras', ['cajero', 'editor', 'despachador', 'lab_admin'])) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
+  if (hasPerm('ordenes', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
+  if (hasPerm('ventas', ['editor', 'despachador'])) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
+  if (hasPerm('creditos', [])) items.push({ label: 'Créditos', to: '/credito', icon: 'i-lucide-credit-card' })
+  if (hasPerm('consignacion', ['vendedor'])) items.push({ label: 'Consignaciones', to: '/consignacion', icon: 'i-lucide-package-check' })
+  if (hasPerm('caja', ['cajero', 'editor', 'despachador'])) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })
+  if (hasPerm('gastos', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Gastos', to: '/gastos', icon: 'i-lucide-receipt' })
+  if (hasPerm('proveedores', ['cajero', 'vendedor', 'editor', 'lab_admin'])) items.push({ label: 'Proveedores', to: '/proveedores', icon: 'i-lucide-truck' })
+  if (hasPerm('almacenes', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Almacenes', to: '/almacenes', icon: 'i-lucide-warehouse' })
+  
+  // Vistas de Almacén/Distribución
+  if (hasPerm('almacen', ['despachador', 'despachador_laboratorio', 'lab_admin'])) items.push({ label: 'Almacén Principal', to: '/almacen', icon: 'i-lucide-warehouse' })
+  if (hasPerm('despachos', ['despachador', 'despachador_laboratorio'])) {
+    items.push({ label: 'Centro Despachos', to: '/despachos', icon: 'i-lucide-truck' })
     items.push({ label: 'Gastos Almacén', to: '/gastos-almacen', icon: 'i-lucide-receipt' })
-    items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
   }
+  if (hasPerm('mi_inventario', ['cajero', 'vendedor', 'despachador', 'despachador_laboratorio'])) items.push({ label: 'Mi Inventario', to: '/mi-inventario', icon: 'i-lucide-box' })
 
-  // Reportes (solo roles de venta/admin)
-  if (role === 'superadmin' || role === 'admin' || role === 'cajero' || role === 'vendedor' || role === 'editor' || role === 'despachador') {
-    if (role === 'superadmin' || role === 'admin' || role === 'cajero' || hasPerm('reports') || hasPerm('reportes')) {
-      items.push({ label: 'Reportes', to: '/reportes', icon: 'i-lucide-bar-chart-2' })
-    }
-    if (role === 'superadmin' || (role === 'admin' && auth.officeId === 0)) {
-      items.push({ label: 'Reporte Empresa', to: '/reportes-empresa', icon: 'i-lucide-building-2' })
-    }
-  }
+  // Reportes
+  if (hasPerm('reportes', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Reportes', to: '/reportes', icon: 'i-lucide-bar-chart-2' })
+  if (hasPerm('reportes_empresa', []) && auth.officeId === 0) items.push({ label: 'Reporte Empresa', to: '/reportes-empresa', icon: 'i-lucide-building-2' })
 
   // Módulos de Laboratorio
-  if (role === 'superadmin' || role === 'admin' || role === 'lab_admin' || role === 'lab_worker') {
-    items.push({ label: 'Dashboard Lab', to: '/', icon: 'i-lucide-layout-dashboard' })
-    if (role === 'lab_admin') {
-      items.push({ label: 'Catálogo Productos', to: '/productos', icon: 'i-lucide-box' })
-      items.push({ label: 'Compras Producto', to: '/compras', icon: 'i-lucide-shopping-bag' })
-      items.push({ label: 'Proveedores Producto', to: '/proveedores', icon: 'i-lucide-truck' })
-    }
-    items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
-    items.push({ label: 'Catálogo Insumos', to: '/insumos-lab', icon: 'i-lucide-beaker' })
-    if (hasPerm('proveedores_lab')) items.push({ label: 'Proveedores Lab', to: '/proveedores-lab', icon: 'i-lucide-building-2' })
-    items.push({ label: 'Inventario M.P.', to: '/inventario', icon: 'i-lucide-package' })
-    items.push({ label: 'Inventario Insumos', to: '/inventario-insumos', icon: 'i-lucide-beaker' })
-    items.push({ label: 'Ingresos / Egresos', to: '/ingreso-egreso', icon: 'i-lucide-arrow-left-right' })
-    items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })
-    items.push({ label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' })
-    if (role !== 'lab_worker') {
-      items.push({ label: 'Control Calidad', to: '/calidad', icon: 'i-lucide-shield-check' })
-    }
-    items.push({ label: 'Inventario Final', to: '/inventario-final', icon: 'i-lucide-boxes' })
-  }
+  if (hasPerm('dashboard_lab', ['lab_admin', 'lab_worker'])) items.push({ label: 'Dashboard Lab', to: '/', icon: 'i-lucide-layout-dashboard' })
+  if (hasPerm('materiales', ['lab_admin', 'lab_worker'])) items.push({ label: 'Catalogo M.P.', to: '/materiales', icon: 'i-lucide-droplet' })
+  if (hasPerm('insumos_lab', ['lab_admin', 'lab_worker'])) items.push({ label: 'Catálogo Insumos', to: '/insumos-lab', icon: 'i-lucide-beaker' })
+  if (hasPerm('proveedores_lab', ['lab_admin'])) items.push({ label: 'Proveedores Lab', to: '/proveedores-lab', icon: 'i-lucide-building-2' })
+  if (hasPerm('inventario_mp', ['lab_admin', 'lab_worker'])) items.push({ label: 'Inventario MP e Insumos', to: '/inventario', icon: 'i-lucide-package' })
+  if (hasPerm('entradas', ['lab_admin', 'lab_worker'])) items.push({ label: 'Ingresos / Egresos', to: '/ingreso-egreso', icon: 'i-lucide-arrow-left-right' })
+  if (hasPerm('recetas', ['lab_admin', 'lab_worker'])) items.push({ label: 'Recetas', to: '/recetas', icon: 'i-lucide-scroll' })
+  if (hasPerm('produccion', ['lab_admin', 'lab_worker'])) items.push({ label: 'Produccion', to: '/produccion', icon: 'i-lucide-cog' })
+  if (hasPerm('calidad', ['lab_admin'])) items.push({ label: 'Control Calidad', to: '/calidad', icon: 'i-lucide-shield-check' })
+  if (hasPerm('inventario_final', ['lab_admin', 'lab_worker'])) items.push({ label: 'Inventario Final', to: '/inventario-final', icon: 'i-lucide-boxes' })
 
-  // Combos (Global visibility for lab roles and admins)
-  if (role === 'superadmin' || role === 'admin' || role === 'lab_admin' || role === 'despachador_laboratorio') {
-    items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
-  }
+  // Combos
+  if (hasPerm('combos', ['lab_admin', 'despachador_laboratorio'])) items.push({ label: 'Combos', to: '/combos', icon: 'i-lucide-layers' })
 
   return items
 })

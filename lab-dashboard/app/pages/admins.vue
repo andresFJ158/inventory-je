@@ -444,6 +444,11 @@ async function handleSaveAdmin() {
     toast.add({ title: 'Datos incompletos', description: 'Ingrese nombre y correo', color: 'warning' })
     return
   }
+  const emailStr = String(formModel.value.email_admin).trim()
+  if (!emailStr.includes('@')) {
+    toast.add({ title: 'Correo inválido', description: 'El correo electrónico debe contener un "@".', color: 'error' })
+    return
+  }
   const isEdit = !!selectedAdmin.value
   if (!isEdit && (!formModel.value.password_admin || formModel.value.password_admin.length < 8)) {
     toast.add({ title: 'Contraseña requerida', description: 'Mínimo 8 caracteres al crear usuario', color: 'warning' })
@@ -865,7 +870,7 @@ onMounted(async () => {
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos Laboratorio</h4>
                 <div class="space-y-1">
                   <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'proveedores_lab', 'inventario_mp', 'entradas', 'aprobar_entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
-                    <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
+                    <span class="text-sm font-semibold text-slate-700 capitalize">{{ key === 'inventario_mp' ? 'Inventario MP e Insumos' : key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"
                       @click="permForm[key] = !permForm[key]"

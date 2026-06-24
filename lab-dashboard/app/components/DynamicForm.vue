@@ -101,6 +101,14 @@ async function loadFormMetadata() {
           continue
         }
 
+        if (props.moduleName === 'productos' && col.title_column === 'wholesale_qty_product') {
+          continue
+        }
+
+        if (isEdit.value && ['stock_product', 'stock_raw_material', 'initial_stock_raw_material', 'initial_stock_product'].includes(col.title_column)) {
+          continue
+        }
+
         const colName = col.title_column
         const val = initial[colName]
 
@@ -218,6 +226,9 @@ async function loadFormMetadata() {
       if (moduleConfig.value.title_module === 'clients') {
         if (!formModel.value.id_admin_client) {
           formModel.value.id_admin_client = '0'
+        }
+        if (!formModel.value.id_office_client) {
+          formModel.value.id_office_client = '0'
         }
         if (canManageClients.value) {
           await loadVendedores()
@@ -346,6 +357,55 @@ async function loadVendedores() {
 async function handleSubmit() {
   if (!moduleConfig.value) return
   saving.value = true
+
+  // Global Validations for NIT, CI, Email
+  for (const [key, val] of Object.entries(formModel.value)) {
+    if (!val && val !== 0) continue // Skip empty fields (required validation is handled by backend or separate logic)
+
+    const valStr = String(val).trim()
+    
+    // NIT Validation
+    if ((key.includes('nit') && !key.includes('unit')) || key === 'dni_office') {
+      if (!/^\d+$/.test(valStr)) {
+        toast.add({ title: 'NIT Inválido', description: 'El NIT solo debe contener números.', color: 'error' })
+        saving.value = false
+        return
+      }
+      if (valStr.length < 9 || valStr.length > 12) {
+        toast.add({ title: 'NIT Inválido', description: 'El NIT debe tener entre 9 y 12 dígitos.', color: 'error' })
+        saving.value = false
+        return
+      }
+    }
+
+    // CI Validation
+    if (key.includes('dni') && key !== 'dni_office') {
+      if (!/^\d{8}$/.test(valStr)) {
+        toast.add({ title: 'Documento Inválido', description: 'El CI (Documento) debe tener exactamente 8 números.', color: 'error' })
+        saving.value = false
+        return
+      }
+    }
+
+    // Email Validation
+    const isEmailCol = columns.value.find(c => c.title_column === key)?.type_column === 'email'
+    if (key.includes('email') || isEmailCol) {
+      if (!valStr.includes('@')) {
+        toast.add({ title: 'Correo Inválido', description: 'El correo electrónico debe contener un "@".', color: 'error' })
+        saving.value = false
+        return
+      }
+    }
+
+    // Phone Validation
+    if (key.includes('phone') || key.includes('telefono')) {
+      if (!/^\d{8}$/.test(valStr)) {
+        toast.add({ title: 'Teléfono Inválido', description: 'El número de teléfono debe tener exactamente 8 números.', color: 'error' })
+        saving.value = false
+        return
+      }
+    }
+  }
 
   // Basic validation for purchases
   if (props.moduleName === 'compras') {
@@ -591,10 +651,10 @@ watch(() => props.initialData, () => {
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && ['utility_purchase', 'price_purchase', 'id_office_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) && !(moduleConfig?.title_module === 'clients' && col.title_column === 'id_admin_client') && !(moduleConfig?.title_module === 'products' && col.title_column === 'id_office_product') && !(moduleConfig?.title_module === 'bills' && col.title_column === 'id_cash_bill' && auth.role === 'cajero')">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && ['utility_purchase', 'price_purchase', 'id_office_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) && !(moduleConfig?.title_module === 'clients' && (col.title_column === 'id_admin_client' || col.title_column === 'id_office_client')) && !(moduleConfig?.title_module === 'products' && col.title_column === 'id_office_product') && !(moduleConfig?.title_module === 'bills' && col.title_column === 'id_cash_bill' && auth.role === 'cajero')">
 
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-              {{ col.alias_column || col.title_column }}
+              {{ (moduleConfig?.title_module === 'clients' && col.title_column.includes('dni')) ? 'CI/NIT' : (col.alias_column || col.title_column) }}
             </label>
 
             <div v-if="col.title_column === 'unit_product'" class="flex gap-2">
@@ -651,7 +711,7 @@ watch(() => props.initialData, () => {
                 data-format-numeric="true"
                 inputmode="decimal"
                 placeholder="0,00"
-                :disabled="(moduleConfig?.title_module === 'purchases' && col.title_column === 'invest_purchase') || (moduleConfig?.title_module === 'products' && col.title_column === 'stock_product')"
+                :disabled="(moduleConfig?.title_module === 'purchases' && col.title_column === 'invest_purchase') || (isEdit && moduleConfig?.title_module === 'products' && col.title_column === 'stock_product')"
               />
             </div>
 
@@ -700,7 +760,7 @@ watch(() => props.initialData, () => {
               <UInput
                 v-model="formModel[col.title_column]"
                 class="w-full"
-                :disabled="moduleConfig?.title_module === 'products' && col.title_column === 'stock_product'"
+                :disabled="isEdit && moduleConfig?.title_module === 'products' && col.title_column === 'stock_product'"
               />
             </div>
 

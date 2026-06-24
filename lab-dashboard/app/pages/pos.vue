@@ -844,6 +844,25 @@ watch(isWholesaleGlobal, async () => {
 // Client registration
 async function handleRegisterClient() {
   if (!newClient.value.name || !newClient.value.dni) return
+
+  const dniStr = String(newClient.value.dni).trim()
+  if (!/^\d{8}$/.test(dniStr)) {
+    toast.add({ title: 'El CI (Documento) debe tener exactamente 8 números.', color: 'error' })
+    return
+  }
+
+  const emailStr = String(newClient.value.email || '').trim()
+  if (emailStr && !emailStr.includes('@')) {
+    toast.add({ title: 'El correo electrónico debe contener un "@".', color: 'error' })
+    return
+  }
+
+  const phoneStr = String(newClient.value.phone || '').trim()
+  if (phoneStr && !/^\d{8}$/.test(phoneStr)) {
+    toast.add({ title: 'El teléfono debe tener exactamente 8 números.', color: 'error' })
+    return
+  }
+
   try {
     const officeId = auth.officeId ?? 3
     const response = await $fetch<any>('/ajax/pos.ajax.php', {

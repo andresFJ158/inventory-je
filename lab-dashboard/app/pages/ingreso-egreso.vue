@@ -222,6 +222,7 @@ async function fetchEntries() {
         id_raw_material: e.id_raw_material_entry,
         item: e.name_raw_material || 'ID: ' + e.id_raw_material_entry,
         qty: parseFloat(e.qty_entry) || 0,
+        unit_price: parseFloat(e.unit_price_entry) || 0,
         unit: e.unit_raw_material || 'u',
         date: e.date_created_entry || e.date_entry,
         status: e.status_entry || 'pendiente',
@@ -621,6 +622,7 @@ onMounted(() => {
               <th class="px-6 py-4">Elemento</th>
               <th class="px-6 py-4">Lote / Factura</th>
               <th class="px-6 py-4">Cantidad</th>
+              <th class="px-6 py-4">Precio Unit.</th>
               <th class="px-6 py-4">Fecha</th>
               <th class="px-6 py-4">Estado / Concepto</th>
               <th v-if="canApprove" class="px-6 py-4 text-center">Acciones</th>
@@ -670,6 +672,14 @@ onMounted(() => {
                 <span class="text-xs text-slate-500 font-sans font-normal ml-0.5">{{ entry.unit }}</span>
               </td>
 
+              <!-- Precio Unitario -->
+              <td class="px-6 py-4 text-slate-500 font-mono text-sm">
+                <span v-if="entry.type === 'ingreso' && entry.status === 'aprobado' && entry.unit_price > 0">
+                  Bs. {{ entry.unit_price.toFixed(2) }}
+                </span>
+                <span v-else class="text-xs italic opacity-50">-</span>
+              </td>
+
               <!-- Fecha -->
               <td class="px-6 py-4 text-slate-500">
                 {{ entry.date }}
@@ -715,7 +725,7 @@ onMounted(() => {
     <!-- Modal REGISTRAR INGRESO (UModal v-model:open) -->
     <UModal v-model:open="isCreateOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 bg-white rounded-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div class="w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
           <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-green-600">
             <h3 class="text-lg font-bold tracking-wide flex items-center gap-2">
               <UIcon name="i-lucide-plus" class="w-5 h-5" /> Registrar Ingreso de Stock (Entrada)
@@ -798,7 +808,7 @@ onMounted(() => {
             <!-- Fecha -->
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha de Llegada</label>
-              <input v-model="newEntry.date" type="date" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
+              <input v-model="newEntry.date" type="date" :min="getLocalDate()" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
             </div>
 
             <!-- Footer -->
@@ -814,7 +824,7 @@ onMounted(() => {
     <!-- Modal REGISTRAR EGRESO / BAJA (UModal v-model:open) -->
     <UModal v-model:open="isAdjustmentOpen">
       <template #content>
-        <div class="w-full p-6 space-y-4 text-slate-900 bg-white rounded-xl border border-slate-200">
+        <div class="p-6 space-y-4">
           <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-amber-500">
             <h3 class="text-lg font-bold tracking-wide flex items-center gap-2">
               <UIcon name="i-lucide-minus" class="w-5 h-5" /> Registrar Baja / Ajuste (Egreso)
@@ -906,9 +916,9 @@ onMounted(() => {
     </UModal>
 
     <!-- Modal Aprobación Costo Ingreso (UModal v-model:open) -->
-    <UModal v-model:open="isPriceModalOpen">
+    <UModal v-model:open="isPriceModalOpen" :ui="{ width: 'sm:max-w-sm' }">
       <template #content>
-        <div class="w-full max-w-sm p-6 bg-white text-slate-900 rounded-xl shadow-2xl space-y-4 border border-slate-200">
+        <div class="p-6 space-y-4">
           <div class="flex justify-between items-center border-b border-slate-200 pb-3">
             <h3 class="text-lg font-bold text-slate-800 tracking-wide">
               Asignar Costo de Compra

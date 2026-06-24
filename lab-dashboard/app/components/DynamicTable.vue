@@ -220,7 +220,8 @@ async function fetchRows() {
 
 // Columnas a ocultar por módulo (los productos son globales, id_office_product no aplica)
 const HIDDEN_COLUMNS: Record<string, string[]> = {
-  products: ['id_office_product', 'origin_office_product']
+  products: ['id_office_product', 'origin_office_product'],
+  clients: ['id_office_client']
 }
 
 // Columnas visibles (reutilizado en header, filas y skeletons)
@@ -551,7 +552,7 @@ async function openBranchesModal(row: any) {
             <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
               <th class="p-4 font-semibold text-xs uppercase tracking-wider">#</th>
               <th v-for="col in visibleColumns" :key="col.title_column" class="p-4 font-semibold text-xs uppercase tracking-wider">
-                {{ col.alias_column || col.title_column }}
+                {{ (moduleConfig?.title_module === 'clients' && col.title_column.includes('dni')) ? 'CI/NIT' : (col.alias_column || col.title_column) }}
               </th>
               <th v-if="showActions" class="p-4" />
             </tr>
@@ -607,7 +608,7 @@ async function openBranchesModal(row: any) {
             <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
               <th class="p-4 font-semibold text-xs uppercase tracking-wider">#</th>
               <th v-for="col in visibleColumns" :key="col.title_column" class="p-4 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
-                {{ col.alias_column || col.title_column }}
+                {{ (moduleConfig?.title_module === 'clients' && col.title_column.includes('dni')) ? 'CI/NIT' : (col.alias_column || col.title_column) }}
               </th>
               <th v-if="showActions" class="p-4 text-right font-semibold text-xs uppercase tracking-wider">Acciones</th>
             </tr>

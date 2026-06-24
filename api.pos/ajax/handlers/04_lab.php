@@ -146,8 +146,9 @@ if(isset($_POST["saveLabMaterial"])){
 		$id_admin = isset($_POST['id_admin_raw_material']) ? intval($_POST['id_admin_raw_material']) : 1;
 		$is_insumo = isset($_POST['is_insumo']) ? intval($_POST['is_insumo']) : 0;
 		$id_supplier = isset($_POST['id_supplier_raw_material']) ? intval($_POST['id_supplier_raw_material']) : 0;
-
-		// Validate duplicate name
+		$initial_stock = isset($_POST['initial_stock_raw_material']) ? floatval($_POST['initial_stock_raw_material']) : 0;
+		
+		// Validar duplicado de nombre
 		$stmtDup = $db->prepare("SELECT id_raw_material FROM raw_materials WHERE name_raw_material = :name AND id_office_raw_material = :office AND is_insumo = :is_insumo LIMIT 1");
 		$stmtDup->execute([':name' => $name, ':office' => $id_office, ':is_insumo' => $is_insumo]);
 		if($stmtDup->fetch()) {
@@ -155,7 +156,7 @@ if(isset($_POST["saveLabMaterial"])){
 			exit;
 		}
 
-		$stmt = $db->prepare("INSERT INTO raw_materials (name_raw_material, measure_type, unit_raw_material, description_raw_material, id_office_raw_material, id_admin_raw_material, stock_raw_material, is_insumo, date_created_raw_material, id_supplier_raw_material) VALUES (:name, :measure, :unit, :desc, :office, :id_admin, 0, :is_insumo, CURDATE(), :id_supplier)");
+		$stmt = $db->prepare("INSERT INTO raw_materials (name_raw_material, measure_type, unit_raw_material, description_raw_material, id_office_raw_material, id_admin_raw_material, stock_raw_material, is_insumo, date_created_raw_material, id_supplier_raw_material) VALUES (:name, :measure, :unit, :desc, :office, :id_admin, :stock, :is_insumo, CURDATE(), :id_supplier)");
 		$stmt->execute([
 			':name' => $name,
 			':measure' => $measure_type,
@@ -163,6 +164,7 @@ if(isset($_POST["saveLabMaterial"])){
 			':desc' => $desc,
 			':office' => $id_office,
 			':id_admin' => $id_admin,
+			':stock' => $initial_stock,
 			':is_insumo' => $is_insumo,
 			':id_supplier' => $id_supplier
 		]);
@@ -365,7 +367,7 @@ if(isset($_POST["getLabEntries"])){
 				lse.date_created_entry,
 				lse.date_created_entry AS sort_date,
 				CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
-				0 AS unit_price_entry,
+				lse.unit_price_entry,
 				ls.name_supply AS name_raw_material,
 				ls.unit_supply AS unit_raw_material,
 				1 AS is_insumo
@@ -388,7 +390,7 @@ if(isset($_POST["getLabEntries"])){
 				lse.date_created_entry,
 				lse.date_created_entry AS sort_date,
 				CONCAT('ls_', lse.id_supply_entry) AS id_raw_material_entry,
-				0 AS unit_price_entry,
+				lse.unit_price_entry,
 				ls.name_supply AS name_raw_material,
 				ls.unit_supply AS unit_raw_material,
 				1 AS is_insumo

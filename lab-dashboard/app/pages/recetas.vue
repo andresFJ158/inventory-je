@@ -73,7 +73,6 @@ const newRecipe = ref({
   ingredients: [] as Array<{ id_raw: string; qty: string }>
 })
 
-const useExistingProduct = ref(false)
 const selectedExistingProductId = ref('')
 const productsWithoutRecipe = ref<any[]>([])
 const loadingCatalogProducts = ref(false)
@@ -178,19 +177,13 @@ async function handleOpenCreateModal() {
     ingredients: [{ id_raw: '', qty: '' }]
   }
   newBatchInput.setValue(1)
-  useExistingProduct.value = false
   selectedExistingProductId.value = ''
   isCreateOpen.value = true
 }
 
 async function handleSaveRecipe() {
-  if (useExistingProduct.value) {
-    if (!selectedExistingProductId.value) {
-      toast.add({ title: 'Selecciona un producto del catálogo para asignarle la receta.', color: 'error' })
-      return
-    }
-  } else if (!newRecipe.value.name_product) {
-    toast.add({ title: 'Por favor, ingresa el nombre del nuevo producto.', color: 'error' })
+  if (!selectedExistingProductId.value) {
+    toast.add({ title: 'Selecciona un producto del catálogo para asignarle la receta.', color: 'error' })
     return
   }
 
@@ -205,21 +198,19 @@ async function handleSaveRecipe() {
     return
   }
 
-  const selectedProduct = useExistingProduct.value
-    ? productsWithoutRecipe.value.find(p => String(p.id_product) === String(selectedExistingProductId.value))
-    : null
+  const selectedProduct = productsWithoutRecipe.value.find(p => String(p.id_product) === String(selectedExistingProductId.value))
 
   try {
     const body = new URLSearchParams()
     body.append('saveRecipe', 'ok')
-    body.append('name_product', selectedProduct ? selectedProduct.title_product : newRecipe.value.name_product)
+    body.append('name_product', selectedProduct ? selectedProduct.title_product : '')
     body.append('batch_size', String(newBatchInput.raw.value))
     body.append('unit_batch', selectedProduct ? (selectedProduct.unit_product || newRecipe.value.unit_batch) : newRecipe.value.unit_batch)
     body.append('id_office', String(auth.effectiveOfficeId ?? auth.officeId ?? 0))
     body.append('id_admin', String(auth.user?.id_admin || 1))
     body.append('ingredients', JSON.stringify(validIngredients))
     body.append('labor', JSON.stringify([]))
-    if (useExistingProduct.value && selectedExistingProductId.value) {
+    if (selectedExistingProductId.value) {
       body.append('existing_product_id', selectedExistingProductId.value)
     }
 
@@ -611,30 +602,8 @@ onMounted(() => {
           </div>
 
           <form class="space-y-4" @submit.prevent="handleSaveRecipe">
-            <!-- Toggle: nuevo producto o producto existente -->
-            <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <button
-                type="button"
-                class="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
-                :class="!useExistingProduct ? 'bg-green-500 text-white' : 'bg-white text-slate-500 border border-slate-200'"
-                @click="useExistingProduct = false; selectedExistingProductId = ''"
-              >
-                <UIcon name="i-lucide-plus-circle" class="w-3.5 h-3.5" />
-                Nuevo Producto
-              </button>
-              <button
-                type="button"
-                class="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
-                :class="useExistingProduct ? 'bg-blue-500 text-white' : 'bg-white text-slate-500 border border-slate-200'"
-                @click="useExistingProduct = true; newRecipe.name_product = ''"
-              >
-                <UIcon name="i-lucide-link" class="w-3.5 h-3.5" />
-                Producto del Catálogo
-              </button>
-            </div>
-
             <!-- Selector de producto existente -->
-            <div v-if="useExistingProduct">
+            <div>
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Seleccionar Producto del Catálogo</label>
               <div v-if="loadingCatalogProducts" class="text-xs text-slate-400 py-2">Cargando productos...</div>
               <select
@@ -650,12 +619,6 @@ onMounted(() => {
               <p v-if="productsWithoutRecipe.length === 0 && !loadingCatalogProducts" class="text-xs text-amber-500 mt-1">
                 No hay productos en el catálogo sin receta asignada.
               </p>
-            </div>
-
-            <!-- Nombre del nuevo producto -->
-            <div v-else>
-              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Producto a Fabricar (Nombre)</label>
-              <input v-model="newRecipe.name_product" type="text" placeholder="Ej: Vinagre de Manzana 1L" class="block w-full py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50">
             </div>
 
             <!-- Lote Base y Unidad -->
