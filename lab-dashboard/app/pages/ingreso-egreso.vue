@@ -46,11 +46,11 @@ const NO_SUPPLIER_VALUE = '__none__'
 async function fetchSuppliers() {
   const res = await $fetch<any>(apiBase, {
     method: 'POST',
-    body: new URLSearchParams({ getSuppliers: 'ok', type: 'materias_primas' }).toString(),
+    body: new URLSearchParams({ getSuppliers: 'ok' }).toString(),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
   }).catch(() => null)
   const d = typeof res === 'string' ? JSON.parse(res) : res
-  suppliers.value = d?.status === 200 ? d.results.filter((s: any) => s.type_supplier === 'materias_primas') : []
+  suppliers.value = d?.status === 200 ? d.results : []
 }
 
 const supplierOptions = computed(() => [
@@ -109,12 +109,12 @@ const insumosList = computed(() => materials.value.filter(m => m.is_insumo === 1
 
 const filteredEntryMaterials = computed(() => {
   const list = entryType.value === 'mp' ? rawMaterialsList.value : insumosList.value
-  return list.filter(m => m.no_stock_raw_material !== 1 && m.no_stock_raw_material !== '1')
+  return list.filter(m => parseInt(m.no_stock_raw_material) !== 1)
 })
 
 const filteredAdjMaterials = computed(() => {
   const list = adjType.value === 'mp' ? rawMaterialsList.value : insumosList.value
-  return list.filter(m => m.no_stock_raw_material !== 1 && m.no_stock_raw_material !== '1')
+  return list.filter(m => parseInt(m.no_stock_raw_material) !== 1)
 })
 
 const selectedMaterialForEntry = computed(() => {

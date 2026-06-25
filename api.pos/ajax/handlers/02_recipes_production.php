@@ -178,12 +178,26 @@ if(isset($_POST["completeProduction"])){
 			// BUG-02 Fix: Stock ya fue descontado en startProduction. 
 			// Solo obtenemos el precio actual de la última entrada aprobada.
 
-			// Obtener precio actual de la última entrada aprobada
-			$stmtPrice = $db->prepare("SELECT id_entry, unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
+			// Obtener precio actual (precio fijo si es no_stock, si no última entrada)
+			$stmtPrice = $db->prepare("
+				SELECT 
+					rm.no_stock_raw_material, 
+					rm.price_raw_material,
+					(SELECT unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = rm.id_raw_material AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1) as last_price,
+					(SELECT id_entry FROM raw_material_entries WHERE id_raw_material_entry = rm.id_raw_material AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1) as last_entry_id
+				FROM raw_materials rm 
+				WHERE rm.id_raw_material = :id
+			");
 			$stmtPrice->execute([':id' => $id_raw]);
 			$price_info = $stmtPrice->fetch(PDO::FETCH_ASSOC);
-			$unit_price = $price_info ? (float)$price_info['unit_price_entry'] : 0;
-			$id_entry = $price_info ? (int)$price_info['id_entry'] : 0;
+			
+			if ($price_info && intval($price_info['no_stock_raw_material'] ?? 0) === 1) {
+				$unit_price = (float)$price_info['price_raw_material'];
+				$id_entry = 0;
+			} else {
+				$unit_price = $price_info ? (float)$price_info['last_price'] : 0;
+				$id_entry = $price_info ? (int)$price_info['last_entry_id'] : 0;
+			}
 
 			$subtotal = $unit_price * $qty_needed;
 			$total_mp_cost += $subtotal;
@@ -243,7 +257,7 @@ if(isset($_POST["completeProduction"])){
 			} else {
 				// Es un insumo de raw_materials
 				$id_raw = (int)$id_raw_val;
-				$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material, no_stock_raw_material FROM raw_materials WHERE id_raw_material = :id");
+				$stmtCheck = $db->prepare("SELECT name_raw_material, stock_raw_material, no_stock_raw_material, price_raw_material FROM raw_materials WHERE id_raw_material = :id");
 				$stmtCheck->execute([':id' => $id_raw]);
 				$mp_info = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
@@ -253,11 +267,16 @@ if(isset($_POST["completeProduction"])){
 					exit;
 				}
 
-				$stmtPrice = $db->prepare("SELECT id_entry, unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
-				$stmtPrice->execute([':id' => $id_raw]);
-				$price_info = $stmtPrice->fetch(PDO::FETCH_ASSOC);
-				$unit_price = $price_info ? (float)$price_info['unit_price_entry'] : 0;
-				$id_entry = $price_info ? (int)$price_info['id_entry'] : 0;
+				if($mp_info && intval($mp_info['no_stock_raw_material'] ?? 0) === 1) {
+					$unit_price = (float)$mp_info['price_raw_material'];
+					$id_entry = 0;
+				} else {
+					$stmtPrice = $db->prepare("SELECT id_entry, unit_price_entry FROM raw_material_entries WHERE id_raw_material_entry = :id AND status_entry = 'aprobado' ORDER BY id_entry DESC LIMIT 1");
+					$stmtPrice->execute([':id' => $id_raw]);
+					$price_info = $stmtPrice->fetch(PDO::FETCH_ASSOC);
+					$unit_price = $price_info ? (float)$price_info['unit_price_entry'] : 0;
+					$id_entry = $price_info ? (int)$price_info['id_entry'] : 0;
+				}
 
 				$subtotal = $unit_price * $qty_needed;
 				$total_mp_cost += $subtotal;

@@ -371,8 +371,8 @@ async function handleSubmit() {
         saving.value = false
         return
       }
-      if (valStr.length < 9 || valStr.length > 12) {
-        toast.add({ title: 'NIT Inválido', description: 'El NIT debe tener entre 9 y 12 dígitos.', color: 'error' })
+      if (valStr.length > 14) {
+        toast.add({ title: 'NIT Inválido', description: 'El NIT debe tener máximo 14 dígitos.', color: 'error' })
         saving.value = false
         return
       }
@@ -399,8 +399,8 @@ async function handleSubmit() {
 
     // Phone Validation
     if (key.includes('phone') || key.includes('telefono')) {
-      if (!/^\d{8}$/.test(valStr)) {
-        toast.add({ title: 'Teléfono Inválido', description: 'El número de teléfono debe tener exactamente 8 números.', color: 'error' })
+      if (!/^\d{1,8}$/.test(valStr)) {
+        toast.add({ title: 'Teléfono Inválido', description: 'El número de teléfono solo debe contener números y máximo 8 dígitos.', color: 'error' })
         saving.value = false
         return
       }
@@ -662,7 +662,7 @@ watch(() => props.initialData, () => {
 
       <form v-else class="space-y-4" @submit.prevent="handleSubmit">
         <div v-for="col in columns" :key="col.title_column">
-          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && ['utility_purchase', 'price_purchase', 'id_office_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) && !(moduleConfig?.title_module === 'clients' && (col.title_column === 'id_admin_client' || col.title_column === 'id_office_client')) && !(moduleConfig?.title_module === 'products' && col.title_column === 'id_office_product') && !(moduleConfig?.title_module === 'bills' && col.title_column === 'id_cash_bill' && auth.role === 'cajero')">
+          <div v-if="!col.title_column.startsWith('date_') && col.title_column !== 'token_admin' && col.title_column !== 'token_exp_admin' && col.title_column !== `id_${moduleConfig?.suffix_module}` && !(col.title_column === 'id_warehouse_admin' && formModel.rol_admin !== 'despachador') && !(moduleConfig?.title_module === 'purchases' && ['utility_purchase', 'price_purchase', 'id_office_purchase', 'may_product', 'wholesale_quantity'].includes(col.title_column)) && !(moduleConfig?.title_module === 'clients' && (col.title_column === 'id_admin_client' || col.title_column === 'id_office_client')) && !(moduleConfig?.title_module === 'products' && ['id_office_product', 'stock_product'].includes(col.title_column)) && !(moduleConfig?.title_module === 'bills' && col.title_column === 'id_cash_bill' && auth.role === 'cajero')">
 
             <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
               {{ (moduleConfig?.title_module === 'clients' && col.title_column.includes('dni')) ? 'CI/NIT' : (col.alias_column || col.title_column) }}
@@ -772,6 +772,14 @@ watch(() => props.initialData, () => {
                 v-model="formModel[col.title_column]"
                 class="w-full"
                 :disabled="isEdit && moduleConfig?.title_module === 'products' && col.title_column === 'stock_product'"
+                @input="() => {
+                  if (col.title_column.includes('phone') || col.title_column.includes('telefono')) {
+                    formModel[col.title_column] = String(formModel[col.title_column] || '').replace(/[^0-9]/g, '').slice(0, 8)
+                  }
+                  if ((col.title_column.includes('nit') && !col.title_column.includes('unit')) || col.title_column === 'dni_office') {
+                    formModel[col.title_column] = String(formModel[col.title_column] || '').replace(/[^0-9]/g, '').slice(0, 14)
+                  }
+                }"
               />
             </div>
 

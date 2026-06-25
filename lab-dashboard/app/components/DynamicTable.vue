@@ -223,7 +223,7 @@ async function fetchRows() {
 
 // Columnas a ocultar por módulo (los productos son globales, id_office_product no aplica)
 const HIDDEN_COLUMNS: Record<string, string[]> = {
-  products: ['id_office_product', 'origin_office_product'],
+  products: ['id_office_product', 'origin_office_product', 'stock_product'],
   clients: ['id_office_client']
 }
 

@@ -445,13 +445,14 @@ if(isset($_POST["getLabRecipes"])){
 		// Ingredientes con precio de última entrada aprobada
 		$stmtIng = $db->prepare("
 			SELECT ri.*, rm.name_raw_material, rm.unit_raw_material,
+			       IF(rm.no_stock_raw_material = 1, rm.price_raw_material,
 			       COALESCE((
 			           SELECT unit_price_entry
 			           FROM raw_material_entries
 			           WHERE id_raw_material_entry = ri.id_raw_material_ingredient
 			             AND status_entry = 'aprobado'
 			           ORDER BY id_entry DESC LIMIT 1
-			       ), 0) AS unit_price_mp
+			       ), 0)) AS unit_price_mp
 			FROM recipe_ingredients ri
 			JOIN raw_materials rm ON ri.id_raw_material_ingredient = rm.id_raw_material
 			WHERE ri.id_recipe_ingredient = :id_recipe

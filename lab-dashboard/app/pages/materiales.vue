@@ -42,7 +42,7 @@ async function fetchSuppliers() {
       headers: { 'Authorization': 'gdfhdfhsdfyeryr34646fhdfy4564t3456fhgdy' } // same API_KEY as insumos
     })
     if (res.status === 200) {
-      suppliers.value = res.results.filter((s: any) => s.type_supplier === 'materias_primas')
+      suppliers.value = res.results
     }
   } catch (e) {
     console.error('Error fetching suppliers:', e)
