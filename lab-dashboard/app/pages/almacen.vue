@@ -6,14 +6,6 @@ import { useAuthStore } from '~/stores/auth'
 const auth = useAuthStore()
 const toast = useToast()
 
-function onAssignQtyInput(e: Event) {
-  const input = e.target as HTMLInputElement
-  const raw = input.value.replace(/[^\d]/g, '')
-  const n = parseInt(raw, 10) || 0
-  assignQty.value = Math.max(0, n)
-  input.value = n > 0 ? n.toLocaleString('de-DE') : ''
-}
-
 function getImageUrl(imgStr: string) {
   if (!imgStr) return '/views/assets/img/multimedia.png'
   const decoded = decodeURIComponent(imgStr).replace(/\+/g, ' ')
@@ -31,41 +23,19 @@ function getImageUrl(imgStr: string) {
   return '/' + decoded
 }
 
-function blockNegative(e: KeyboardEvent) {
-  if (e.key === '-' || e.key === 'e' || e.key === 'E') e.preventDefault()
-}
-
 // State
-const products = ref<any[]>([])
 const admins = ref<any[]>([])
 const officesMap = ref<Record<string, string>>({})
-const assignedMap = ref<Record<string, number>>({})
-const pendingMap = ref<Record<string, number>>({})
-const subWarehouses = ref<any[]>([])
+const warehouses = ref<any[]>([])
 const movements = ref<any[]>([])
+const wastePackaged = ref<any[]>([])
 
-const loadingStock = ref(true)
-const loadingSubs = ref(true)
+const loadingWarehouses = ref(true)
 const loadingMoves = ref(true)
 const loadingWaste = ref(true)
 const activeTab = ref(0)
-const wastePackaged = ref<any[]>([])
-
-// Assign Dialog
-const isAssignOpen = ref(false)
-const selectedProduct = ref<any>(null)
-const assignUser = ref('')
-const assignQty = ref(1)
-const assignNotes = ref('')
-const processingAction = ref(false)
 
 const officesList = ref<any[]>([])
-
-// Transfer Dialog
-const isTransferOpen = ref(false)
-const transferWarehouse = ref<any>(null)
-const transferQty = ref(1)
-const transferNotes = ref('')
 const warehousesList = ref<any[]>([])
 
 const apiHeaders = {
@@ -79,7 +49,6 @@ async function fetchAdmins() {
       headers: apiHeaders
     })
     if (data.status === 200) {
-      // Filter out superadmins/dispatchers to only show sellers/cajeros/editors for sub-warehouse assignments
       admins.value = (data.results || []).filter((a: any) => a.rol_admin !== 'superadmin')
     }
   } catch (e) {
@@ -118,76 +87,35 @@ async function fetchWarehouses() {
   }
 }
 
-// Fetch Inventory Stock (Tab 1)
-async function fetchStock() {
-  loadingStock.value = true
+// Fetch All Warehouses Stock (Tab 0)
+async function fetchAllWarehousesStock() {
+  loadingWarehouses.value = true
   try {
-    const officeId = auth.effectiveOfficeId ?? 3
-    
-    // 1. Fetch products inventory of this office
-    const whId = auth.warehouseId || 0
-    const prodData = await $fetch<any>(`/api/relations?rel=product_inventory,products&type=inventory,product&linkTo=id_office_inventory,status_inventory,id_warehouse_inventory&equalTo=${officeId},1,${whId}`, {
-      headers: apiHeaders
-    })
-    
-    products.value = (prodData.status === 200 && prodData.results) ? prodData.results : []
-
-    // 2. Fetch assigned quantities (to sub-warehouses)
-    const adminId = auth.user?.id_admin || 1
-    const assignData = await $fetch<any>('/ajax/pos.ajax.php', {
-      method: 'POST',
-      body: new URLSearchParams({
-        getAssignedByOffice: 'true',
-        id_office: String(officeId),
-        id_dispatcher: String(adminId),
-        id_warehouse: String(whId)
-      }).toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    })
-
-    const assignResults = typeof assignData === 'string' ? JSON.parse(assignData) : assignData
-    const map: Record<string, number> = {}
-    const pending: Record<string, number> = {}
-    if (Array.isArray(assignResults)) {
-      assignResults.forEach((item: any) => {
-        map[item.id_product] = parseInt(item.total_assigned) || 0
-        pending[item.id_product] = parseInt(item.total_pending) || 0
-      })
-    }
-    assignedMap.value = map
-    pendingMap.value = pending
-  } catch (e) {
-    console.error('Error fetching warehouse stock:', e)
-    products.value = []
-  } finally {
-    loadingStock.value = false
-  }
-}
-
-// Fetch Sub-Warehouses (Tab 2)
-async function fetchSubWarehouses() {
-  loadingSubs.value = true
-  try {
-    const officeId = auth.effectiveOfficeId ?? 3
+    // Para superadmin (sin sucursal asignada), enviar 0 para traer TODOS los almacenes
+    const officeId = auth.effectiveOfficeId || 0
     const response = await $fetch<any>('/ajax/pos.ajax.php', {
       method: 'POST',
       body: new URLSearchParams({
-        getSubWarehousesDetail: 'true',
+        getAllWarehousesStock: 'true',
         id_office: String(officeId)
       }).toString(),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
     const data = typeof response === 'string' ? JSON.parse(response) : response
-    subWarehouses.value = Array.isArray(data) ? data : []
+    if (data.status === 200) {
+      warehouses.value = data.results || []
+    } else {
+      warehouses.value = []
+    }
   } catch (e) {
-    console.error('Error fetching sub-warehouses:', e)
-    subWarehouses.value = []
+    console.error('Error fetching warehouses stock:', e)
+    warehouses.value = []
   } finally {
-    loadingSubs.value = false
+    loadingWarehouses.value = false
   }
 }
 
-// Fetch Movements (Tab 3)
+// Fetch Movements (Tab 1)
 async function fetchMovements() {
   loadingMoves.value = true
   try {
@@ -213,7 +141,7 @@ async function fetchMovements() {
   }
 }
 
-// Fetch Waste Packaged (Tab 4)
+// Fetch Waste Packaged (Tab 2)
 async function fetchWastePackaged() {
   loadingWaste.value = true
   try {
@@ -241,177 +169,49 @@ onMounted(async () => {
   await fetchOffices()
   await fetchWarehouses()
   await fetchAdmins()
-  await fetchStock()
-  await fetchSubWarehouses()
+  await fetchAllWarehousesStock()
   await fetchMovements()
   await fetchWastePackaged()
 })
 
-// Action: Open Assign Modal
-function startAssign(prod: any) {
-  selectedProduct.value = prod
-  assignQty.value = 1
-  assignUser.value = ''
-  assignNotes.value = ''
-  isAssignOpen.value = true
-}
-
-// Action: Confirm Assign
-async function confirmAssign() {
-  if (!selectedProduct.value || !assignUser.value) {
-    toast.add({ title: 'Por favor completa todos los campos requeridos.', color: 'error' })
-    return
-  }
-
-  const availableStock = parseFloat(selectedProduct.value.stock_inventory) || 0
-  if (assignQty.value <= 0 || assignQty.value > availableStock) {
-    toast.add({ title: 'La cantidad ingresada no es válida o supera el stock disponible.', color: 'error' })
-    return
-  }
-
-  processingAction.value = true
-  try {
-    const officeId = auth.effectiveOfficeId ?? 3
-    const adminId = auth.user?.id_admin || 1
-
-    const res = await $fetch<any>('/ajax/pos.ajax.php', {
-      method: 'POST',
-      body: new URLSearchParams({
-        assignToSubWarehouse: 'true',
-        id_product: String(selectedProduct.value.id_product),
-        id_admin_dest: assignUser.value,
-        qty: String(assignQty.value),
-        notes: assignNotes.value,
-        id_office: String(officeId),
-        id_dispatched_by: String(adminId)
-      }).toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    })
-
-    if (String(res).trim() === 'ok') {
-      toast.add({ title: 'Reposición enviada.', description: 'El destino debe confirmar la recepción para sumar stock.', color: 'success' })
-      isAssignOpen.value = false
-      await fetchStock()
-      await fetchSubWarehouses()
-      await fetchMovements()
-    } else {
-      toast.add({ title: String(res) || 'Error al asignar stock.', color: 'error' })
-    }
-  } catch (e) {
-    console.error('Assign error:', e)
-    toast.add({ title: 'Error al conectar con la API de almacenes.', color: 'error' })
-  } finally {
-    processingAction.value = false
-  }
-}
-
-// Traspasos entre almacenes
-const destinationWarehouses = computed(() => {
-  const currentOfficeId = String(auth.effectiveOfficeId ?? 3)
-  const currentWhId = String(auth.warehouseId || 0)
-  return warehousesList.value
-    .filter((w: any) => String(w.id_office_warehouse) !== currentOfficeId || String(w.id_warehouse) !== currentWhId)
-    .map((w: any) => ({
-      value: `${w.id_office_warehouse}_${w.id_warehouse}`, // string value for USelect
-      label: `${decodeURIComponent(w.title_warehouse).replace(/\+/g, ' ')} (${officesMap.value[w.id_office_warehouse] || ''})`
-    }))
-})
-
-function onTransferQtyInput(e: Event) {
-  const input = e.target as HTMLInputElement
-  const raw = input.value.replace(/[^\d]/g, '')
-  const n = parseInt(raw, 10) || 0
-  transferQty.value = Math.max(0, n)
-  input.value = n > 0 ? n.toLocaleString('de-DE') : ''
-}
-
-function startTransfer(prod: any) {
-  selectedProduct.value = prod
-  transferQty.value = 1
-  transferWarehouse.value = ''
-  transferNotes.value = ''
-  isTransferOpen.value = true
-}
-
-async function confirmTransfer() {
-  if (!selectedProduct.value || !transferWarehouse.value) {
-    toast.add({ title: 'Por favor completa todos los campos requeridos.', color: 'error' })
-    return
-  }
-
-  const availableStock = parseFloat(selectedProduct.value.stock_inventory) || 0
-  if (transferQty.value <= 0 || transferQty.value > availableStock) {
-    toast.add({ title: 'La cantidad ingresada no es válida o supera el stock disponible.', color: 'error' })
-    return
-  }
-
-  processingAction.value = true
-  try {
-    const [destOfficeId, destWarehouseId] = String(transferWarehouse.value).split('_')
-    const officeId = auth.effectiveOfficeId ?? 3
-    const whId = auth.warehouseId || 0
-    const adminId = auth.user?.id_admin || 1
-
-    const res = await $fetch<any>('/ajax/pos.ajax.php', {
-      method: 'POST',
-      body: new URLSearchParams({
-        transferStockBetweenOffices: 'true',
-        id_product: String(selectedProduct.value.id_product),
-        id_office_source: String(officeId),
-        id_warehouse_source: String(whId),
-        id_office_dest: String(destOfficeId),
-        id_warehouse_dest: String(destWarehouseId),
-        qty: String(transferQty.value),
-        notes: transferNotes.value,
-        id_dispatched_by: String(adminId)
-      }).toString(),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    })
-
-    if (String(res).trim() === 'ok') {
-      toast.add({ title: 'Traspaso enviado.', description: 'El stock quedó en tránsito hasta recepción.', color: 'success' })
-      isTransferOpen.value = false
-      await fetchStock()
-      await fetchSubWarehouses()
-      await fetchMovements()
-    } else {
-      toast.add({ title: String(res) || 'Error al traspasar stock.', color: 'error' })
-    }
-  } catch (e) {
-    console.error('Transfer error:', e)
-    toast.add({ title: 'Error al conectar con la API de traspasos.', color: 'error' })
-  } finally {
-    processingAction.value = false
-  }
-}
-
 const tabsItems = [
-  { label: 'Inventario Principal', icon: 'i-lucide-boxes', value: 0 },
-  { label: 'Sub-Almacenes', icon: 'i-lucide-users', value: 1 },
-  { label: 'Movimientos', icon: 'i-lucide-arrow-right-left', value: 2 },
-  { label: 'Merma Envasada', icon: 'i-lucide-recycle', value: 3 }
+  { label: 'Almacenes', icon: 'i-lucide-boxes', value: 0 },
+  { label: 'Movimientos', icon: 'i-lucide-arrow-right-left', value: 1 },
+  { label: 'Merma Envasada', icon: 'i-lucide-recycle', value: 2 }
 ]
 
 function exportCSV() {
   if (activeTab.value === 0) {
-    if (products.value.length === 0) return
-    const headers = ['SKU', 'Producto', 'Disponible', 'En Transito']
-    const rows = products.value.map(p => [
-      p.sku_product,
-      decodeURIComponent(p.title_product || '').replace(/\+/g, ' '),
-      parseFloat(p.stock_inventory) || 0,
-      pendingMap.value[p.id_product] || 0
-    ])
+    if (warehouses.value.length === 0) return
+    const headers = ['Almacén', 'SKU', 'Producto', 'Disponible']
+    const rows: any[] = []
+    
+    warehouses.value.forEach(wh => {
+      const whName = decodeURIComponent(wh.title_warehouse || '').replace(/\+/g, ' ')
+      if (wh.products && wh.products.length > 0) {
+        wh.products.forEach((p: any) => {
+          rows.push([
+            whName,
+            p.sku_product,
+            decodeURIComponent(p.title_product || '').replace(/\+/g, ' '),
+            parseFloat(p.stock) || 0
+          ])
+        })
+      }
+    })
+    
+    if (rows.length === 0) return
+
     const csvContent = "\ufeff" + [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.setAttribute("href", url)
-    link.setAttribute("download", `inventario_almacen_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute("download", `inventario_almacenes_${new Date().toISOString().split('T')[0]}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-  } else if (activeTab.value === 2) {
+  } else if (activeTab.value === 1) {
     if (movements.value.length === 0) return
     const headers = ['Fecha', 'Tipo', 'Producto', 'Cantidad', 'Destinatario', 'Sucursal Destino', 'Despachador', 'Notas']
     const rows = movements.value.map(m => [
@@ -434,7 +234,7 @@ function exportCSV() {
     link.click()
     document.body.removeChild(link)
   } else {
-    toast.add({ title: 'Exportación disponible para inventario y movimientos.', color: 'info' })
+    toast.add({ title: 'Exportación disponible para almacenes y movimientos.', color: 'info' })
   }
 }
 
@@ -472,13 +272,13 @@ function getMovementLabel(type: string): string {
           Almacén Principal
         </h1>
         <p class="text-xs text-slate-400 mt-1">
-          Controla las existencias en almacén y distribuye a los sub-almacenes de tus vendedores.
+          Visualiza el stock de todos los almacenes de tu sucursal.
         </p>
       </div>
 
       <div class="flex items-center gap-2">
         <UButton
-          v-if="activeTab === 0 || activeTab === 2"
+          v-if="activeTab === 0 || activeTab === 1"
           icon="i-lucide-download"
           color="neutral"
           variant="outline"
@@ -492,7 +292,7 @@ function getMovementLabel(type: string): string {
           color="neutral"
           variant="soft"
           size="xs"
-          @click="activeTab === 0 ? fetchStock() : activeTab === 1 ? fetchSubWarehouses() : activeTab === 2 ? fetchMovements() : fetchWastePackaged()"
+          @click="activeTab === 0 ? fetchAllWarehousesStock() : activeTab === 1 ? fetchMovements() : fetchWastePackaged()"
         >
           Refrescar
         </UButton>
@@ -502,125 +302,49 @@ function getMovementLabel(type: string): string {
     <!-- Tabs Layout -->
     <UTabs :items="tabsItems" v-model="activeTab" class="w-full">
       <template #content="{ index }">
-        <!-- TAB 0: Main Stock Inventory -->
+        <!-- TAB 0: Almacenes -->
         <div v-if="index === 0" class="mt-4">
-          <div v-if="loadingStock" class="flex justify-center py-12">
+          <div v-if="loadingWarehouses" class="flex justify-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
 
-          <div v-else-if="products.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
-            No se encontraron productos en el almacén principal.
-          </div>
-
-          <div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <table class="w-full text-left border-collapse text-sm text-slate-700 bg-white">
-              <thead>
-                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
-                  <th class="p-4">Imagen</th>
-                  <th class="p-4">SKU</th>
-                  <th class="p-4">Producto</th>
-                  <th class="p-4">Disponible (Almacén)</th>
-                  <th class="p-4">En Tránsito</th>
-                  <th class="p-4 text-right">Distribución</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="prod in products" :key="prod.id_product" class="border-b border-slate-100 hover:bg-slate-50">
-                  <td class="p-4">
-                    <UAvatar
-                      :src="getImageUrl(prod.img_product)"
-                      size="sm"
-                      class="bg-slate-200"
-                    />
-                  </td>
-                  <td class="p-4 font-mono text-xs">{{ prod.sku_product }}</td>
-                  <td class="p-4 font-semibold text-slate-800">{{ decodeURIComponent(prod.title_product || '').replace(/\+/g, ' ') }}</td>
-                  
-                  <!-- Available Stock (In main warehouse office) -->
-                  <td class="p-4">
-                    <UBadge color="primary" variant="solid" class="font-mono text-xs">
-                      {{ parseFloat(prod.stock_inventory) || 0 }}
-                    </UBadge>
-                  </td>
-
-                  <td class="p-4">
-                    <UBadge color="warning" variant="soft" class="font-mono text-xs">
-                      {{ pendingMap[prod.id_product] || 0 }}
-                    </UBadge>
-                  </td>
-
-
-
-                  <!-- Manual Stock Assignment and Transfer Buttons -->
-                  <td class="p-4 text-right">
-                    <div class="flex justify-end gap-2">
-                      <UButton
-                        color="info"
-                        icon="i-lucide-share-2"
-                        size="xs"
-                        :disabled="(parseFloat(prod.stock_inventory) || 0) <= 0"
-                        @click="startAssign(prod)"
-                      >
-                        Asignar
-                      </UButton>
-                      <UButton
-                        color="primary"
-                        icon="i-lucide-arrow-right-left"
-                        size="xs"
-                        :disabled="(parseFloat(prod.stock_inventory) || 0) <= 0"
-                        @click="startTransfer(prod)"
-                      >
-                        Traspasar
-                      </UButton>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- TAB 1: Sub-Warehouses Detailed -->
-        <div v-if="index === 1" class="mt-4">
-          <div v-if="loadingSubs" class="flex justify-center py-12">
-            <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
-          </div>
-
-          <div v-else-if="subWarehouses.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
-            No se encontraron sub-almacenes asociados.
+          <div v-else-if="warehouses.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500">
+            No se encontraron almacenes en esta sucursal.
           </div>
 
           <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div
-              v-for="sw in subWarehouses"
-              :key="sw.id_sub_warehouse"
+              v-for="wh in warehouses"
+              :key="wh.id_warehouse"
               class="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col justify-between"
             >
               <!-- Card Header -->
               <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                 <div>
                   <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                    <UIcon name="i-lucide-user" class="text-teal-400" />
-                    {{ sw.name_admin }}
+                    <UIcon name="i-lucide-box" class="text-teal-400" />
+                    {{ decodeURIComponent(wh.title_warehouse || '').replace(/\+/g, ' ') }}
                   </h3>
                   <span class="text-[10px] text-slate-400 block mt-0.5">
-                    Sucursal: {{ sw.title_office ? decodeURIComponent(sw.title_office).replace(/\+/g, ' ') : 'Sin Sucursal' }}
+                    Encargado: {{ wh.admin_name ? decodeURIComponent(wh.admin_name).replace(/\+/g, ' ') : 'Sin asignar' }}
+                    <span v-if="wh.office_name" class="ml-2 text-slate-300">·</span>
+                    <span v-if="wh.office_name" class="ml-1 font-medium text-slate-500">{{ decodeURIComponent(wh.office_name || '').replace(/\+/g, ' ') }}</span>
                   </span>
                 </div>
-                <UBadge color="success" size="xs">{{ sw.name_sub_warehouse }}</UBadge>
+                <UBadge color="success" size="xs">Total: {{ wh.total_stock }} u.</UBadge>
               </div>
 
-              <!-- Card Body (Table of products in this sub-warehouse) -->
+              <!-- Card Body (Table of products in this warehouse) -->
               <div class="p-0">
-                <table v-if="sw.products && sw.products.length > 0" class="w-full text-left text-xs border-collapse">
+                <table v-if="wh.products && wh.products.length > 0" class="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr class="bg-slate-100/60 text-slate-400 border-b border-slate-200">
                       <th class="p-2.5">Producto</th>
-                      <th class="p-2.5 text-right">Stock Asignado</th>
+                      <th class="p-2.5 text-right">Stock Real</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="p in sw.products" :key="p.title_product" class="border-b border-slate-200/40 hover:bg-slate-50">
+                    <tr v-for="p in wh.products" :key="p.id_product" class="border-b border-slate-200/40 hover:bg-slate-50">
                       <td class="p-2.5 text-slate-700">
                         {{ decodeURIComponent(p.title_product || '').replace(/\+/g, ' ') }}
                       </td>
@@ -631,15 +355,15 @@ function getMovementLabel(type: string): string {
                   </tbody>
                 </table>
                 <div v-else class="text-center py-6 text-slate-500 text-xs">
-                  Sin productos asignados a este sub-almacén.
+                  Sin stock disponible en este almacén.
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- TAB 2: Warehouse Movements Log -->
-        <div v-if="index === 2" class="mt-4">
+        <!-- TAB 1: Warehouse Movements Log -->
+        <div v-if="index === 1" class="mt-4">
           <div v-if="loadingMoves" class="flex justify-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
@@ -685,8 +409,9 @@ function getMovementLabel(type: string): string {
             </table>
           </div>
         </div>
-        <!-- TAB 3: Merma Envasada -->
-        <div v-if="index === 3" class="mt-4">
+
+        <!-- TAB 2: Merma Envasada -->
+        <div v-if="index === 2" class="mt-4">
           <div v-if="loadingWaste" class="flex justify-center py-12">
             <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
           </div>
@@ -722,124 +447,5 @@ function getMovementLabel(type: string): string {
         </div>
       </template>
     </UTabs>
-
-    <!-- Assign Modal -->
-    <UModal v-model:open="isAssignOpen" title="Asignar Stock a Vendedor">
-      <template #body>
-        <div v-if="selectedProduct" class="space-y-4">
-          <div class="bg-slate-100 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
-            <div>
-              <span class="text-[10px] text-slate-500 block">Producto:</span>
-              <span class="text-xs font-bold text-slate-800">{{ decodeURIComponent(selectedProduct.title_product).replace(/\+/g, ' ') }}</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-500 block text-right">Disponible en Almacén:</span>
-              <span class="text-sm font-bold text-teal-400 font-mono block text-right">
-                {{ parseFloat(selectedProduct.stock_inventory) || 0 }} u
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Destinatario (Vendedor/Cajero) *</label>
-            <USelect
-              v-model="assignUser"
-              :items="admins.map(a => ({ value: String(a.id_admin), label: `${a.name_admin} (${officesMap[a.id_office_admin] || 'Sin Sucursal'})` }))"
-              placeholder="Seleccionar destinatario..."
-              class="w-full"
-              required
-            />
-          </div>
-
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Cantidad a Asignar *</label>
-            <input
-              :value="assignQty > 0 ? assignQty.toLocaleString('de-DE') : ''"
-              type="text"
-              inputmode="numeric"
-              placeholder="0"
-              class="block w-full py-2.5 px-3 bg-white border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-              @input="onAssignQtyInput($event)"
-              @keydown="blockNegative($event as KeyboardEvent)"
-            />
-          </div>
-
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Notas de Asignación</label>
-            <UTextarea v-model="assignNotes" :rows="2" placeholder="Opcional..." class="w-full" />
-          </div>
-
-          <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
-            <UButton color="neutral" variant="ghost" @click="isAssignOpen = false">Cancelar</UButton>
-            <UButton color="primary" :loading="processingAction" @click="confirmAssign">Realizar Asignación</UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Transfer Modal -->
-    <UModal v-model:open="isTransferOpen" title="Traspasar Stock a Almacén / Sucursal">
-      <template #body>
-        <div v-if="selectedProduct" class="space-y-4">
-          <!-- Product and Availability Info -->
-          <div class="bg-slate-100 p-3 rounded-lg border border-slate-200 flex justify-between items-center">
-            <div>
-              <span class="text-[10px] text-slate-500 block">Producto:</span>
-              <span class="text-xs font-bold text-slate-800">{{ decodeURIComponent(selectedProduct.title_product).replace(/\+/g, ' ') }}</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-500 block text-right">Disponible en Almacén:</span>
-              <span class="text-sm font-bold text-teal-400 font-mono block text-right">
-                {{ parseFloat(selectedProduct.stock_inventory) || 0 }} u
-              </span>
-            </div>
-          </div>
-
-          <!-- Source Office -->
-          <div>
-            <span class="text-[10px] text-slate-500 block">Almacén de Origen:</span>
-            <span class="text-xs font-bold text-slate-600">{{ officesMap[auth.effectiveOfficeId ?? 3] || 'Almacén Principal' }}</span>
-          </div>
-
-          <!-- Destination Office -->
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Almacén de Destino *</label>
-            <USelect
-              v-model="transferWarehouse"
-              :items="destinationWarehouses"
-              placeholder="Seleccionar almacén de destino..."
-              class="w-full"
-              required
-            />
-          </div>
-
-          <!-- Transfer Quantity -->
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Cantidad a Traspasar *</label>
-            <input
-              :value="transferQty > 0 ? transferQty.toLocaleString('de-DE') : ''"
-              type="text"
-              inputmode="numeric"
-              placeholder="0"
-              class="block w-full py-2.5 px-3 bg-white border border-slate-200 rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-              @input="onTransferQtyInput($event)"
-              @keydown="blockNegative($event as KeyboardEvent)"
-            />
-          </div>
-
-          <!-- Notes -->
-          <div>
-            <label class="block text-[10px] font-semibold text-slate-600 uppercase mb-1">Notas de Traspaso</label>
-            <UTextarea v-model="transferNotes" :rows="2" placeholder="Opcional..." class="w-full" />
-          </div>
-
-          <!-- Actions -->
-          <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
-            <UButton color="neutral" variant="ghost" @click="isTransferOpen = false">Cancelar</UButton>
-            <UButton color="primary" :loading="processingAction" @click="confirmTransfer">Confirmar Traspaso</UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
   </div>
 </template>

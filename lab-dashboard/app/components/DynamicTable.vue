@@ -230,8 +230,19 @@ const HIDDEN_COLUMNS: Record<string, string[]> = {
 // Columnas visibles (reutilizado en header, filas y skeletons)
 const visibleColumns = computed(() => {
   const hidden = moduleConfig.value ? (HIDDEN_COLUMNS[moduleConfig.value.title_module] || []) : []
-  return columns.value.filter((c: any) => c.visible_column === 1 && !hidden.includes(c.title_column))
+  // Para cajero/vendedor, ocultar stock_product en el módulo productos:
+  // ese campo es el stock global del catálogo, no el stock de la sucursal del cajero.
+  const roleHidden: string[] = []
+  if (moduleConfig.value?.title_module === 'products') {
+    if (['cajero', 'vendedor'].includes(String(auth.role || ''))) {
+      roleHidden.push('stock_product')
+    }
+  }
+  return columns.value.filter(
+    (c: any) => c.visible_column === 1 && !hidden.includes(c.title_column) && !roleHidden.includes(c.title_column)
+  )
 })
+
 
 // Check if we show edit/delete actions
 const showActions = computed(() => {

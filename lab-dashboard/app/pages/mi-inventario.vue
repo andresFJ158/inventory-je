@@ -26,6 +26,9 @@ const canReceiveInbound = computed(() => {
   return false
 })
 
+// Cajero y vendedor solo ven su propio stock asignado; los movimientos de almacén no les aplican
+const isCajeroOrVendedor = computed(() => ['cajero', 'vendedor'].includes(String(auth.role || '')))
+
 // Assignment modal state
 const assignModalOpen = ref(false)
 const selectedProduct = ref<any>(null)
@@ -279,13 +282,13 @@ watch(() => auth.user, async (newVal) => {
   }
 }, { immediate: true })
 
-const invColumns = [
+const invColumns = computed(() => [
   { accessorKey: 'title_product', header: 'Producto' },
   { accessorKey: 'sku_product', header: 'SKU' },
   { accessorKey: 'unit_product', header: 'Unidad' },
-  { accessorKey: 'stock', header: 'Cantidad Disponible' },
+  { accessorKey: 'stock', header: isCajeroOrVendedor.value ? 'Stock en tu Sucursal' : 'Cantidad Disponible' },
   { accessorKey: 'status', header: 'Estado' }
-]
+])
 
 const moveColumns = [
   { accessorKey: 'date_created_assignment', header: 'Fecha' },
@@ -409,7 +412,7 @@ function getTypeLabel(type: string): string {
       <template #header>
         <h3 class="font-semibold text-lg flex items-center gap-2">
           <UIcon name="i-lucide-boxes" class="w-5 h-5 text-gray-500" />
-          {{ !hasSubWarehouse ? 'Productos en Almacén' : 'Productos en mi Sub-Almacén' }}
+          {{ !hasSubWarehouse ? 'Productos en Almacén' : 'Productos en mi Almacén' }}
         </h3>
       </template>
 
@@ -460,8 +463,8 @@ function getTypeLabel(type: string): string {
       </UTable>
     </UCard>
 
-    <!-- Movements Table -->
-    <UCard v-if="hasSubWarehouse">
+    <!-- Movements Table — solo visible para despachadores/admins, no para cajeros/vendedores -->
+    <UCard v-if="hasSubWarehouse && !isCajeroOrVendedor">
       <template #header>
         <h3 class="font-semibold text-lg flex items-center gap-2">
           <UIcon name="i-lucide-history" class="w-5 h-5 text-gray-500" />

@@ -1,32 +1,4 @@
 <?php
-if (isset($_POST["getSubWarehouseStock"])) {
-	$id_admin = $_POST["id_admin"];
-	$id_office = $_POST["id_office"];
-	$id_warehouse = isset($_POST["id_warehouse"]) ? $_POST["id_warehouse"] : 0;
-	$role = $_POST["role"];
-	file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getSubWarehouseStock START - id_office: $id_office, id_warehouse: $id_warehouse\n", FILE_APPEND);
-	$db = LocalConnection::connect();
-
-	// product_inventory es la fuente única de stock vendible confirmado.
-	$stmt = $db->prepare("
-		SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
-			   COALESCE(pi.stock_inventory, 0) as stock
-		FROM products p
-		INNER JOIN product_inventory pi
-			ON pi.id_product_inventory = p.id_product
-			AND pi.id_office_inventory = :office
-			AND (pi.id_warehouse_inventory = :wh OR (:wh = 0 AND pi.id_warehouse_inventory = 0))
-			AND pi.status_inventory = 1
-		WHERE p.status_product = 1
-		  AND COALESCE(pi.stock_inventory, 0) > 0
-		ORDER BY p.title_product ASC
-	");
-	$stmt->execute([':office' => $id_office, ':wh' => $id_warehouse]);
-	$results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-	file_put_contents(__DIR__ . '/debug_inventory.txt', date('Y-m-d H:i:s') . " - getSubWarehouseStock - id_admin: $id_admin, id_office: $id_office, role: $role, Results: " . count($results) . "\n", FILE_APPEND);
-	echo json_encode($results);
-	exit;
-}
 
 //=====================================
 // GET PURCHASABLE PRODUCTS
@@ -336,38 +308,126 @@ if(isset($_POST["getPendingQC"]) && $_POST["getPendingQC"] == "ok") {
 }
 
 //=====================================
-if (isset($_POST["getSubWarehousesDetail"])) {
-	$id_office = $_POST["id_office"];
-	$db = LocalConnection::connect();
-	
-	$stmtSw = $db->prepare("
-		SELECT sw.id_sub_warehouse, sw.name_sub_warehouse, COALESCE(a.name_admin, 'Compartido') as name_admin, o.title_office
-		FROM sub_warehouses sw
-		LEFT JOIN admins a ON sw.id_admin_sub_warehouse = a.id_admin
-		LEFT JOIN offices o ON sw.id_office_sub_warehouse = o.id_office
-	");
-	$stmtSw->execute();
-	$subs = $stmtSw->fetchAll(PDO::FETCH_ASSOC);
-	
-	$results = [];
-	foreach ($subs as $s) {
-		$stmtProd = $db->prepare("
-			SELECT p.title_product,
-				   SUM(CASE WHEN wa.type_assignment = 'despacho' THEN wa.qty_assignment 
-							WHEN wa.type_assignment IN ('devolucion', 'venta') THEN -wa.qty_assignment 
-							ELSE 0 END) as stock
-			FROM warehouse_assignments wa
-			JOIN products p ON wa.id_product_assignment = p.id_product
-			WHERE wa.id_sub_warehouse_assignment = :id_sub
-			GROUP BY wa.id_product_assignment
-			HAVING stock > 0
-		");
-		$stmtProd->execute([':id_sub' => $s['id_sub_warehouse']]);
-		$s['products'] = $stmtProd->fetchAll(PDO::FETCH_ASSOC);
-		$results[] = $s;
-	}
-	echo json_encode($results);
-	exit;
+// GET STOCK FOR CAJERO / VENDEDOR (Mi Inventario)
+// Reads from product_inventory using the admin's assigned warehouse.
+//=====================================
+if (isset($_POST["getSubWarehouseStock"])) {
+    $id_admin   = intval($_POST["id_admin"]);
+    $id_office  = intval($_POST["id_office"]);
+    $id_warehouse = intval($_POST["id_warehouse"]);
+    $db = LocalConnection::connect();
+
+    // If no warehouse is sent, look it up from the admin record
+    if ($id_warehouse <= 0 && $id_admin > 0) {
+        $stmtAdm = $db->prepare("SELECT id_warehouse_admin, id_office_admin FROM admins WHERE id_admin = :a LIMIT 1");
+        $stmtAdm->execute([':a' => $id_admin]);
+        $admRow = $stmtAdm->fetch(PDO::FETCH_ASSOC);
+        if ($admRow) {
+            $id_warehouse = intval($admRow['id_warehouse_admin']);
+            if ($id_office <= 0) $id_office = intval($admRow['id_office_admin']);
+        }
+    }
+
+    // If still no office, fallback (shouldn't happen in normal flow)
+    if ($id_office <= 0) {
+        echo json_encode([]);
+        exit;
+    }
+
+    // Build the WHERE clause: match office + specific warehouse (or all warehouses in office if 0)
+    if ($id_warehouse > 0) {
+        $stmt = $db->prepare("
+            SELECT p.id_product, p.title_product, p.sku_product, p.unit_product, p.img_product,
+                   pi.stock_inventory as stock
+            FROM product_inventory pi
+            JOIN products p ON pi.id_product_inventory = p.id_product
+            WHERE pi.id_office_inventory = :office
+              AND pi.id_warehouse_inventory = :wh
+              AND pi.status_inventory = 1
+              AND pi.stock_inventory > 0
+            ORDER BY p.title_product ASC
+        ");
+        $stmt->execute([':office' => $id_office, ':wh' => $id_warehouse]);
+    } else {
+        // Admin has no warehouse — show sum of ALL stock in the office across all warehouses!
+        $stmt = $db->prepare("
+            SELECT p.id_product, p.title_product, p.sku_product, p.unit_product, p.img_product,
+                   SUM(pi.stock_inventory) as stock
+            FROM product_inventory pi
+            JOIN products p ON pi.id_product_inventory = p.id_product
+            WHERE pi.id_office_inventory = :office
+              AND pi.status_inventory = 1
+              AND pi.stock_inventory > 0
+            GROUP BY p.id_product
+            ORDER BY p.title_product ASC
+        ");
+        $stmt->execute([':office' => $id_office]);
+    }
+
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode($results);
+    exit;
+}
+
+//=====================================
+if (isset($_POST["getAllWarehousesStock"])) {
+    $id_office = intval($_POST["id_office"]);
+    $db = LocalConnection::connect();
+
+    // 1. Obtener almacenes: si id_office=0 (superadmin), traer TODOS sin filtro de sucursal
+    if ($id_office === 0) {
+
+        $stmtWH = $db->prepare("
+            SELECT w.id_warehouse, w.title_warehouse,
+                   COALESCE(GROUP_CONCAT(a.name_admin SEPARATOR ', '), '') as admin_name,
+                   w.id_office_warehouse,
+                   COALESCE(o.title_office, 'Sin Sucursal') as office_name
+            FROM warehouses w
+            LEFT JOIN admins a ON a.id_warehouse_admin = w.id_warehouse AND a.status_admin = 1
+            LEFT JOIN offices o ON w.id_office_warehouse = o.id_office
+            GROUP BY w.id_warehouse
+            ORDER BY w.id_office_warehouse ASC, w.id_warehouse ASC
+        ");
+        $stmtWH->execute();
+    } else {
+        $stmtWH = $db->prepare("
+            SELECT w.id_warehouse, w.title_warehouse,
+                   COALESCE(GROUP_CONCAT(a.name_admin SEPARATOR ', '), '') as admin_name,
+                   w.id_office_warehouse,
+                   COALESCE(o.title_office, 'Sin Sucursal') as office_name
+            FROM warehouses w
+            LEFT JOIN admins a ON a.id_warehouse_admin = w.id_warehouse AND a.status_admin = 1
+            LEFT JOIN offices o ON w.id_office_warehouse = o.id_office
+            WHERE w.id_office_warehouse = :office
+            GROUP BY w.id_warehouse
+            ORDER BY w.id_warehouse ASC
+        ");
+        $stmtWH->execute([':office' => $id_office]);
+    }
+    $warehouses = $stmtWH->fetchAll(PDO::FETCH_ASSOC);
+
+    // 2. Por cada almacén, obtener productos con stock usando su propia sucursal
+    foreach ($warehouses as &$wh) {
+        $whOffice = intval($wh['id_office_warehouse']);
+        $stmtProd = $db->prepare("
+            SELECT p.id_product, p.title_product, p.sku_product, p.unit_product,
+                   pi.stock_inventory as stock,
+                   p.img_product
+            FROM product_inventory pi
+            JOIN products p ON pi.id_product_inventory = p.id_product
+            WHERE pi.id_office_inventory = :office
+              AND pi.id_warehouse_inventory = :wh
+              AND pi.status_inventory = 1
+              AND pi.stock_inventory > 0
+            ORDER BY p.title_product ASC
+        ");
+        $stmtProd->execute([':office' => $whOffice, ':wh' => $wh['id_warehouse']]);
+        $wh['products'] = $stmtProd->fetchAll(PDO::FETCH_ASSOC);
+        $wh['total_stock'] = array_sum(array_column($wh['products'], 'stock'));
+    }
+
+    echo json_encode(['status' => 200, 'results' => $warehouses]);
+    exit;
 }
 
 //=====================================

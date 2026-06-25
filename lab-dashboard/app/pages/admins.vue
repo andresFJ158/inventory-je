@@ -113,7 +113,7 @@ const filteredWarehouses = computed(() => {
   if (!formModel.value.id_office_admin || formModel.value.id_office_admin === '0') {
     return warehouses.value
   }
-  return warehouses.value.filter(w => String(w.id_sucursal_warehouse) === String(formModel.value.id_office_admin))
+  return warehouses.value.filter(w => String(w.id_office_warehouse) === String(formModel.value.id_office_admin))
 })
 
 watch(() => formModel.value.id_office_admin, () => {
