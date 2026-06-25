@@ -495546,3 +495546,115 @@
     [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODI0MDEzNzcsImV4cCI6MTc4MjQ4Nzc3NywiZGF0YSI6eyJpZCI6IjI5IiwiZW1haWwiOiJzZWJhc0Bwb3MuY29tIn19.TrgMSiZd8aAdOx6gz_S8aIT1wsZ4X8yrK21S9WtGumk
 )
 
+2026-06-25 17:36:09 - Request: Array
+(
+    [getLabEntries] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:10 - Request: Array
+(
+    [getLabProductions] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:10 - Request: Array
+(
+    [getLabQCTests] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:10 - Request: Array
+(
+    [getLabMaterials] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:24 - Request: Array
+(
+    [getLabEntries] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:25 - Request: Array
+(
+    [getLabProductions] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:25 - Request: Array
+(
+    [getLabQCTests] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:25 - Request: Array
+(
+    [getLabMaterials] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:55 - Request: Array
+(
+    [getLabEntries] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:56 - Request: Array
+(
+    [getLabEntries] => ok
+    [id_office] => 10
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODI0MDEzNzcsImV4cCI6MTc4MjQ4Nzc3NywiZGF0YSI6eyJpZCI6IjI5IiwiZW1haWwiOiJzZWJhc0Bwb3MuY29tIn19.TrgMSiZd8aAdOx6gz_S8aIT1wsZ4X8yrK21S9WtGumk
+)
+
+2026-06-25 17:36:56 - Request: Array
+(
+    [getLabProductions] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:56 - Request: Array
+(
+    [getLabProductions] => ok
+    [id_office] => 10
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODI0MDEzNzcsImV4cCI6MTc4MjQ4Nzc3NywiZGF0YSI6eyJpZCI6IjI5IiwiZW1haWwiOiJzZWJhc0Bwb3MuY29tIn19.TrgMSiZd8aAdOx6gz_S8aIT1wsZ4X8yrK21S9WtGumk
+)
+
+2026-06-25 17:36:56 - Request: Array
+(
+    [getLabQCTests] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:56 - Request: Array
+(
+    [getLabQCTests] => ok
+    [id_office] => 10
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODI0MDEzNzcsImV4cCI6MTc4MjQ4Nzc3NywiZGF0YSI6eyJpZCI6IjI5IiwiZW1haWwiOiJzZWJhc0Bwb3MuY29tIn19.TrgMSiZd8aAdOx6gz_S8aIT1wsZ4X8yrK21S9WtGumk
+)
+
+2026-06-25 17:36:56 - Request: Array
+(
+    [getLabMaterials] => ok
+    [id_office] => 6
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODIzNDQzNjYsImV4cCI6MTc4MjQzMDc2NiwiZGF0YSI6eyJpZCI6IjMxIiwiZW1haWwiOiJhZG1pbmxhYkBwb3MuY29tIn19.eubGA_deWBVoijudyoPD1csCbSM7Xshoeylfg7aMq4Y
+)
+
+2026-06-25 17:36:56 - Request: Array
+(
+    [getLabMaterials] => ok
+    [id_office] => 10
+    [token] => eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODI0MDEzNzcsImV4cCI6MTc4MjQ4Nzc3NywiZGF0YSI6eyJpZCI6IjI5IiwiZW1haWwiOiJzZWJhc0Bwb3MuY29tIn19.TrgMSiZd8aAdOx6gz_S8aIT1wsZ4X8yrK21S9WtGumk
+)
+
