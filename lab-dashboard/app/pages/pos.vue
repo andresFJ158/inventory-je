@@ -1167,16 +1167,20 @@ async function handleCheckout() {
   }
 }
 
+const printMode = ref<'ticket' | 'invoice'>('ticket')
+
 // Print Receipt trigger (PDF)
-function printReceipt() {
-  window.print()
+function printReceipt(mode: 'ticket' | 'invoice' = 'ticket') {
+  printMode.value = mode
+  setTimeout(() => window.print(), 100)
 }
 </script>
 
 <template>
   <div class="h-full flex flex-col space-y-6 relative">
+    <Teleport to="body">
     <!-- Printable POS Receipt sheet (Hidden except during printing) -->
-    <div id="print-area" class="hidden print:block bg-white text-black p-4 text-xs font-mono w-72 mx-auto">
+    <div v-if="printMode === 'ticket'" id="print-area" class="hidden print:block bg-white text-black p-4 text-xs font-mono w-72 mx-auto">
       <div v-if="lastOrderReceipt" class="space-y-2">
         <div class="text-center font-bold text-sm">JE INVENTARIO & VENTAS</div>
         <div class="text-center">Sucursal: {{ auth.office?.title_office || 'General' }}</div>
@@ -1224,6 +1228,85 @@ function printReceipt() {
         <div class="text-center font-bold">¡GRACIAS POR SU COMPRA!</div>
       </div>
     </div>
+
+    <!-- Printable Invoice (Letter Size) -->
+    <div v-if="printMode === 'invoice'" id="invoice-print-area" class="hidden print:block bg-white text-black font-sans w-full">
+      <div v-if="lastOrderReceipt" class="space-y-6">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-start border-b-2 border-slate-200 pb-6">
+          <div class="flex items-center gap-4">
+            <img src="/Logo.png" alt="Logo" class="h-16 object-contain" />
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">J.E Bolivia ERP</h1>
+          </div>
+          <div class="text-right">
+            <h2 class="text-xl font-bold text-slate-700">FACTURA ELECTRÓNICA</h2>
+            <p class="text-sm text-slate-500 mt-1">N° Orden: <span class="font-bold text-black">{{ lastOrderReceipt.transaction }}</span></p>
+            <p class="text-sm text-slate-500">Fecha: <span class="font-bold text-black">{{ lastOrderReceipt.date }}</span></p>
+          </div>
+        </div>
+
+        <!-- Details -->
+        <div class="grid grid-cols-2 gap-8 border-b-2 border-slate-200 pb-6">
+          <div>
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Datos del Cliente</h3>
+            <p class="font-bold text-lg">{{ lastOrderReceipt.client }}</p>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Datos de Venta</h3>
+            <p class="text-sm text-slate-600"><strong>Sucursal:</strong> {{ auth.office?.title_office || 'General' }}</p>
+            <p class="text-sm text-slate-600"><strong>NIT Sucursal:</strong> {{ auth.office?.dni_office || '0000000' }}</p>
+            <p class="text-sm text-slate-600"><strong>Vendedor:</strong> {{ lastOrderReceipt.vendedor }}</p>
+            <p class="text-sm text-slate-600"><strong>Método de Pago:</strong> <span class="capitalize">{{ lastOrderReceipt.payment }}</span></p>
+          </div>
+        </div>
+
+        <!-- Products -->
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-100">
+              <th class="p-3 text-sm font-bold text-slate-700 border-b border-slate-200">Cant</th>
+              <th class="p-3 text-sm font-bold text-slate-700 border-b border-slate-200">Descripción</th>
+              <th class="p-3 text-sm font-bold text-slate-700 border-b border-slate-200 text-right">P. Unitario</th>
+              <th class="p-3 text-sm font-bold text-slate-700 border-b border-slate-200 text-right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in lastOrderReceipt.items" :key="item.name" class="border-b border-slate-100 last:border-0">
+              <td class="p-3 text-sm">{{ item.qty }}</td>
+              <td class="p-3 text-sm font-medium">{{ item.name }}</td>
+              <td class="p-3 text-sm text-right">Bs. {{ item.price }}</td>
+              <td class="p-3 text-sm text-right font-bold">Bs. {{ item.subtotal }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div class="flex justify-end pt-6">
+          <div class="w-1/2 space-y-3">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-500">Subtotal:</span>
+              <span class="font-medium">Bs. {{ lastOrderReceipt.subtotal }}</span>
+            </div>
+            <div v-if="parseFloat(lastOrderReceipt.discount) > 0" class="flex justify-between text-sm">
+              <span class="text-slate-500">Descuento:</span>
+              <span class="text-red-500">-Bs. {{ lastOrderReceipt.discount }}</span>
+            </div>
+            
+            <div class="flex justify-between items-center border-t-2 border-slate-800 pt-3 mt-3">
+              <span class="text-lg font-black">TOTAL A PAGAR:</span>
+              <span class="text-2xl font-black text-emerald-600">Bs. {{ lastOrderReceipt.total }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="text-center text-slate-500 text-sm mt-12 pt-8 border-t border-slate-200">
+          <p class="font-bold text-lg mb-1">¡Gracias por su compra, vuelva pronto!</p>
+          <p>Este documento es una representación impresa de una factura electrónica.</p>
+        </div>
+      </div>
+    </div>
+    </Teleport>
 
     <!-- Tab bar for pending orders -->
     <div v-if="isCashRegisterOpen" class="flex gap-1 items-center overflow-x-auto pb-2 border-b border-slate-200 shrink-0 print:hidden scrollbar-thin">
@@ -1554,15 +1637,26 @@ function printReceipt() {
           <UIcon name="i-lucide-check-circle" class="w-10 h-10 text-emerald-500 mx-auto" />
           <h3 class="text-sm font-bold text-emerald-700">¡Venta Procesada con Éxito!</h3>
           <p v-if="lastOrderReceipt" class="text-xs text-slate-600">Orden #{{ lastOrderReceipt.transaction }} · Bs. {{ lastOrderReceipt.total }}</p>
-          <UButton
-            color="primary"
-            size="sm"
-            block
-            icon="i-lucide-printer"
-            @click="printReceipt"
-          >
-            Imprimir Ticket
-          </UButton>
+          <div class="grid grid-cols-2 gap-2 w-full">
+            <UButton
+              color="primary"
+              size="sm"
+              block
+              icon="i-lucide-printer"
+              @click="printReceipt('ticket')"
+            >
+              Ticket
+            </UButton>
+            <UButton
+              color="teal"
+              size="sm"
+              block
+              icon="i-lucide-file-text"
+              @click="printReceipt('invoice')"
+            >
+              Factura
+            </UButton>
+          </div>
           <UButton
             color="neutral"
             variant="soft"
@@ -1776,16 +1870,10 @@ function printReceipt() {
             </div>
           </div>
 
-          <!-- Invoice switch checkbox -->
-          <div class="flex items-center justify-between border-t border-slate-200 pt-3">
-            <span class="text-xs text-slate-600 font-semibold">¿Emitir Factura Electrónica?</span>
-            <USwitch v-model="wantInvoice" />
-          </div>
-
           <!-- Actions -->
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-200">
             <UButton color="neutral" variant="ghost" @click="isPaying = false">Cancelar</UButton>
-            <UButton color="primary" @click="handleCheckout">{{ wantInvoice ? 'Cobrar CON Factura' : 'Cobrar SIN Factura' }}</UButton>
+            <UButton color="primary" @click="handleCheckout" icon="i-lucide-check">Cobrar</UButton>
           </div>
         </div>
       </template>
@@ -2177,19 +2265,26 @@ function printReceipt() {
 </template>
 
 <style>
-/* CSS Page layout hiding everything except print-area during printing */
 @media print {
-  body * {
-    visibility: hidden;
+  body > :not(#print-area):not(#invoice-print-area) {
+    display: none !important;
   }
-  #print-area, #print-area * {
-    visibility: visible;
+  body {
+    background-color: white !important;
   }
-  #print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+  #print-area, #invoice-print-area {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #print-area *, #invoice-print-area * {
+    visibility: visible !important;
+  }
+  
+  @page {
+    margin: 0.5in;
   }
 }
 </style>

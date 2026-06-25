@@ -184,8 +184,8 @@ async function fetchRows() {
 
       // Aplicar filtros adicionales de privacidad por rol
       if (config.title_module === 'orders') {
-        // Solo mostrar órdenes completadas
-        fetchedRows = fetchedRows.filter((r: any) => String(r.status_order) === '1')
+        // Mostrar todas las órdenes excepto las pendientes
+        fetchedRows = fetchedRows.filter((r: any) => String(r.status_order).toLowerCase() !== 'pendiente')
 
         if (auth.role === 'vendedor' || auth.role === 'cajero') {
            // Solo ver sus propias órdenes
@@ -398,8 +398,11 @@ function onFormSaved() {
 }
 
 // Order PDF Logic
-const isReceiptModalOpen = ref(false)
-const selectedOrderId = ref<number | string | null>(null)
+const isReceiptOpen = ref(false)
+const receiptOrderId = ref<string | number | null>(null)
+
+const isInvoiceOpen = ref(false)
+const invoiceOrderId = ref<string | number | null>(null)
 
 function exportToCSV() {
   if (filteredRows.value.length === 0) {
@@ -440,8 +443,13 @@ function exportToCSV() {
 }
 
 function openReceipt(id: string | number) {
-  selectedOrderId.value = id
-  isReceiptModalOpen.value = true
+  receiptOrderId.value = id
+  isReceiptOpen.value = true
+}
+
+function openInvoice(id: string | number) {
+  invoiceOrderId.value = id
+  isInvoiceOpen.value = true
 }
 
 // Order Details Modal Logic
@@ -678,7 +686,17 @@ async function openBranchesModal(row: any) {
                     variant="soft"
                     size="xs"
                     @click="openReceipt(row[`id_${moduleConfig.suffix_module}`])"
-                    title="Imprimir Comprobante"
+                    title="Imprimir Ticket"
+                  />
+                  <!-- Print Invoice Action -->
+                  <UButton
+                    v-if="moduleConfig?.title_module === 'orders'"
+                    icon="i-lucide-file-text"
+                    color="teal"
+                    variant="soft"
+                    size="xs"
+                    @click="openInvoice(row[`id_${moduleConfig.suffix_module}`])"
+                    title="Imprimir Factura Electrónica"
                   />
                   <!-- Custom View Order Details Action -->
                   <UButton
@@ -761,14 +779,6 @@ async function openBranchesModal(row: any) {
       </template>
     </USlideover>
 
-    <!-- Receipt Modal for Orders -->
-    <OrderReceiptModal 
-      v-if="moduleConfig?.title_module === 'orders' && isReceiptModalOpen"
-      v-model:isOpen="isReceiptModalOpen"
-      :order-id="selectedOrderId"
-      @close="selectedOrderId = null"
-    />
-
     <!-- Cash Details Modal -->
     <CashDetailsModal
       v-if="moduleConfig?.title_module === 'cashs'"
@@ -808,6 +818,19 @@ async function openBranchesModal(row: any) {
         </UCard>
       </template>
     </UModal>
+
+    <!-- Receipt Modal (Ticket) -->
+    <OrderReceiptModal 
+      v-model:is-open="isReceiptOpen" 
+      :order-id="receiptOrderId"
+    />
+
+    <!-- Invoice Modal (Letter) -->
+    <OrderInvoiceModal 
+      v-model:is-open="isInvoiceOpen" 
+      :order-id="invoiceOrderId"
+    />
+
     <!-- Order Details Modal -->
     <OrderDetailsModal
       v-model:isOpen="isOrderDetailsModalOpen"

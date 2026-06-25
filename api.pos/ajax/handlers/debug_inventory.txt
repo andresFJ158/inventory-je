@@ -1277,3 +1277,63 @@
 2026-06-24 19:39:07 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
 2026-06-24 19:39:27 - getLoggedUser - User 31, id_warehouse_admin: 0, calculated warehouse_office_id: 0
 2026-06-24 19:39:29 - getLoggedUser - User 31, id_warehouse_admin: 0, calculated warehouse_office_id: 0
+2026-06-25 10:26:03 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:29:36 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:29:43 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:29:43 - getSubWarehouseStock START - id_office: 12, id_warehouse: 4
+2026-06-25 10:29:43 - getSubWarehouseStock - id_admin: 30, id_office: 12, role: despachador, Results: 3
+2026-06-25 10:29:43 - getSubWarehouseStock START - id_office: 12, id_warehouse: 4
+2026-06-25 10:29:43 - getSubWarehouseStock - id_admin: 30, id_office: 12, role: despachador, Results: 3
+2026-06-25 10:29:45 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:33:15 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:33:16 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:33:21 - getLoggedUser - User 30, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:33:45 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:33:48 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:34:02 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:34:04 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:35:00 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:35:08 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:35:09 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:38:24 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:42:08 - getLoggedUser - User 28, id_warehouse_admin: 3, calculated warehouse_office_id: 11
+2026-06-25 10:42:18 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:42:20 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:43:03 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:46:28 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:54:18 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:54:19 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:54:20 - getSubWarehouseStock START - id_office: 12, id_warehouse: 4
+2026-06-25 10:54:20 - getSubWarehouseStock - id_admin: 29, id_office: 12, role: vendedor, Results: 2
+2026-06-25 10:54:20 - getSubWarehouseStock START - id_office: 12, id_warehouse: 4
+2026-06-25 10:54:20 - getSubWarehouseStock - id_admin: 29, id_office: 12, role: vendedor, Results: 2
+2026-06-25 10:54:21 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:56:26 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:56:29 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:56:32 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 10:56:50 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:00:29 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:05:13 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:05:19 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:11:18 - getLoggedUser - User 31, id_warehouse_admin: 0, calculated warehouse_office_id: 0
+2026-06-25 11:11:20 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:11:31 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:16:53 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:16:54 - getLoggedUser - User 31, id_warehouse_admin: 0, calculated warehouse_office_id: 0
+2026-06-25 11:17:08 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:23:40 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:25:13 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:25:24 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:28:54 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:28:58 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:28:58 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:01 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:01 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:01 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:02 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:03 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:03 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:06 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12
+2026-06-25 11:29:15 - getLoggedUser - User 1, id_warehouse_admin: 0, calculated warehouse_office_id: 0
+2026-06-25 11:29:16 - getLoggedUser - User 1, id_warehouse_admin: 0, calculated warehouse_office_id: 0
+2026-06-25 11:29:37 - getLoggedUser - User 29, id_warehouse_admin: 4, calculated warehouse_office_id: 12

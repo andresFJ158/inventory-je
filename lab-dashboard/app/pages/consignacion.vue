@@ -65,7 +65,9 @@ function onProductSelect(item: any) {
   }
 }
 
-const productOptions = computed(() => products.value.map(p => ({
+const productOptions = computed(() => products.value
+  .filter(p => (inventory.value[p.id_product] || 0) > 0)
+  .map(p => ({
   value: String(p.id_product),
   label: `${decode(p.title_product)} (Stock: ${inventory.value[p.id_product] || 0})`
 })))
@@ -156,7 +158,7 @@ const getImageUrl = (path: string) => {
 // ─── API Calls ────────────────────────────────────────────────────────────────
 async function fetchData() {
   loading.value = true
-  const officeId = auth.officeId ?? 0
+  const officeId = auth.effectiveOfficeId ?? 3
   const [pd, id, cl, cons, off] = await Promise.all([
     api.rest<any>('/api/products?linkTo=status_product&equalTo=1'),
     api.rest<any>(`/api/product_inventory?linkTo=id_office_inventory&equalTo=${officeId}`),
@@ -197,7 +199,7 @@ async function createConsignment() {
   const d = await api.ajax({
     createConsignment: 'ok',
     id_admin: auth.user?.id_admin || 0,
-    id_office: auth.officeId || 0,
+    id_office: auth.effectiveOfficeId || 0,
     id_client: newClientId.value || 0,
     notes: newNotes.value,
     items: JSON.stringify(newItems.value.map(i => ({ id_product: i.id_product, qty: i.qty, price: i.price })))
@@ -268,7 +270,7 @@ async function submitPayment() {
   const fd = new FormData()
   fd.append('addConsignmentPayment', 'ok')
   fd.append('id_consignment', String(selected.value.id_consignment))
-  fd.append('id_office', String(auth.officeId || 0))
+  fd.append('id_office', String(auth.effectiveOfficeId || 0))
   fd.append('id_admin', String(auth.user?.id_admin || 0))
   fd.append('amount', String(amount))
   fd.append('method', payMethod.value)
@@ -300,7 +302,7 @@ async function submitReturn() {
     id_consignment: selected.value.id_consignment,
     id_consignment_item: returnItemId.value,
     qty: returnQty.value,
-    id_office: auth.officeId || 0,
+    id_office: auth.effectiveOfficeId || 0,
     id_admin: auth.user?.id_admin || 0
   })
   if (d?.status === 200) {
@@ -328,7 +330,7 @@ async function submitReplacement() {
     id_product_in: replProductInId.value,
     qty: replQty.value,
     price_in: replPrice.value,
-    id_office: auth.officeId || 0,
+    id_office: auth.effectiveOfficeId || 0,
     id_admin: auth.user?.id_admin || 0,
     notes: replNotes.value
   })
@@ -531,7 +533,7 @@ onMounted(() => { fetchData() })
                   <UInput v-model.number="item.qty" type="number" step="1" min="1" class="w-full" />
                 </UFormField>
                 <UFormField label="Precio unit. (Bs.)">
-                  <UInput v-model.number="item.price" type="number" step="0.01" min="0" class="w-full" />
+                  <UInput v-model.number="item.price" type="number" step="0.01" min="0" class="w-full" disabled />
                 </UFormField>
               </div>
               <p class="text-xs text-right font-mono text-indigo-600 font-bold">Subtotal: {{ fmt(item.qty * item.price) }}</p>
@@ -657,7 +659,17 @@ onMounted(() => { fetchData() })
                     <span v-if="pay.reference_payment"> · Ref: {{ pay.reference_payment }}</span>
                   </p>
                 </div>
-                <UIcon name="i-lucide-check-circle" class="w-5 h-5 text-emerald-500 shrink-0" />
+                <div class="flex items-center gap-2">
+                  <UButton
+                    v-if="String(pay.method_payment).toUpperCase() === 'QR' && pay.file_payment"
+                    size="2xs" color="neutral" variant="soft"
+                    icon="i-lucide-eye"
+                    :href="getImageUrl(pay.file_payment)" target="_blank"
+                  >
+                    Comprobante
+                  </UButton>
+                  <UIcon name="i-lucide-check-circle" class="w-5 h-5 text-emerald-500 shrink-0" />
+                </div>
               </div>
             </div>
 
@@ -788,7 +800,17 @@ onMounted(() => { fetchData() })
                     · {{ pay.date_created_payment }}
                   </p>
                 </div>
-                <span class="text-xs font-semibold text-slate-500">{{ decode(pay.admin_name || '') }}</span>
+                <div class="flex items-center gap-2">
+                  <UButton
+                    v-if="String(pay.method_payment).toUpperCase() === 'QR' && pay.file_payment"
+                    size="2xs" color="neutral" variant="soft"
+                    icon="i-lucide-eye"
+                    :href="getImageUrl(pay.file_payment)" target="_blank"
+                  >
+                    Comprobante
+                  </UButton>
+                  <span class="text-xs font-semibold text-slate-500">{{ decode(pay.admin_name || '') }}</span>
+                </div>
               </div>
             </div>
           </div>

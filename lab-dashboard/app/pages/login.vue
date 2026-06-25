@@ -89,7 +89,7 @@ async function handleLogin() {
 
         if (!hasPerm('pos')) {
           if (role === 'despachador') {
-            redirectUrl = '/despachos?tab=2'
+            redirectUrl = '/despachos'
           } else if (hasPerm('almacen')) {
             redirectUrl = '/almacen'
           } else {
@@ -111,7 +111,7 @@ async function handleLogin() {
             ]
             const matched = possibleRoutes.find(r => hasPerm(r.key))
             if (role === 'despachador') {
-              redirectUrl = '/despachos?tab=2'
+              redirectUrl = '/despachos'
             } else if (matched) {
               redirectUrl = matched.path
             } else if (hasPerm('despachos')) {

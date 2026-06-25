@@ -117,8 +117,6 @@ async function fetchHistory() {
 }
 
 onMounted(() => {
-  fetchPending()
-  fetchHistory()
   fetchPendingOrders()
   fetchExpenseTemplates()
 })
@@ -214,10 +212,8 @@ async function confirmReject() {
 }
 
 const tabsItems = [
-  { label: 'Solicitudes Pendientes', icon: 'i-lucide-clock', value: 0 },
-  { label: 'Historial', icon: 'i-lucide-history', value: 1 },
-  { label: 'Órdenes por Despachar', icon: 'i-lucide-package-check', value: 2 },
-  { label: 'Órdenes Despachadas', icon: 'i-lucide-check-circle', value: 3 }
+  { label: 'Órdenes por Despachar', icon: 'i-lucide-package-check', value: 0 },
+  { label: 'Órdenes Despachadas', icon: 'i-lucide-check-circle', value: 1 }
 ]
 
 // ─── ÓRDENES POR DESPACHAR ───────────────────────────────────────────────────
@@ -495,10 +491,8 @@ async function dispatchOrder(order: any) {
 
 watch(activeTab, (newTab) => {
   const tabIdx = typeof newTab === 'number' ? newTab : parseInt(String(newTab), 10)
-  if (tabIdx === 0) fetchPending()
-  else if (tabIdx === 1) fetchHistory()
-  else if (tabIdx === 2) fetchPendingOrders()
-  else if (tabIdx === 3) fetchDispatchedOrders()
+  if (tabIdx === 0) fetchPendingOrders()
+  else if (tabIdx === 1) fetchDispatchedOrders()
 })
 
 </script>
@@ -521,7 +515,7 @@ watch(activeTab, (newTab) => {
         color="neutral"
         variant="soft"
         size="xs"
-        @click="activeTab === 0 ? fetchPending() : activeTab === 1 ? fetchHistory() : activeTab === 2 ? fetchPendingOrders() : fetchDispatchedOrders()"
+        @click="activeTab === 0 ? fetchPendingOrders() : fetchDispatchedOrders()"
       >
         Refrescar
       </UButton>
@@ -530,134 +524,8 @@ watch(activeTab, (newTab) => {
     <!-- Tabs Layout -->
     <UTabs :items="tabsItems" v-model="activeTab" class="w-full">
       <template #content="{ index }">
-        <!-- TAB 0: Pending Requests -->
-        <div v-if="index === 0" class="mt-4 space-y-4">
-          <div class="flex justify-end">
-            <UInput
-              v-model="searchVendedor"
-              icon="i-lucide-search"
-              placeholder="Filtrar por vendedor..."
-              class="w-full md:w-64"
-            />
-          </div>
-
-          <div v-if="loadingPending" class="flex justify-center py-12">
-            <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
-          </div>
-
-          <div v-else-if="filteredPendingRequests.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
-            <UIcon name="i-lucide-check-circle" class="w-10 h-10 mx-auto mb-2 text-slate-700" />
-            No hay solicitudes de despacho pendientes con los filtros actuales.
-          </div>
-
-          <div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <table class="w-full text-left border-collapse text-sm text-slate-700 bg-white">
-              <thead>
-                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
-                  <th class="p-4">Fecha</th>
-                  <th class="p-4">Solicitante</th>
-                  <th class="p-4">Producto</th>
-                  <th class="p-4">Cant. Solicitada</th>
-                  <th class="p-4">Stock Disponible</th>
-                  <th class="p-4">Notas</th>
-                  <th class="p-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="req in filteredPendingRequests" :key="req.id_request" class="border-b border-slate-100 hover:bg-slate-50">
-                  <td class="p-4 font-mono text-xs">{{ req.date_created_request }}</td>
-                  <td class="p-4 font-semibold text-slate-800">{{ req.name_admin }}</td>
-                  <td class="p-4">{{ decodeURIComponent(req.title_product || '').replace(/\+/g, ' ') }}</td>
-                  <td class="p-4">
-                    <UBadge color="info" variant="soft">{{ req.qty_request }}</UBadge>
-                  </td>
-                  <td class="p-4">
-                    <UBadge :color="req.available_stock > 0 ? 'success' : 'error'" variant="subtle">
-                      {{ req.available_stock }}
-                    </UBadge>
-                  </td>
-                  <td class="p-4 text-xs italic">{{ req.notes_request || '-' }}</td>
-                  <td class="p-4 text-right flex gap-2 justify-end">
-                    <UButton
-                      color="success"
-                      icon="i-lucide-check"
-                      size="xs"
-                      :disabled="req.available_stock <= 0"
-                      @click="startDispatch(req)"
-                    >
-                      Despachar
-                    </UButton>
-                    <UButton
-                      color="error"
-                      icon="i-lucide-x"
-                      size="xs"
-                      variant="soft"
-                      @click="startReject(req)"
-                    >
-                      Rechazar
-                    </UButton>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- TAB 1: History -->
-        <div v-if="index === 1" class="mt-4 space-y-4">
-          <div class="flex justify-end">
-            <UInput
-              v-model="searchHistory"
-              icon="i-lucide-search"
-              placeholder="Filtrar por vendedor..."
-              class="w-full md:w-64"
-            />
-          </div>
-          <div v-if="loadingHistory" class="flex justify-center py-12">
-            <UIcon name="i-lucide-loader-2" class="animate-spin w-8 h-8 text-teal-500" />
-          </div>
-
-          <div v-else-if="filteredHistoryRequests.length === 0" class="text-center py-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">
-            No hay historial de solicitudes registradas.
-          </div>
-
-          <div v-else class="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <table class="w-full text-left border-collapse text-sm text-slate-700 bg-white">
-              <thead>
-                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
-                  <th class="p-4">Fecha</th>
-                  <th class="p-4">Solicitante</th>
-                  <th class="p-4">Producto</th>
-                  <th class="p-4">Solicitado</th>
-                  <th class="p-4">Despachado</th>
-                  <th class="p-4">Estado</th>
-                  <th class="p-4">Notas</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="req in filteredHistoryRequests" :key="req.id_request" class="border-b border-slate-100 hover:bg-slate-50">
-                  <td class="p-4 font-mono text-xs">{{ req.date_created_request }}</td>
-                  <td class="p-4">{{ req.name_admin }}</td>
-                  <td class="p-4">{{ decodeURIComponent(req.title_product || '').replace(/\+/g, ' ') }}</td>
-                  <td class="p-4 font-mono">{{ req.qty_request }}</td>
-                  <td class="p-4 font-mono">{{ req.qty_dispatched_request || '-' }}</td>
-                  <td class="p-4">
-                    <UBadge
-                      :color="req.status_request === 'recibida' ? 'success' : req.status_request === 'rechazada' ? 'error' : 'warning'"
-                      variant="subtle"
-                      class="capitalize"
-                    >
-                      {{ req.status_request }}
-                    </UBadge>
-                  </td>
-                  <td class="p-4 text-xs italic">{{ req.notes_dispatcher_request || req.notes_request || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <!-- TAB 2: Órdenes por Despachar -->
-        <div v-if="index === 2" class="mt-4 space-y-3">
+        <!-- TAB 0: Órdenes por Despachar -->
+        <div v-if="index === 0" class="mt-4 space-y-3">
           <div class="flex justify-end">
             <UInput
               v-model="searchOrders"
@@ -780,8 +648,8 @@ watch(activeTab, (newTab) => {
           </template>
         </div>
         
-        <!-- TAB 3: Órdenes Despachadas -->
-        <div v-if="index === 3" class="mt-4 space-y-3">
+        <!-- TAB 1: Órdenes Despachadas -->
+        <div v-if="index === 1" class="mt-4 space-y-3">
           <div class="flex justify-end">
             <UInput
               v-model="searchDispatched"
