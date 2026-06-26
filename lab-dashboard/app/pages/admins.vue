@@ -57,7 +57,6 @@ const permForm = ref<Record<string, boolean>>({
   combos: false,
   compras: false,
   ordenes: false,
-  ventas: false,
   caja: false,
   gastos: false,
   proveedores: false,
@@ -165,6 +164,12 @@ function getOfficeName(id: any) {
   if (!id || id == 0) return 'Todas (Super)'
   const o = offices.value.find(off => String(off.id_office) === String(id))
   return o ? decodeURIComponent(o.title_office || '').replace(/\+/g, ' ') : `Sucursal ${id}`
+}
+
+function getWarehouseName(id: any) {
+  if (!id || id == 0) return 'Ninguno'
+  const w = warehouses.value.find(wh => String(wh.id_warehouse) === String(id))
+  return w ? decodeURIComponent(w.title_warehouse || '').replace(/\+/g, ' ') : `Almacén ${id}`
 }
 
 // KPIs
@@ -483,6 +488,18 @@ async function handleSaveAdmin() {
     return
   }
 
+  if (!formModel.value.rol_admin) {
+    toast.add({ title: 'Rol requerido', description: 'Debe seleccionar un rol del sistema.', color: 'warning' })
+    return
+  }
+
+  if (['despachador', 'vendedor', 'cajero'].includes(formModel.value.rol_admin)) {
+    if (!formModel.value.id_warehouse_admin || formModel.value.id_warehouse_admin === '0') {
+      toast.add({ title: 'Almacén requerido', description: 'Debe seleccionar un almacén para este rol.', color: 'warning' })
+      return
+    }
+  }
+
   savingAdmin.value = true
   
   let finalImageUrl = formModel.value.img_admin
@@ -688,7 +705,7 @@ onMounted(async () => {
               <th class="px-4 py-3">Administrador</th>
               <th class="px-4 py-3">Contacto (Email)</th>
               <th class="px-4 py-3">Rol del Sistema</th>
-              <th class="px-4 py-3">Sucursal Asignada</th>
+              <th class="px-4 py-3">Sucursal / Almacén</th>
               <th class="px-4 py-3">Estado</th>
               <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
@@ -721,7 +738,8 @@ onMounted(async () => {
                 </UBadge>
               </td>
               <td class="px-4 py-3">
-                <span class="text-sm font-semibold text-slate-500">{{ getOfficeName(a.id_office_admin) }}</span>
+                <span v-if="a.rol_admin === 'despachador'" class="text-sm font-semibold text-slate-500">{{ getWarehouseName(a.id_warehouse_admin) }}</span>
+                <span v-else class="text-sm font-semibold text-slate-500">{{ getOfficeName(a.id_office_admin) }}</span>
               </td>
               <td class="px-4 py-3">
                 <!-- Custom Tailwind switch for table status -->
@@ -836,10 +854,7 @@ onMounted(async () => {
               <option value="cajero">Cajero / Caja</option>
               <option value="vendedor">Vendedor / Ventas</option>
               <option value="despachador">Despachador</option>
-              <option value="despachador_laboratorio">Despachador Laboratorio</option>
               <option value="lab_admin">Admin Laboratorio</option>
-              <option value="lab_worker">Operador Laboratorio</option>
-              <option value="lab_calidad">Control Calidad</option>
             </select>
           </UFormField>
           <UFormField v-if="!['despachador', 'despachador_laboratorio', 'lab_admin', 'lab_worker', 'lab_calidad'].includes(formModel.rol_admin)" label="Sucursal Asignada">
@@ -901,7 +916,7 @@ onMounted(async () => {
               <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos POS</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['pos', 'sucursales', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'ventas', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'consignacion', 'reportes', 'reportes_empresa', 'cajero_despachador']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div v-for="key in ['pos', 'sucursales', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'consignacion', 'reportes', 'reportes_empresa', 'cajero_despachador']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"
@@ -991,7 +1006,7 @@ onMounted(async () => {
         <div class="space-y-4 p-1">
           <p class="text-xs text-slate-500">Ingresa la nueva clave secreta para esta cuenta. Se guardará de forma encriptada en la base de datos.</p>
           <UFormField label="Nueva Contraseña">
-            <UInput v-model="newPassword" type="password" placeholder="Mínimo 4 caracteres..." class="w-full" />
+            <UInput v-model="newPassword" type="password" placeholder="Mínimo 8 caracteres..." class="w-full" />
           </UFormField>
         </div>
       </template>

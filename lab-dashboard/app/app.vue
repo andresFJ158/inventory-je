@@ -288,7 +288,6 @@ const sidebarItems = computed(() => {
   if (hasPerm('productos', ['cajero', 'vendedor', 'editor', 'despachador', 'lab_admin'])) items.push({ label: 'Productos', to: '/productos', icon: 'i-lucide-box' })
   if (hasPerm('compras', ['cajero', 'editor', 'despachador', 'lab_admin'])) items.push({ label: 'Compras', to: '/compras', icon: 'i-lucide-shopping-bag' })
   if (hasPerm('ordenes', ['cajero', 'vendedor', 'editor', 'despachador'])) items.push({ label: 'Órdenes', to: '/ordenes', icon: 'i-lucide-file-text' })
-  if (hasPerm('ventas', ['editor', 'despachador'])) items.push({ label: 'Ventas', to: '/ventas', icon: 'i-lucide-banknote' })
   if (hasPerm('creditos', [])) items.push({ label: 'Créditos', to: '/credito', icon: 'i-lucide-credit-card' })
   if (hasPerm('consignacion', ['vendedor'])) items.push({ label: 'Consignaciones', to: '/consignacion', icon: 'i-lucide-package-check' })
   if (hasPerm('caja', ['cajero', 'editor', 'despachador'])) items.push({ label: 'Caja', to: '/caja', icon: 'i-lucide-wallet' })

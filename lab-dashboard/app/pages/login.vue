@@ -103,7 +103,6 @@ async function handleLogin() {
               { key: 'productos', path: '/productos' },
               { key: 'compras', path: '/compras' },
               { key: 'ordenes', path: '/ordenes' },
-              { key: 'ventas', path: '/ventas' },
               { key: 'caja', path: '/caja' },
               { key: 'gastos', path: '/gastos' },
               { key: 'proveedores', path: '/proveedores' },

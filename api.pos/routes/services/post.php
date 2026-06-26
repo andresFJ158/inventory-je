@@ -168,8 +168,20 @@ if(isset($_POST)){
 					}
 				}
 
-				// Force lab staff to laboratory warehouse 0
+				// Email duplicate validation and Force lab staff to laboratory warehouse 0
 				if ($table === 'admins') {
+					$email = trim($_POST['email_admin'] ?? '');
+					if ($email !== '') {
+						$db  = Connection::connect();
+						$dup = $db->prepare("SELECT id_admin FROM admins WHERE email_admin = ? LIMIT 1");
+						$dup->execute([$email]);
+						if ($dup->fetchColumn()) {
+							http_response_code(409);
+							echo json_encode(['status' => 409, 'results' => 'El correo electrónico ya está registrado.']);
+							return;
+						}
+					}
+
 					if (isset($_POST['rol_admin']) && in_array($_POST['rol_admin'], ['lab_admin', 'despachador_laboratorio'])) {
 						$_POST['id_office_admin'] = 0;
 					}
