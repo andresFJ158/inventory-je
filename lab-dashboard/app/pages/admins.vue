@@ -348,6 +348,7 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     permForm.value.reportes = true
   } else if (newRole === 'vendedor') {
     permForm.value.pos = true
+    permForm.value.creditos = true
     permForm.value.ordenes = true
     permForm.value.caja = true
     permForm.value.mi_inventario = true
@@ -377,6 +378,7 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     permForm.value.produccion = true
     permForm.value.calidad = true
     permForm.value.inventario_final = true
+    permForm.value.combos = true
   } else if (newRole.startsWith('lab_')) {
     permForm.value.almacen = true
     permForm.value.mi_inventario = true
@@ -904,7 +906,7 @@ onMounted(async () => {
           </div>
 
           <!-- INTEGRATED PERMISSIONS MATRIX -->
-          <div class="border-t border-slate-200 pt-4 mt-4 space-y-3">
+          <div v-if="auth.role === 'superadmin'" class="border-t border-slate-200 pt-4 mt-4 space-y-3">
             <div class="flex items-center gap-1.5 text-indigo-600">
               <UIcon name="i-lucide-shield-check" class="w-4.5 h-4.5" />
               <h3 class="text-sm font-black uppercase tracking-wider">Asignación Directa de Permisos</h3>
@@ -916,7 +918,7 @@ onMounted(async () => {
               <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos POS</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['pos', 'sucursales', 'admins', 'clientes', 'categorias', 'productos', 'combos', 'compras', 'ordenes', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'consignacion', 'reportes', 'reportes_empresa', 'cajero_despachador']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div v-for="key in ['pos', 'sucursales', 'admins', 'clientes', 'categorias', 'productos', 'compras', 'ordenes', 'creditos', 'caja', 'gastos', 'proveedores', 'almacenes', 'almacen', 'despachos', 'mi_inventario', 'consignacion', 'reportes', 'reportes_empresa', 'cajero_despachador']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 capitalize">{{ key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"
@@ -967,7 +969,7 @@ onMounted(async () => {
               <div v-if="!['cajero', 'vendedor', 'despachador'].includes(formModel.rol_admin)" class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos Laboratorio</h4>
                 <div class="space-y-1">
-                  <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'proveedores_lab', 'inventario_mp', 'entradas', 'aprobar_entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                  <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'proveedores_lab', 'inventario_mp', 'entradas', 'aprobar_entradas', 'recetas', 'produccion', 'calidad', 'inventario_final', 'combos']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
                     <span class="text-sm font-semibold text-slate-700 capitalize">{{ key === 'inventario_mp' ? 'Inventario MP e Insumos' : key.replace(/_/g, ' ') }}</span>
                     <button
                       type="button"
