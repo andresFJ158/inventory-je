@@ -908,9 +908,12 @@ async function handleRegisterClient() {
   }
 
   const emailStr = String(newClient.value.email || '').trim()
-  if (emailStr && !emailStr.includes('@')) {
-    toast.add({ title: 'El correo electrónico debe contener un "@".', color: 'error' })
-    return
+  if (emailStr) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(emailStr)) {
+      toast.add({ title: 'El correo electrónico no tiene un formato válido.', color: 'error' })
+      return
+    }
   }
 
   const phoneStr = String(newClient.value.phone || '').trim()

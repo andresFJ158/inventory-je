@@ -352,8 +352,10 @@ watch(() => formModel.value.rol_admin, (newRole) => {
   } else if (newRole === 'despachador') {
     permForm.value.compras = true
     permForm.value.almacen = true
+    permForm.value.despachos = true
     permForm.value.mi_inventario = true
   } else if (newRole === 'lab_admin') {
+    permForm.value.dashboard_lab = true
     permForm.value.productos = true
     permForm.value.compras = true
     permForm.value.proveedores = true
@@ -947,7 +949,7 @@ onMounted(async () => {
               </div>
 
               <!-- Lab Section -->
-              <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+              <div v-if="!['cajero', 'vendedor', 'despachador'].includes(formModel.rol_admin)" class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-200 pb-1">Módulos Laboratorio</h4>
                 <div class="space-y-1">
                   <div v-for="key in ['dashboard_lab', 'materiales', 'insumos_lab', 'proveedores_lab', 'inventario_mp', 'entradas', 'aprobar_entradas', 'recetas', 'produccion', 'calidad', 'inventario_final']" :key="key" class="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">

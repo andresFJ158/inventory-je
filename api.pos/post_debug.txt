@@ -298,3 +298,39 @@ CONTENT_TYPE: application/x-www-form-urlencoded
 RAW INPUT: name_supply=Botellas&unit_supply=unidad&stock_supply=5&price_supply=0.5&id_supplier_supply=0&id_office_supply=0&status_supply=1
 POST ARRAY: {"name_supply":"Botellas","unit_supply":"unidad","stock_supply":"5","price_supply":"0.5","id_supplier_supply":"0","id_office_supply":"0","status_supply":"1"}
 ---
+2026-06-26 10:15:13
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: dni_client=12346578&name_client=alsldhoash&surname_client=hdaodsuei&email_client=hdsiufhsdi%40&address_client=aiuhfiuse&phone_client=12345678&id_office_client=0&id_admin_client=36
+POST ARRAY: {"dni_client":"12346578","name_client":"alsldhoash","surname_client":"hdaodsuei","email_client":"hdsiufhsdi@","address_client":"aiuhfiuse","phone_client":"12345678","id_office_client":"0","id_admin_client":"36"}
+---
+2026-06-26 10:15:20
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: dni_client=12346577&name_client=alsldhoash&surname_client=hdaodsuei&email_client=hdsiufhsdi%40&address_client=aiuhfiuse&phone_client=12345678&id_office_client=0&id_admin_client=36
+POST ARRAY: {"dni_client":"12346577","name_client":"alsldhoash","surname_client":"hdaodsuei","email_client":"hdsiufhsdi@","address_client":"aiuhfiuse","phone_client":"12345678","id_office_client":"0","id_admin_client":"36"}
+---
+2026-06-26 10:15:54
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_category=prueba&img_category=&order_category=1&status_category=1
+POST ARRAY: {"title_category":"prueba","img_category":"","order_category":"1","status_category":"1"}
+---
+2026-06-26 10:16:07
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: title_category=prueba&img_category=&order_category=3&status_category=1
+POST ARRAY: {"title_category":"prueba","img_category":"","order_category":"3","status_category":"1"}
+---
+2026-06-26 10:17:37
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: dni_client=12345688&name_client=prueba&surname_client=prueba&email_client=prueba%40gmail.com&address_client=prueba&phone_client=12345678&id_office_client=0&id_admin_client=36
+POST ARRAY: {"dni_client":"12345688","name_client":"prueba","surname_client":"prueba","email_client":"prueba@gmail.com","address_client":"prueba","phone_client":"12345678","id_office_client":"0","id_admin_client":"36"}
+---
+2026-06-26 10:18:13
+METHOD: POST
+CONTENT_TYPE: application/x-www-form-urlencoded
+RAW INPUT: dni_client=12345668&name_client=prueba&surname_client=prueba&email_client=prueba%40gmail.com&address_client=prueba&phone_client=12345678&id_office_client=0&id_admin_client=36
+POST ARRAY: {"dni_client":"12345668","name_client":"prueba","surname_client":"prueba","email_client":"prueba@gmail.com","address_client":"prueba","phone_client":"12345678","id_office_client":"0","id_admin_client":"36"}
+---
