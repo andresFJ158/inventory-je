@@ -349,6 +349,7 @@ watch(() => formModel.value.rol_admin, (newRole) => {
   } else if (newRole === 'vendedor') {
     permForm.value.pos = true
     permForm.value.creditos = true
+    permForm.value.consignacion = true
     permForm.value.ordenes = true
     permForm.value.caja = true
     permForm.value.mi_inventario = true
