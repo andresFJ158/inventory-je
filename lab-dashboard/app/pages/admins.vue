@@ -351,7 +351,6 @@ watch(() => formModel.value.rol_admin, (newRole) => {
     permForm.value.creditos = true
     permForm.value.consignacion = true
     permForm.value.ordenes = true
-    permForm.value.caja = true
     permForm.value.mi_inventario = true
     permForm.value.qrs = true
 

@@ -204,6 +204,9 @@ async function fetchRows() {
            // Solo ver clientes globales (sin vendedor asignado)
            fetchedRows = fetchedRows.filter((r: any) => !r.id_admin_client || String(r.id_admin_client) === '0')
         }
+      } else if (config.title_module === 'offices') {
+        // Filtrar almacenes de la vista de sucursales
+        fetchedRows = fetchedRows.filter((r: any) => String(r.type_office) !== 'almacen')
       }
 
       rows.value = fetchedRows
